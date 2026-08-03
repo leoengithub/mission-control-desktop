@@ -31,7 +31,7 @@ The generated application icon is a transparent build placeholder for the same r
 
 Register a GitHub App, enable Device Flow, and grant repository permissions for metadata (read), pull requests (read/write), checks (read), commit statuses (read), and contents (read). The application does not use or ship a client secret.
 
-Provide the public client ID at compile time:
+The public GitHub App client ID is embedded in official builds. To develop against a different GitHub App, override it at compile time:
 
 ```sh
 export MC_GITHUB_CLIENT_ID=your_client_id

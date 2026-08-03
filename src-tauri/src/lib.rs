@@ -16,7 +16,9 @@ use std::{
 use activation::{ActivationState, resolve_activation_state};
 use attention::{AttentionItem, AttentionRepository};
 use database::Database;
-use github_auth::{DeviceAuthorization, DeviceAuthorizationPoll, GithubAuthService};
+use github_auth::{
+    DeviceAuthorization, DeviceAuthorizationPoll, GithubAuthService, github_client_id,
+};
 use serde::Serialize;
 use settings::{AppSettings, SettingsPatch, SettingsStore};
 use sync::{CachedPullRequest, GithubSyncResult, GithubSyncService, list_cached_pull_requests};
@@ -60,7 +62,7 @@ fn get_foundation_status(state: State<'_, AppState>) -> Result<FoundationStatus,
     Ok(FoundationStatus {
         settings_schema_version: settings::SETTINGS_SCHEMA_VERSION,
         database_schema_version: DATABASE_SCHEMA_VERSION,
-        github_app_configured: option_env!("MC_GITHUB_CLIENT_ID").is_some(),
+        github_app_configured: github_client_id().is_some(),
         actionable_poll_seconds,
         discovery_poll_seconds,
     })
@@ -68,11 +70,8 @@ fn get_foundation_status(state: State<'_, AppState>) -> Result<FoundationStatus,
 
 #[tauri::command]
 fn get_activation_state(state: State<'_, AppState>) -> Result<ActivationState, String> {
-    resolve_activation_state(
-        &state.database,
-        option_env!("MC_GITHUB_CLIENT_ID").is_some(),
-    )
-    .map_err(|error| error.to_string())
+    resolve_activation_state(&state.database, github_client_id().is_some())
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

@@ -20,6 +20,14 @@ const REFRESH_GRANT_TYPE: &str = "refresh_token";
 const KEYCHAIN_SERVICE: &str = "com.leoengithub.mission-control-desktop.github";
 const ACCESS_TOKEN_ACCOUNT: &str = "github.com/access-token";
 const REFRESH_TOKEN_ACCOUNT: &str = "github.com/refresh-token";
+const DEFAULT_GITHUB_CLIENT_ID: &str = "Iv23litFmh9lOiUlC8ua";
+
+pub(crate) fn github_client_id() -> Option<&'static str> {
+    let client_id = option_env!("MC_GITHUB_CLIENT_ID")
+        .unwrap_or(DEFAULT_GITHUB_CLIENT_ID)
+        .trim();
+    (!client_id.is_empty()).then_some(client_id)
+}
 
 #[derive(Debug, Error)]
 pub enum GithubAuthError {
@@ -79,9 +87,7 @@ pub struct GithubAuthService {
 
 impl GithubAuthService {
     pub fn new() -> Result<Self, GithubAuthError> {
-        let client_id = option_env!("MC_GITHUB_CLIENT_ID")
-            .filter(|value| !value.trim().is_empty())
-            .ok_or(GithubAuthError::MissingClientId)?;
+        let client_id = github_client_id().ok_or(GithubAuthError::MissingClientId)?;
         let client = Client::builder()
             .user_agent(concat!(
                 "mission-control-desktop/",
