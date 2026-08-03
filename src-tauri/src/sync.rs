@@ -15,6 +15,9 @@ use crate::{
 const GRAPHQL_URL: &str = "https://api.github.com/graphql";
 const SEARCH_QUERY: &str = r#"
 query PullRequestInbox($query: String!, $after: String) {
+  viewer {
+    repositories(first: 1) { totalCount }
+  }
   search(query: $query, type: ISSUE, first: 50, after: $after) {
     nodes {
       ... on PullRequest {
@@ -133,8 +136,9 @@ impl GithubSyncService {
         let login = github_login(database)?;
         let authored_query = format!("is:pr is:open author:{login}");
         let requested_query = format!("is:pr is:open review-requested:{login}");
-        let authored = self.search(access_token, &authored_query).await?;
-        let requested = self.search(access_token, &requested_query).await?;
+        let (authored, accessible_repository_count) =
+            self.search(access_token, &authored_query).await?;
+        let (requested, _) = self.search(access_token, &requested_query).await?;
         let requested_ids: HashSet<_> = requested
             .iter()
             .map(|pull_request| pull_request.id.clone())
@@ -180,7 +184,7 @@ impl GithubSyncService {
                 )?,
             );
         }
-        mark_sync_complete(database)?;
+        mark_sync_complete(database, accessible_repository_count)?;
         Ok((
             GithubSyncResult {
                 pull_request_count: pull_requests.len(),
@@ -195,7 +199,7 @@ impl GithubSyncService {
         &self,
         access_token: &str,
         query: &str,
-    ) -> Result<Vec<SearchPullRequest>, GithubSyncError> {
+    ) -> Result<(Vec<SearchPullRequest>, u32), GithubSyncError> {
         let mut cursor: Option<String> = None;
         let mut pull_requests = Vec::new();
         loop {
@@ -206,9 +210,10 @@ impl GithubSyncService {
                     json!({ "query": query, "after": cursor }),
                 )
                 .await?;
+            let accessible_repository_count = data.viewer.repositories.total_count;
             pull_requests.extend(data.search.nodes.into_iter().flatten());
             if !data.search.page_info.has_next_page {
-                return Ok(pull_requests);
+                return Ok((pull_requests, accessible_repository_count));
             }
             cursor = data.search.page_info.end_cursor;
             if cursor.is_none() {
@@ -429,10 +434,21 @@ fn persist_attention_detail(
     })
 }
 
-fn mark_sync_complete(database: &Database) -> Result<(), DatabaseError> {
+fn mark_sync_complete(
+    database: &Database,
+    accessible_repository_count: u32,
+) -> Result<(), DatabaseError> {
     let now = Utc::now().to_rfc3339();
+    let accessible_repository_count = accessible_repository_count.to_string();
     database.with_connection(|connection| {
-        for (key, value) in [("initial_sync_completed", "true"), ("last_inbox_sync_at", now.as_str())] {
+        for (key, value) in [
+            ("initial_sync_completed", "true"),
+            ("last_inbox_sync_at", now.as_str()),
+            (
+                "accessible_repository_count",
+                accessible_repository_count.as_str(),
+            ),
+        ] {
             connection.execute(
                 "INSERT INTO app_state (key, value, updated_at) VALUES (?1, ?2, ?3) \
                  ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
@@ -457,7 +473,19 @@ struct GraphqlError {
 
 #[derive(Deserialize)]
 struct SearchData {
+    viewer: ViewerData,
     search: SearchConnection,
+}
+
+#[derive(Deserialize)]
+struct ViewerData {
+    repositories: RepositoryConnection,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RepositoryConnection {
+    total_count: u32,
 }
 
 #[derive(Deserialize)]

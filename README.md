@@ -15,10 +15,14 @@ The repository contains the native foundation:
 - GitHub App device authorization with keychain-backed token rotation
 - cached authored/review-requested PR synchronization with background refresh
 - typed renderer-to-core commands
+- three-step GitHub authorization, repository access, and first-sync onboarding
+- a master-detail attention inbox for review requests, unresolved threads, and failing checks
+- cache freshness, manual refresh, focus refresh, empty, loading, and failure states
+- a documented OKLCH visual system with accessible icon-and-label status treatments
 
-The product interface is intentionally unshaped. UI implementation begins after product references are provided and `PRODUCT.md`, `DESIGN.md`, and the shape brief are confirmed.
+The renderer includes deterministic browser previews for design and interaction work outside the native shell. Run `corepack pnpm dev`, then use `?preview=onboarding` or `?preview=empty` to inspect those states. The default preview renders a populated attention inbox.
 
-The generated application icon is a transparent build placeholder for the same reason.
+The generated application icon remains a transparent build placeholder. A distributable icon set and signed release pipeline are planned before the first public beta.
 
 ## Prerequisites
 

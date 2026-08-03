@@ -46,3 +46,7 @@ export function startGithubAuthorization(): Promise<DeviceAuthorization> {
 export function pollGithubAuthorization(sessionId: string): Promise<DeviceAuthorizationPoll> {
   return invoke<DeviceAuthorizationPoll>('poll_github_authorization', { sessionId });
 }
+
+export function openExternalUrl(url: string): Promise<void> {
+  return invoke<void>('plugin:opener|open_url', { url });
+}

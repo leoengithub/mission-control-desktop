@@ -1,9 +1,121 @@
 ---
 name: Mission Control Desktop
 description: A calm native attention inbox for pull request review work.
+colors:
+  canvas: 'oklch(97.7% 0.006 128)'
+  surface: 'oklch(99.2% 0.004 128)'
+  surface-raised: 'oklch(100% 0.002 128)'
+  surface-muted: 'oklch(95.8% 0.008 128)'
+  surface-selected: 'oklch(94.5% 0.018 139)'
+  ink: 'oklch(23% 0.012 128)'
+  ink-secondary: 'oklch(48% 0.01 128)'
+  ink-muted: 'oklch(61% 0.008 128)'
+  hairline: 'oklch(89.5% 0.008 128)'
+  hairline-strong: 'oklch(84% 0.009 128)'
+  action: 'oklch(21% 0.014 128)'
+  action-hover: 'oklch(28% 0.016 128)'
+  success: 'oklch(54% 0.16 143)'
+  success-deep: 'oklch(40% 0.13 143)'
+  success-soft: 'oklch(94% 0.035 143)'
+  warning: 'oklch(67% 0.145 74)'
+  warning-deep: 'oklch(47% 0.12 66)'
+  warning-soft: 'oklch(95.5% 0.036 78)'
+  danger: 'oklch(55% 0.19 29)'
+  danger-deep: 'oklch(43% 0.16 29)'
+  danger-soft: 'oklch(95% 0.03 29)'
+  info: 'oklch(56% 0.14 248)'
+  info-deep: 'oklch(43% 0.115 248)'
+  info-soft: 'oklch(95% 0.025 248)'
+  focus: 'oklch(58% 0.15 248)'
+typography:
+  display:
+    fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, system-ui, sans-serif'
+    fontSize: 'clamp(2.5rem, 5vw, 4.6rem)'
+    fontWeight: 650
+    lineHeight: 0.98
+    letterSpacing: '-0.055em'
+  headline:
+    fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, system-ui, sans-serif'
+    fontSize: 'clamp(1.45rem, 2.2vw, 2rem)'
+    fontWeight: 680
+    lineHeight: 1.14
+    letterSpacing: '-0.035em'
+  title:
+    fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, system-ui, sans-serif'
+    fontSize: '1.05rem'
+    fontWeight: 650
+    lineHeight: 1.45
+    letterSpacing: '-0.015em'
+  body:
+    fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, system-ui, sans-serif'
+    fontSize: '0.875rem'
+    fontWeight: 400
+    lineHeight: 1.6
+    letterSpacing: 'normal'
+  label:
+    fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, system-ui, sans-serif'
+    fontSize: '0.75rem'
+    fontWeight: 650
+    lineHeight: 1.45
+    letterSpacing: '0.04em'
+rounded:
+  sm: '7px'
+  md: '11px'
+  lg: '16px'
+  pill: '999px'
+spacing:
+  1: '4px'
+  2: '8px'
+  3: '12px'
+  4: '16px'
+  5: '24px'
+  6: '32px'
+  7: '48px'
+components:
+  button-primary:
+    backgroundColor: '{colors.action}'
+    textColor: '{colors.surface}'
+    rounded: '{rounded.sm}'
+    padding: '0 16px'
+    height: '38px'
+  button-primary-hover:
+    backgroundColor: '{colors.action-hover}'
+    textColor: '{colors.surface}'
+  button-quiet:
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.sm}'
+    padding: '0 16px'
+    height: '38px'
+  search-field:
+    backgroundColor: '{colors.surface-raised}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.sm}'
+    padding: '0 12px'
+    height: '38px'
+  status-warning:
+    backgroundColor: '{colors.warning-soft}'
+    textColor: '{colors.warning-deep}'
+    rounded: '{rounded.pill}'
+    padding: '0 9px'
+    height: '26px'
+  status-danger:
+    backgroundColor: '{colors.danger-soft}'
+    textColor: '{colors.danger-deep}'
+    rounded: '{rounded.pill}'
+    padding: '0 9px'
+    height: '26px'
+  review-row-selected:
+    backgroundColor: '{colors.surface-selected}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.md}'
+    padding: '8px 12px'
+  activation-panel:
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.lg}'
+    padding: '24px'
 ---
-
-<!-- SEED: re-run /impeccable document once the interface exists to capture actual tokens and components. -->
 
 # Design System: Mission Control Desktop
 
@@ -11,101 +123,164 @@ description: A calm native attention inbox for pull request review work.
 
 **Creative North Star: "The Review Desk"**
 
-Mission Control should feel like a bright, organized desk used by a developer on a large monitor during focused work. The persistent rail, compact pull request list, generous review surface, and optional third context pane keep related work visible without making every region equally prominent. The composition is quiet and mostly flat, with density concentrated in lists and check results and breathing room reserved for comprehension.
+Mission Control is a bright, organized desk for focused pull request work. A persistent 64px rail anchors the app; a compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Density belongs at the edge. Comprehension gets space in the center.
 
-The primary references are the Tembo Reviews master-detail workspace, the Tembo Computer and Checks split view, and the Tembo Insights settings shell. Borrow their calm near-white surfaces, narrow dividers, compact controls, and semantic state treatment. Do not copy their product content or turn the application into a marketing surface.
+The system is calm, precise, and quietly capable. It uses softly tinted near-white materials, graphite text, hairline boundaries, and semantic accents only when state deserves attention. It rejects GitHub's fragmented navigation, generic card-heavy SaaS dashboards, terminal-first neon decoration, color-only status, and marketing-page typography.
 
-Motion is responsive but restrained. Use 150 to 220 millisecond ease-out transitions for selection, disclosure, pane appearance, and status changes. Animate opacity and transform only. Do not choreograph page entrances or delay access to current state. Reduced-motion preferences remove non-essential movement.
+Motion is responsive but restrained: 120ms for direct press feedback and 190ms for state transitions, both using an expressive ease-out curve. Animate opacity and transform; never choreograph page entrances or block access to current state. The app targets desktop windows from 960px upward and preserves reduced-motion preferences.
 
 **Key Characteristics:**
 
-- Persistent narrow navigation rail with clear active state
-- Master-detail layout, with an optional third pane for terminal or agent context
-- Compact lists paired with a spacious reading surface
-- Near-white tinted surfaces separated by fine dividers and tonal shifts
-- Semantic status language that combines color, icon, label, and count
-- Controls that feel native, quiet, and immediately actionable
+- Persistent narrow rail with a visible active destination and monitoring state
+- Master-detail review workspace with a 320–390px attention inventory
+- Compact rows paired with a spacious, readable pull request surface
+- Near-white tonal layers separated by 1px hairlines instead of card shadows
+- Status treatment that always combines color, icon, label, count, or shape
+- Cached-data provenance and synchronization state kept visible at all times
 
 ## Colors
 
-Use a restrained palette derived from the references: near-white cool-neutral canvas, softly tinted secondary surfaces, graphite text, and semantic green, amber, red, blue, and muted gray. Exact values remain **[to be resolved during implementation]** and should be expressed as OKLCH design tokens once the first interface is built.
+The palette is a cool botanical neutral field with low-chroma green surfaces and deliberate amber, red, and blue signals. The OKLCH values in frontmatter are canonical; Stitch may warn because its validator expects sRGB hex.
 
 ### Primary
 
-- **Action Graphite:** The default primary-action family. It should read as confident and neutral rather than decorative. **[value to be resolved during implementation]**
-- **Review Green:** Approval, successful checks, open-ready states, and safe completion. Pair it with a check, branch, arrow, or explicit label. **[value to be resolved during implementation]**
+- **Action Graphite** (`colors.action`): Primary buttons and high-confidence actions. Its hover variant is `colors.action-hover`; never substitute a semantic color for an unrelated action.
+- **Review Green** (`colors.success`): Successful checks, completed setup, healthy monitoring, and clear inbox states. Use `success-deep` for text and `success-soft` for quiet fills.
 
 ### Secondary
 
-- **Attention Amber:** Review requested, pending work, waiting states, and non-destructive escalation. Pair it with a clock, ring, count, or text label. **[value to be resolved during implementation]**
-- **Failure Red:** Failing checks, critical review findings, agent failure, and destructive consequences. Pair it with a cross, severity glyph, or explicit text. **[value to be resolved during implementation]**
-- **Context Blue:** Informational selection, charts, links, and neutral context where green would imply success. **[value to be resolved during implementation]**
+- **Attention Amber** (`colors.warning`): Review requests, open threads, waiting, pending work, and current onboarding steps. Use the deep/soft pair for legible labels and low-noise surfaces.
+- **Failure Red** (`colors.danger`): Failing required checks, blocking errors, and destructive consequences. Red is forbidden for neutral emphasis.
+
+### Tertiary
+
+- **Context Blue** (`colors.info`): Informational context and focus-adjacent state where green would falsely imply success. Use sparingly.
 
 ### Neutral
 
-- **Canvas Mist:** The lightly tinted application background. Never pure white. **[value to be resolved during implementation]**
-- **Working Surface:** The primary reading and interaction surface, separated from the canvas through a subtle tonal shift. **[value to be resolved during implementation]**
-- **Quiet Fill:** Selection rows, code tokens, filter chips, and secondary controls. **[value to be resolved during implementation]**
-- **Graphite Ink:** Primary text. Never pure black. **[value to be resolved during implementation]**
-- **Muted Ink:** Metadata and secondary labels, while retaining accessible contrast. **[value to be resolved during implementation]**
-- **Hairline:** Dividers, field outlines, and pane boundaries. **[value to be resolved during implementation]**
+- **Canvas Mist** (`colors.canvas`): The application field. It is intentionally tinted and never pure white.
+- **Working Surface** (`colors.surface`): Headers, list panes, and primary reading boundaries.
+- **Raised Paper** (`colors.surface-raised`): Inputs and small controls that need one tonal step of separation.
+- **Quiet Fill** (`colors.surface-muted`): Hover, neutral grouping, skeletons, and secondary action surfaces.
+- **Selected Sage** (`colors.surface-selected`): Active pull request rows and active navigation destinations.
+- **Graphite Ink** (`colors.ink`): Primary text. `ink-secondary` carries metadata; `ink-muted` is reserved for nonessential timestamps and provenance.
+- **Hairline Fog** (`colors.hairline`): Pane dividers and surface boundaries. `hairline-strong` is for control outlines.
 
 ### Named Rules
 
 **The Redundancy Rule.** Every semantic color is paired with an icon, label, count, shape, or pattern. Color is reinforcement, never the only signal.
 
-**The Quiet Canvas Rule.** Semantic color belongs to state and action. Large passive surfaces stay neutral and softly tinted.
+**The Quiet Canvas Rule.** Semantic color belongs to state and action. Large passive surfaces remain neutral and softly tinted.
+
+**The One Red Rule.** Failure Red means a condition is blocking or broken. Never use it for decoration, activity, or urgency without consequence.
 
 ## Typography
 
-**Display Font:** Single neutral system sans **[exact stack to be validated during implementation]**
+**Display Font:** Native system sans (San Francisco on macOS, Segoe UI on Windows)
 
-**Body Font:** The same system sans **[exact stack to be validated during implementation]**
+**Body Font:** The same native system sans
 
-**Label/Mono Font:** System monospace only for code, SHAs, commands, paths, and terminal content **[exact stack to be validated during implementation]**
+**Label/Mono Font:** SFMono-Regular, Menlo, or Consolas for SHAs, device codes, paths, commands, and terminal content only
 
-**Character:** Compact, modern, and highly legible. Hierarchy comes from weight, spacing, and placement more often than dramatic size changes. The system should feel native on macOS and avoid a web-dashboard personality.
+**Character:** Compact, modern, and native. Hierarchy comes from weight, spacing, and placement more often than dramatic size shifts; the first-run message is the only deliberate display-scale exception.
 
 ### Hierarchy
 
-- **Headline:** Semibold, compact, and reserved for the current pull request or major settings section. **[exact size to be resolved during implementation]**
-- **Title:** Semibold for pane titles, review sections, and grouped attention reasons. **[exact size to be resolved during implementation]**
-- **Body:** Regular weight with comfortable reading line length for summaries and review content. **[exact size to be resolved during implementation]**
-- **UI Body:** Compact regular or medium text for rows, controls, checks, and metadata. **[exact size to be resolved during implementation]**
-- **Label:** Medium weight for short state labels, tabs, chips, and counts. Avoid all caps. **[exact size to be resolved during implementation]**
+- **Display** (650, `typography.display`): First-run headline only; balanced to roughly 11 characters per line.
+- **Headline** (680, `typography.headline`): Current pull request title, capped near 38ch for scanability.
+- **Title** (650, `typography.title`): Attention summaries, pane sections, and grouped review state.
+- **Body** (400, `typography.body`): Explanations and reason summaries; cap prose near 68ch.
+- **Label** (650, `typography.label`): Short section overlines and operational context. Uppercase is allowed only for these compact wayfinding labels.
 
 ### Named Rules
 
-**The Dense Edge, Calm Center Rule.** Navigation and inventory can be compact. Reading and decision surfaces receive more space and longer line height.
+**The Dense Edge, Calm Center Rule.** Inventory text stays compact; reading and decision surfaces receive more space and a 1.6 line height.
+
+**The Native Voice Rule.** Do not import a decorative webfont. Mission Control must look and render like a desktop tool before it looks branded.
 
 ## Elevation
 
-The system is flat by default. Pane hierarchy comes from tonal surfaces, hairline dividers, and spatial separation. Shadows are reserved for transient overlays, floating menus, dragged elements, and the rare surface that genuinely overlaps another. **[exact shadow vocabulary to be resolved during implementation]**
+The application is flat by default. Depth comes from tonal surfaces, 1px hairlines, persistent pane geometry, and selected fills. The only shadow token is an ambient floating shadow for transient overlays, menus, dragged elements, or future terminal popovers; it is forbidden on ordinary content containers.
+
+### Shadow Vocabulary
+
+- **Floating Ambient** (`0 14px 40px oklch(28% 0.02 128 / 0.12)`): Transient surfaces that physically overlap the workspace. Never use on the inbox, detail surface, onboarding panel, or status chips.
 
 ### Named Rules
 
-**The Structural Depth Rule.** If spacing, alignment, and a tonal change can explain hierarchy, a shadow is forbidden.
+**The Structural Depth Rule.** If spacing, alignment, a tonal change, and a 1px hairline explain hierarchy, a shadow is forbidden.
+
+**The No Nested Cards Rule.** A bordered panel may contain rows and sections, not smaller decorative cards. Separate content with rhythm and hairlines.
 
 ## Components
 
-The seed establishes component character without declaring final tokens. Controls are compact, softly rounded, and visually quiet at rest. Primary actions use Action Graphite or a semantic color only when the action itself has that meaning. Search, filters, tabs, list rows, status chips, disclosure rows, pane headers, and terminal controls must share one consistent shape and state vocabulary. Exact component definitions will be extracted after the first interface implementation.
+Components are refined and restrained: compact dimensions, modest curvature, immediate feedback, and no ornamental chrome. The source implementation in `src/styles.css` is authoritative when a future screen needs exact interaction selectors.
+
+### Buttons
+
+- **Shape:** Gently curved rectangle (`rounded.sm`, minimum height 38px) with 16px horizontal padding.
+- **Primary:** Action Graphite with Working Surface text; reserve it for the dominant next action.
+- **Hover / Focus:** Shift to Action Graphite Hover over 190ms. Focus uses a 2px Context Blue outline with 2px offset. Press feedback scales to 0.98 over 120ms.
+- **Quiet:** Working Surface, a strong hairline outline, and Graphite Ink. Hover strengthens the outline and lifts only tonally.
+- **Icon:** Use the existing 15–18px stroke icon beside an explicit verb. Icon-only buttons require an accessible label.
+
+### Chips
+
+- **Style:** Pill shape (`rounded.pill`), 26px high, with a 1px semantic border and soft fill.
+- **State:** Every chip carries a small icon and a written label; compact inbox variants are 21px high. Do not create color-only dots as standalone status.
+
+### Cards / Containers
+
+- **Corner Style:** Medium containers use 11px; the single onboarding panel uses 16px.
+- **Background:** Working Surface over Canvas Mist. Selection uses Selected Sage.
+- **Shadow Strategy:** Flat by default; follow the Structural Depth Rule.
+- **Border:** One Hairline Fog stroke. Strong Hairline is reserved for controls.
+- **Internal Padding:** 16px for toolbars, 24px for panels, and 28–56px responsive gutters for the detail surface.
+
+### Inputs / Fields
+
+- **Style:** Raised Paper fill, Strong Hairline border, 7px radius, 38px height, and a leading 16px search icon.
+- **Focus:** Context Blue border plus a soft 3px blue ring. Do not rely on removing the outline.
+- **Error / Disabled:** Errors combine Failure Red, an alert icon, and explanatory copy. Disabled controls preserve their label and use reduced opacity.
+
+### Navigation
+
+- **Style:** The desktop rail is fixed at 64px. Destinations use 40px square targets with 11px corners and inline SVG icons.
+- **State:** Hover uses Quiet Fill; active uses Selected Sage plus Review Green ink. The rail status includes hidden text and a visible state mark.
+- **Behavior:** Tooltips appear over 120ms. Navigation never animates the workspace layout.
+
+### Attention Inbox
+
+- **Row:** A 66px minimum-height button with avatar, title/repository metadata, icon-plus-label reason, and relative time.
+- **Selection:** Selected Sage fill plus `aria-pressed`; selection updates the adjacent detail without navigation.
+- **Grouping:** Needs Attention uses Amber soft fill and a clock icon. Other Open uses Quiet Fill and a branch icon. Each heading includes a written label and count.
+- **Detail:** Lead with the reason, repository identity, pull request title, SHA/author/freshness metadata, and one explicit GitHub action. Attention rows show icon, label, explanation, source, and timestamp.
+
+### Activation Panel
+
+- **Structure:** Exactly three visible steps—GitHub authorization, repository access, and first inbox synchronization—with written Current, Later, and Done states.
+- **Copy:** Descriptions wrap at the 960px minimum window; repository access language must never be truncated.
+- **Progress:** Waiting and scanning use restrained spinners or pulses plus live text. Device codes use system monospace and an explicit copy control.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** use master-detail or three-pane composition when adjacent context prevents navigation.
-- **Do** keep pull request rows compact and make the selected row obvious through fill, type weight, and position.
-- **Do** pair status color with an icon, label, count, shape, or pattern.
-- **Do** reserve generous spacing for summaries, review findings, check details, and decisions.
-- **Do** use short 150 to 220 millisecond ease-out transitions for state changes and pane disclosure.
-- **Do** preserve the feeling of the supplied Tembo Reviews, Computer, Checks, and Insights references.
+- **Do** lead with escalated work and the reason it changed before showing ordinary inventory.
+- **Do** preserve the 64px rail, 320–390px inventory pane, and adjacent detail surface when context switching would otherwise be required.
+- **Do** keep pull request rows compact and make selection visible through fill, type weight, position, and `aria-pressed`.
+- **Do** pair every semantic color with an icon, written label, count, shape, or pattern.
+- **Do** show cache provenance and synchronization time; trust depends on knowing how fresh the state is.
+- **Do** use 120ms press feedback and 190ms ease-out state transitions, with reduced-motion overrides.
+- **Do** preserve readable onboarding copy at the 960px minimum desktop width.
 
 ### Don't:
 
-- **Don't** reproduce GitHub's fragmented pull request navigation or require repeated context switching.
-- **Don't** create generic card-heavy SaaS dashboards or nested cards.
+- **Don't** reproduce GitHub's fragmented pull request navigation or force repeated context switching among review threads, checks, notifications, and authored work.
+- **Don't** create generic card-heavy SaaS dashboards or nested cards; if every datum sits in a tile, the hierarchy has failed.
 - **Don't** use terminal-first dark surfaces, neon accents, or code aesthetics as decoration.
-- **Don't** use color alone to communicate success, attention, failure, pending, or disabled state.
-- **Don't** use marketing-page typography, oversized headings, decorative motion, gradient text, glassmorphism, or colored side-stripe borders.
-- **Don't** animate layout properties or delay access to live state with page-load choreography.
+- **Don't** communicate success, warning, failure, pending, interrupted, or disabled state through color alone.
+- **Don't** use marketing-page spacing or oversized typography inside task-focused workspace surfaces; display scale belongs only to first-run onboarding.
+- **Don't** use gradient text, glassmorphism, colored side-stripe borders, or decorative page-load choreography.
+- **Don't** apply shadows to persistent panes, inbox rows, detail sections, or the onboarding panel.
+- **Don't** animate width, height, grid columns, or other layout properties; animate opacity and transform only.

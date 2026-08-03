@@ -33,10 +33,21 @@ pub fn resolve_activation_state(
                 |row| row.get::<_, String>(0),
             )
             .optional()?;
-        let repository_count =
-            connection.query_row("SELECT COUNT(*) FROM repositories", [], |row| {
-                row.get::<_, u32>(0)
-            })?;
+        let repository_count = connection
+            .query_row(
+                "SELECT value FROM app_state WHERE key = 'accessible_repository_count'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .and_then(|value| value.parse::<u32>().ok())
+            .unwrap_or_else(|| {
+                connection
+                    .query_row("SELECT COUNT(*) FROM repositories", [], |row| {
+                        row.get::<_, u32>(0)
+                    })
+                    .unwrap_or(0)
+            });
         let initial_sync_completed = connection
             .query_row(
                 "SELECT value FROM app_state WHERE key = 'initial_sync_completed'",
@@ -89,5 +100,32 @@ mod tests {
         let database = Database::open(directory.path().join("activation.sqlite3")).unwrap();
         let state = resolve_activation_state(&database, true).unwrap();
         assert_eq!(state.step, ActivationStep::GithubAuthorizationRequired);
+    }
+
+    #[test]
+    fn completed_sync_without_open_pull_requests_can_activate() {
+        let directory = tempdir().unwrap();
+        let database = Database::open(directory.path().join("activation.sqlite3")).unwrap();
+        database
+            .with_connection(|connection| {
+                connection.execute(
+                    "INSERT INTO github_accounts (id, login, avatar_url, authorized_at) \
+                     VALUES ('account-1', 'reviewer', '', '2026-08-03T12:00:00Z')",
+                    [],
+                )?;
+                connection.execute(
+                    "INSERT INTO app_state (key, value, updated_at) VALUES \
+                     ('accessible_repository_count', '3', '2026-08-03T12:00:00Z'), \
+                     ('initial_sync_completed', 'true', '2026-08-03T12:00:00Z')",
+                    [],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+
+        let state = resolve_activation_state(&database, true).unwrap();
+
+        assert_eq!(state.step, ActivationStep::Ready);
+        assert_eq!(state.accessible_repository_count, 3);
     }
 }

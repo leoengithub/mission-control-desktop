@@ -1,0 +1,560 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-03T18:58:39Z",
+  "title": "Design System: Mission Control Desktop",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas Mist",
+        "canonical": "oklch(97.7% 0.006 128)",
+        "tonalRamp": [
+          "oklch(15% 0.006 128)",
+          "oklch(26% 0.006 128)",
+          "oklch(38% 0.006 128)",
+          "oklch(50% 0.006 128)",
+          "oklch(62% 0.006 128)",
+          "oklch(74% 0.006 128)",
+          "oklch(86% 0.006 128)",
+          "oklch(97.7% 0.006 128)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Working Surface",
+        "canonical": "oklch(99.2% 0.004 128)",
+        "tonalRamp": [
+          "oklch(15% 0.004 128)",
+          "oklch(27% 0.004 128)",
+          "oklch(39% 0.004 128)",
+          "oklch(51% 0.004 128)",
+          "oklch(63% 0.004 128)",
+          "oklch(75% 0.004 128)",
+          "oklch(87% 0.004 128)",
+          "oklch(99.2% 0.004 128)"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Raised Paper",
+        "canonical": "oklch(100% 0.002 128)",
+        "tonalRamp": [
+          "oklch(15% 0.002 128)",
+          "oklch(27% 0.002 128)",
+          "oklch(39% 0.002 128)",
+          "oklch(51% 0.002 128)",
+          "oklch(63% 0.002 128)",
+          "oklch(75% 0.002 128)",
+          "oklch(87% 0.002 128)",
+          "oklch(100% 0.002 128)"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Quiet Fill",
+        "canonical": "oklch(95.8% 0.008 128)",
+        "tonalRamp": [
+          "oklch(15% 0.008 128)",
+          "oklch(27% 0.008 128)",
+          "oklch(39% 0.008 128)",
+          "oklch(51% 0.008 128)",
+          "oklch(63% 0.008 128)",
+          "oklch(75% 0.008 128)",
+          "oklch(87% 0.008 128)",
+          "oklch(95.8% 0.008 128)"
+        ]
+      },
+      "surface-selected": {
+        "role": "primary",
+        "displayName": "Selected Sage",
+        "canonical": "oklch(94.5% 0.018 139)",
+        "tonalRamp": [
+          "oklch(15% 0.018 139)",
+          "oklch(27% 0.018 139)",
+          "oklch(39% 0.018 139)",
+          "oklch(51% 0.018 139)",
+          "oklch(63% 0.018 139)",
+          "oklch(75% 0.018 139)",
+          "oklch(87% 0.018 139)",
+          "oklch(94.5% 0.018 139)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite Ink",
+        "canonical": "oklch(23% 0.012 128)",
+        "tonalRamp": [
+          "oklch(15% 0.012 128)",
+          "oklch(26% 0.012 128)",
+          "oklch(38% 0.012 128)",
+          "oklch(50% 0.012 128)",
+          "oklch(62% 0.012 128)",
+          "oklch(74% 0.012 128)",
+          "oklch(86% 0.012 128)",
+          "oklch(95% 0.012 128)"
+        ]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Graphite",
+        "canonical": "oklch(48% 0.01 128)",
+        "tonalRamp": [
+          "oklch(15% 0.01 128)",
+          "oklch(26% 0.01 128)",
+          "oklch(38% 0.01 128)",
+          "oklch(50% 0.01 128)",
+          "oklch(62% 0.01 128)",
+          "oklch(74% 0.01 128)",
+          "oklch(86% 0.01 128)",
+          "oklch(95% 0.01 128)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Graphite",
+        "canonical": "oklch(61% 0.008 128)",
+        "tonalRamp": [
+          "oklch(15% 0.008 128)",
+          "oklch(26% 0.008 128)",
+          "oklch(38% 0.008 128)",
+          "oklch(50% 0.008 128)",
+          "oklch(62% 0.008 128)",
+          "oklch(74% 0.008 128)",
+          "oklch(86% 0.008 128)",
+          "oklch(95% 0.008 128)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline Fog",
+        "canonical": "oklch(89.5% 0.008 128)",
+        "tonalRamp": [
+          "oklch(15% 0.008 128)",
+          "oklch(26% 0.008 128)",
+          "oklch(38% 0.008 128)",
+          "oklch(50% 0.008 128)",
+          "oklch(62% 0.008 128)",
+          "oklch(74% 0.008 128)",
+          "oklch(86% 0.008 128)",
+          "oklch(95% 0.008 128)"
+        ]
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "oklch(84% 0.009 128)",
+        "tonalRamp": [
+          "oklch(15% 0.009 128)",
+          "oklch(26% 0.009 128)",
+          "oklch(38% 0.009 128)",
+          "oklch(50% 0.009 128)",
+          "oklch(62% 0.009 128)",
+          "oklch(74% 0.009 128)",
+          "oklch(84% 0.009 128)",
+          "oklch(95% 0.009 128)"
+        ]
+      },
+      "action": {
+        "role": "primary",
+        "displayName": "Action Graphite",
+        "canonical": "oklch(21% 0.014 128)",
+        "tonalRamp": [
+          "oklch(15% 0.014 128)",
+          "oklch(26% 0.014 128)",
+          "oklch(38% 0.014 128)",
+          "oklch(50% 0.014 128)",
+          "oklch(62% 0.014 128)",
+          "oklch(74% 0.014 128)",
+          "oklch(86% 0.014 128)",
+          "oklch(95% 0.014 128)"
+        ]
+      },
+      "action-hover": {
+        "role": "primary",
+        "displayName": "Action Graphite Hover",
+        "canonical": "oklch(28% 0.016 128)",
+        "tonalRamp": [
+          "oklch(15% 0.016 128)",
+          "oklch(28% 0.016 128)",
+          "oklch(39% 0.016 128)",
+          "oklch(50% 0.016 128)",
+          "oklch(62% 0.016 128)",
+          "oklch(74% 0.016 128)",
+          "oklch(86% 0.016 128)",
+          "oklch(95% 0.016 128)"
+        ]
+      },
+      "success": {
+        "role": "primary",
+        "displayName": "Review Green",
+        "canonical": "oklch(54% 0.16 143)",
+        "tonalRamp": [
+          "oklch(15% 0.07 143)",
+          "oklch(26% 0.10 143)",
+          "oklch(38% 0.13 143)",
+          "oklch(50% 0.16 143)",
+          "oklch(62% 0.14 143)",
+          "oklch(74% 0.11 143)",
+          "oklch(86% 0.07 143)",
+          "oklch(95% 0.035 143)"
+        ]
+      },
+      "success-deep": {
+        "role": "primary",
+        "displayName": "Deep Review Green",
+        "canonical": "oklch(40% 0.13 143)",
+        "tonalRamp": [
+          "oklch(15% 0.06 143)",
+          "oklch(26% 0.09 143)",
+          "oklch(40% 0.13 143)",
+          "oklch(50% 0.14 143)",
+          "oklch(62% 0.12 143)",
+          "oklch(74% 0.09 143)",
+          "oklch(86% 0.06 143)",
+          "oklch(95% 0.03 143)"
+        ]
+      },
+      "success-soft": {
+        "role": "primary",
+        "displayName": "Soft Review Green",
+        "canonical": "oklch(94% 0.035 143)",
+        "tonalRamp": [
+          "oklch(15% 0.035 143)",
+          "oklch(26% 0.035 143)",
+          "oklch(38% 0.035 143)",
+          "oklch(50% 0.035 143)",
+          "oklch(62% 0.035 143)",
+          "oklch(74% 0.035 143)",
+          "oklch(86% 0.035 143)",
+          "oklch(94% 0.035 143)"
+        ]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Attention Amber",
+        "canonical": "oklch(67% 0.145 74)",
+        "tonalRamp": [
+          "oklch(15% 0.06 74)",
+          "oklch(26% 0.09 74)",
+          "oklch(38% 0.12 74)",
+          "oklch(50% 0.145 74)",
+          "oklch(62% 0.145 74)",
+          "oklch(74% 0.12 74)",
+          "oklch(86% 0.08 74)",
+          "oklch(95% 0.036 74)"
+        ]
+      },
+      "warning-deep": {
+        "role": "secondary",
+        "displayName": "Deep Attention Amber",
+        "canonical": "oklch(47% 0.12 66)",
+        "tonalRamp": [
+          "oklch(15% 0.05 66)",
+          "oklch(26% 0.08 66)",
+          "oklch(38% 0.11 66)",
+          "oklch(47% 0.12 66)",
+          "oklch(62% 0.11 66)",
+          "oklch(74% 0.08 66)",
+          "oklch(86% 0.055 66)",
+          "oklch(95% 0.03 66)"
+        ]
+      },
+      "warning-soft": {
+        "role": "secondary",
+        "displayName": "Soft Attention Amber",
+        "canonical": "oklch(95.5% 0.036 78)",
+        "tonalRamp": [
+          "oklch(15% 0.036 78)",
+          "oklch(26% 0.036 78)",
+          "oklch(38% 0.036 78)",
+          "oklch(50% 0.036 78)",
+          "oklch(62% 0.036 78)",
+          "oklch(74% 0.036 78)",
+          "oklch(86% 0.036 78)",
+          "oklch(95.5% 0.036 78)"
+        ]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Failure Red",
+        "canonical": "oklch(55% 0.19 29)",
+        "tonalRamp": [
+          "oklch(15% 0.08 29)",
+          "oklch(26% 0.12 29)",
+          "oklch(38% 0.16 29)",
+          "oklch(50% 0.19 29)",
+          "oklch(62% 0.17 29)",
+          "oklch(74% 0.13 29)",
+          "oklch(86% 0.08 29)",
+          "oklch(95% 0.03 29)"
+        ]
+      },
+      "danger-deep": {
+        "role": "secondary",
+        "displayName": "Deep Failure Red",
+        "canonical": "oklch(43% 0.16 29)",
+        "tonalRamp": [
+          "oklch(15% 0.07 29)",
+          "oklch(26% 0.11 29)",
+          "oklch(38% 0.15 29)",
+          "oklch(43% 0.16 29)",
+          "oklch(62% 0.14 29)",
+          "oklch(74% 0.10 29)",
+          "oklch(86% 0.06 29)",
+          "oklch(95% 0.03 29)"
+        ]
+      },
+      "danger-soft": {
+        "role": "secondary",
+        "displayName": "Soft Failure Red",
+        "canonical": "oklch(95% 0.03 29)",
+        "tonalRamp": [
+          "oklch(15% 0.03 29)",
+          "oklch(26% 0.03 29)",
+          "oklch(38% 0.03 29)",
+          "oklch(50% 0.03 29)",
+          "oklch(62% 0.03 29)",
+          "oklch(74% 0.03 29)",
+          "oklch(86% 0.03 29)",
+          "oklch(95% 0.03 29)"
+        ]
+      },
+      "info": {
+        "role": "tertiary",
+        "displayName": "Context Blue",
+        "canonical": "oklch(56% 0.14 248)",
+        "tonalRamp": [
+          "oklch(15% 0.06 248)",
+          "oklch(26% 0.09 248)",
+          "oklch(38% 0.12 248)",
+          "oklch(50% 0.14 248)",
+          "oklch(62% 0.13 248)",
+          "oklch(74% 0.10 248)",
+          "oklch(86% 0.065 248)",
+          "oklch(95% 0.025 248)"
+        ]
+      },
+      "info-deep": {
+        "role": "tertiary",
+        "displayName": "Deep Context Blue",
+        "canonical": "oklch(43% 0.115 248)",
+        "tonalRamp": [
+          "oklch(15% 0.05 248)",
+          "oklch(26% 0.08 248)",
+          "oklch(38% 0.105 248)",
+          "oklch(43% 0.115 248)",
+          "oklch(62% 0.10 248)",
+          "oklch(74% 0.075 248)",
+          "oklch(86% 0.05 248)",
+          "oklch(95% 0.025 248)"
+        ]
+      },
+      "info-soft": {
+        "role": "tertiary",
+        "displayName": "Soft Context Blue",
+        "canonical": "oklch(95% 0.025 248)",
+        "tonalRamp": [
+          "oklch(15% 0.025 248)",
+          "oklch(26% 0.025 248)",
+          "oklch(38% 0.025 248)",
+          "oklch(50% 0.025 248)",
+          "oklch(62% 0.025 248)",
+          "oklch(74% 0.025 248)",
+          "oklch(86% 0.025 248)",
+          "oklch(95% 0.025 248)"
+        ]
+      },
+      "focus": {
+        "role": "tertiary",
+        "displayName": "Focus Blue",
+        "canonical": "oklch(58% 0.15 248)",
+        "tonalRamp": [
+          "oklch(15% 0.06 248)",
+          "oklch(26% 0.09 248)",
+          "oklch(38% 0.12 248)",
+          "oklch(50% 0.15 248)",
+          "oklch(62% 0.14 248)",
+          "oklch(74% 0.10 248)",
+          "oklch(86% 0.065 248)",
+          "oklch(95% 0.03 248)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "First Run Display",
+        "purpose": "First-run activation headline only."
+      },
+      "headline": {
+        "displayName": "Pull Request Headline",
+        "purpose": "The selected pull request title."
+      },
+      "title": {
+        "displayName": "Section Title",
+        "purpose": "Attention summaries and pane sections."
+      },
+      "body": {
+        "displayName": "Operational Body",
+        "purpose": "Reason explanations and supporting copy."
+      },
+      "label": {
+        "displayName": "Wayfinding Label",
+        "purpose": "Compact section context and status metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-ambient",
+        "value": "0 14px 40px oklch(28% 0.02 128 / 0.12)",
+        "purpose": "Transient overlays and future floating terminal surfaces only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press-fast",
+        "value": "120ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Direct press, icon-button, and tooltip feedback."
+      },
+      {
+        "name": "state-standard",
+        "value": "190ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Selection, hover, focus, and status transitions."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Disables nonessential animation when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      { "name": "minimum-desktop", "value": "960px" },
+      { "name": "compact-desktop", "value": "980px" },
+      { "name": "wide-desktop", "value": "1120px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The dominant next action, rendered in neutral graphite rather than semantic color.",
+      "html": "<button class=\"ds-btn-primary\">Open on GitHub <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 17 17 7M7 7h10v10\"/></svg></button>",
+      "css": ".ds-btn-primary{display:inline-flex;height:38px;align-items:center;justify-content:center;gap:8px;padding:0 16px;border:0;border-radius:7px;background:var(--action);color:var(--surface);font:650 13px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;transition:background 190ms cubic-bezier(.16,1,.3,1),transform 120ms cubic-bezier(.16,1,.3,1)}.ds-btn-primary svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8}.ds-btn-primary:hover{background:var(--action-hover)}.ds-btn-primary:active{transform:scale(.98)}.ds-btn-primary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Secondary action with a structural outline and no elevation.",
+      "html": "<button class=\"ds-btn-quiet\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6\"/></svg> Check GitHub now</button>",
+      "css": ".ds-btn-quiet{display:inline-flex;height:38px;align-items:center;justify-content:center;gap:8px;padding:0 16px;border:1px solid var(--hairline-strong);border-radius:7px;background:var(--surface);color:var(--ink);font:650 13px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;transition:background 190ms cubic-bezier(.16,1,.3,1),border-color 190ms cubic-bezier(.16,1,.3,1),transform 120ms cubic-bezier(.16,1,.3,1)}.ds-btn-quiet svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8}.ds-btn-quiet:hover{border-color:var(--ink-muted);background:var(--surface-raised)}.ds-btn-quiet:active{transform:scale(.98)}.ds-btn-quiet:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "A compact search control for repository, author, title, and pull request number.",
+      "html": "<label class=\"ds-search\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-4-4\"/></svg><input aria-label=\"Search pull requests\" placeholder=\"Search pull requests\"></label>",
+      "css": ".ds-search{display:flex;height:38px;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--hairline-strong);border-radius:7px;background:var(--surface-raised);color:var(--ink-muted);transition:border-color 190ms cubic-bezier(.16,1,.3,1),box-shadow 190ms cubic-bezier(.16,1,.3,1)}.ds-search svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}.ds-search input{min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:400 13px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-search:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px oklch(58% .15 248/.12)}"
+    },
+    {
+      "name": "Attention Status",
+      "kind": "chip",
+      "refersTo": "status-warning",
+      "description": "Written status with a redundant clock symbol; color is never the only signal.",
+      "html": "<span class=\"ds-status-warning\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg>Needs attention</span>",
+      "css": ".ds-status-warning{display:inline-flex;height:26px;align-items:center;gap:6px;padding:0 9px 0 7px;border:1px solid oklch(84% .08 74);border-radius:999px;background:var(--warning-soft);color:var(--warning-deep);font:650 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-status-warning svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9}"
+    },
+    {
+      "name": "Review Rail",
+      "kind": "nav",
+      "description": "Persistent 64px navigation with a selected review destination and explicit monitoring state.",
+      "html": "<nav class=\"ds-rail\" aria-label=\"Primary navigation\"><span class=\"ds-rail-mark\"><svg viewBox=\"0 0 24 24\"><circle cx=\"6\" cy=\"4\" r=\"2\"/><circle cx=\"6\" cy=\"20\" r=\"2\"/><circle cx=\"18\" cy=\"8\" r=\"2\"/><path d=\"M6 6v12M6 12c0-2 2-4 4-4h6\"/></svg></span><button class=\"ds-rail-active\" aria-label=\"Reviews\"><svg viewBox=\"0 0 24 24\"><path d=\"M4 5h16v14H4zM4 14h4l2 3h4l2-3h4\"/></svg></button><span class=\"ds-rail-online\" aria-label=\"Background monitoring active\"></span></nav>",
+      "css": ".ds-rail{display:flex;width:64px;height:260px;flex-direction:column;align-items:center;gap:16px;padding:16px 8px 12px;border-right:1px solid var(--hairline);background:var(--surface)}.ds-rail svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}.ds-rail-mark,.ds-rail-active{display:grid;place-items:center;border-radius:11px}.ds-rail-mark{width:36px;height:36px;border:1px solid var(--hairline);background:var(--surface-raised);color:var(--success-deep)}.ds-rail-active{width:40px;height:40px;border:0;background:var(--surface-selected);color:var(--success-deep)}.ds-rail-active:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.ds-rail-online{width:8px;height:8px;margin-top:auto;border:2px solid var(--surface);border-radius:999px;background:var(--success);box-shadow:0 0 0 1px var(--success-deep)}"
+    },
+    {
+      "name": "Selected Pull Request Row",
+      "kind": "custom",
+      "refersTo": "review-row-selected",
+      "description": "Compact inventory row with title, repository identity, explicit reason, and freshness.",
+      "html": "<button class=\"ds-pr-row\" aria-pressed=\"true\"><span class=\"ds-pr-avatar\">L</span><span class=\"ds-pr-copy\"><strong>Improve account query boundaries</strong><small>revolico/web #412</small></span><span class=\"ds-pr-state\"><em>◷ Open thread</em><small>18m ago</small></span></button>",
+      "css": ".ds-pr-row{display:grid;width:360px;min-height:66px;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:12px;padding:8px 12px;border:0;border-radius:11px;background:var(--surface-selected);color:var(--ink);text-align:left;cursor:pointer;transition:background 190ms cubic-bezier(.16,1,.3,1),transform 120ms cubic-bezier(.16,1,.3,1)}.ds-pr-row:hover{background:var(--surface-muted)}.ds-pr-row:active{transform:scale(.995)}.ds-pr-row:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.ds-pr-avatar{display:grid;width:28px;height:28px;place-items:center;border:1px solid var(--hairline);border-radius:999px;background:var(--surface-raised);color:var(--ink-secondary);font:700 11px/1 sans-serif}.ds-pr-copy,.ds-pr-state{display:grid;gap:3px}.ds-pr-copy{min-width:0}.ds-pr-copy strong{overflow:hidden;font:620 13px/1.3 sans-serif;text-overflow:ellipsis;white-space:nowrap}.ds-pr-copy small,.ds-pr-state small{color:var(--ink-muted);font:400 11px/1.2 sans-serif}.ds-pr-state{justify-items:end}.ds-pr-state em{padding:4px 7px;border:1px solid oklch(84% .08 74);border-radius:999px;background:var(--warning-soft);color:var(--warning-deep);font:650 10px/1 sans-serif;font-style:normal}"
+    },
+    {
+      "name": "Activation Panel",
+      "kind": "card",
+      "refersTo": "activation-panel",
+      "description": "A single flat onboarding container with three explicit progress steps and one dominant action.",
+      "html": "<section class=\"ds-activation\"><header><span>SETUP</span><b>0/3</b><h2>Start with GitHub</h2></header><ol><li><i>1</i><span><strong>Connect your account</strong><small>Authorize with GitHub Device Flow</small></span><em>Current</em></li><li><i>2</i><span><strong>Confirm repository access</strong><small>Use repositories granted to the GitHub App</small></span><em>Later</em></li><li><i>3</i><span><strong>Build your attention inbox</strong><small>Find review requests, threads, and failing checks</small></span><em>Later</em></li></ol><footer><button>Connect GitHub</button></footer></section>",
+      "css": ".ds-activation{width:500px;overflow:hidden;border:1px solid var(--hairline);border-radius:16px;background:var(--surface);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-activation header{display:grid;grid-template-columns:1fr auto;padding:24px 24px 16px}.ds-activation header span,.ds-activation header b{color:var(--ink-secondary);font-size:12px}.ds-activation h2{grid-column:1/-1;margin:4px 0 0;font-size:20px}.ds-activation ol{padding:0;margin:0;list-style:none}.ds-activation li{display:grid;min-height:68px;grid-template-columns:28px 1fr auto;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--hairline)}.ds-activation li i{display:grid;width:24px;height:24px;place-items:center;border:1px solid var(--hairline-strong);border-radius:999px;font-size:12px;font-style:normal}.ds-activation li:first-child i{border-color:var(--warning);background:var(--warning-soft);color:var(--warning-deep)}.ds-activation li span{display:grid;gap:2px}.ds-activation li strong{font-size:14px}.ds-activation li small{color:var(--ink-secondary);font-size:12px;line-height:1.35}.ds-activation li em{color:var(--ink-muted);font-size:12px;font-style:normal}.ds-activation li:first-child em{color:var(--warning-deep)}.ds-activation footer{padding:24px;border-top:1px solid var(--hairline);background:var(--surface-muted)}.ds-activation button{width:100%;height:38px;border:0;border-radius:7px;background:var(--action);color:var(--surface);font-weight:650}.ds-activation button:hover{background:var(--action-hover)}.ds-activation button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Review Desk",
+    "overview": "Mission Control is a bright, organized desk for focused pull request work. A persistent 64px rail anchors the app; a compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Density belongs at the edge. Comprehension gets space in the center. The system is calm, precise, and quietly capable. It uses softly tinted near-white materials, graphite text, hairline boundaries, and semantic accents only when state deserves attention. It rejects GitHub's fragmented navigation, generic card-heavy SaaS dashboards, terminal-first neon decoration, color-only status, and marketing-page typography. Motion is responsive but restrained: 120ms for direct press feedback and 190ms for state transitions, both using an expressive ease-out curve. Animate opacity and transform; never choreograph page entrances or block access to current state. The app targets desktop windows from 960px upward and preserves reduced-motion preferences.",
+    "keyCharacteristics": [
+      "Persistent narrow rail with a visible active destination and monitoring state",
+      "Master-detail review workspace with a 320–390px attention inventory",
+      "Compact rows paired with a spacious, readable pull request surface",
+      "Near-white tonal layers separated by 1px hairlines instead of card shadows",
+      "Status treatment that always combines color, icon, label, count, or shape",
+      "Cached-data provenance and synchronization state kept visible at all times"
+    ],
+    "rules": [
+      {
+        "name": "The Redundancy Rule",
+        "body": "Every semantic color is paired with an icon, label, count, shape, or pattern. Color is reinforcement, never the only signal.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Canvas Rule",
+        "body": "Semantic color belongs to state and action. Large passive surfaces remain neutral and softly tinted.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Red Rule",
+        "body": "Failure Red means a condition is blocking or broken. Never use it for decoration, activity, or urgency without consequence.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dense Edge, Calm Center Rule",
+        "body": "Inventory text stays compact; reading and decision surfaces receive more space and a 1.6 line height.",
+        "section": "typography"
+      },
+      {
+        "name": "The Native Voice Rule",
+        "body": "Do not import a decorative webfont. Mission Control must look and render like a desktop tool before it looks branded.",
+        "section": "typography"
+      },
+      {
+        "name": "The Structural Depth Rule",
+        "body": "If spacing, alignment, a tonal change, and a 1px hairline explain hierarchy, a shadow is forbidden.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No Nested Cards Rule",
+        "body": "A bordered panel may contain rows and sections, not smaller decorative cards. Separate content with rhythm and hairlines.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do lead with escalated work and the reason it changed before showing ordinary inventory.",
+      "Do preserve the 64px rail, 320–390px inventory pane, and adjacent detail surface when context switching would otherwise be required.",
+      "Do keep pull request rows compact and make selection visible through fill, type weight, position, and aria-pressed.",
+      "Do pair every semantic color with an icon, written label, count, shape, or pattern.",
+      "Do show cache provenance and synchronization time; trust depends on knowing how fresh the state is.",
+      "Do use 120ms press feedback and 190ms ease-out state transitions, with reduced-motion overrides.",
+      "Do preserve readable onboarding copy at the 960px minimum desktop width."
+    ],
+    "donts": [
+      "Don't reproduce GitHub's fragmented pull request navigation or force repeated context switching among review threads, checks, notifications, and authored work.",
+      "Don't create generic card-heavy SaaS dashboards or nested cards; if every datum sits in a tile, the hierarchy has failed.",
+      "Don't use terminal-first dark surfaces, neon accents, or code aesthetics as decoration.",
+      "Don't communicate success, warning, failure, pending, interrupted, or disabled state through color alone.",
+      "Don't use marketing-page spacing or oversized typography inside task-focused workspace surfaces; display scale belongs only to first-run onboarding.",
+      "Don't use gradient text, glassmorphism, colored side-stripe borders, or decorative page-load choreography.",
+      "Don't apply shadows to persistent panes, inbox rows, detail sections, or the onboarding panel.",
+      "Don't animate width, height, grid columns, or other layout properties; animate opacity and transform only."
+    ]
+  }
+}
