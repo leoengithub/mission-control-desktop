@@ -22,7 +22,7 @@ The repository contains the native foundation:
 
 The renderer includes deterministic browser previews for design and interaction work outside the native shell. Run `corepack pnpm dev`, then use `?preview=onboarding` or `?preview=empty` to inspect those states. The default preview renders a populated attention inbox.
 
-The generated application icon remains a transparent build placeholder. A distributable icon set and signed release pipeline are planned before the first public beta.
+The application now uses the Mission Control operator-console identity across its generated platform icon bundle. Supporting onboarding, empty-state, social, tray, and semantic status assets live in `assets/brand`.
 
 ## Prerequisites
 

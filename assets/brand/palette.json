@@ -1,0 +1,11 @@
+{
+  "porcelain": "#F3F0E9",
+  "workingSurface": "#E9E7E1",
+  "graphite": "#2F3233",
+  "muted": "#8E9395",
+  "approved": "#5DA869",
+  "attention": "#E2A93B",
+  "failure": "#D95548",
+  "context": "#4D79B8",
+  "waiting": "#7667A8"
+}
