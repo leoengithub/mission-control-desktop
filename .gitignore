@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+dist/
+target/
+.env
+.env.*
+!.env.example
+*.log
+*.db
+*.db-shm
+*.db-wal
+src-tauri/gen/
+playwright-report/
+test-results/
+coverage/
+*.tsbuildinfo
