@@ -135,311 +135,370 @@ export function SettingsWorkspace({
         </div>
       ) : null}
 
-      <div className="settings-content">
-        <section className="settings-section" aria-labelledby="sync-heading">
-          <div className="settings-section__heading">
-            <span className="settings-section__icon">
-              <Icon name="sync" size={17} />
-            </span>
-            <div>
-              <h2 id="sync-heading">GitHub synchronization</h2>
-              <p>Choose how quickly background monitoring should discover changes.</p>
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          <span className="settings-nav__label">Workspace</span>
+          <a href="#sync-settings">
+            <Icon name="sync" size={15} />
+            Synchronization
+          </a>
+          <a href="#account-settings">
+            <Icon name="github" size={15} />
+            GitHub account
+          </a>
+          <a href="#notification-settings">
+            <Icon name="alert" size={15} />
+            Notifications
+          </a>
+          <a href="#repository-settings">
+            <Icon name="branch" size={15} />
+            Repositories
+          </a>
+          <span className="settings-nav__label settings-nav__label--spaced">Tools</span>
+          <a href="#agent-settings">
+            <Icon name="terminal" size={15} />
+            Local agents
+          </a>
+          <a href="#application-settings">
+            <Icon name="settings" size={15} />
+            Application
+          </a>
+        </nav>
+
+        <div className="settings-content">
+          <section className="settings-section" id="sync-settings" aria-labelledby="sync-heading">
+            <div className="settings-section__heading">
+              <span className="settings-section__icon">
+                <Icon name="sync" size={17} />
+              </span>
+              <div>
+                <h2 id="sync-heading">GitHub synchronization</h2>
+                <p>Choose how quickly background monitoring should discover changes.</p>
+              </div>
             </div>
-          </div>
-          <div className="choice-grid" role="radiogroup" aria-label="Synchronization cadence">
-            {syncOptions.map((option) => (
-              <button
-                className={`choice-button${
-                  settings.sync.preset === option.value ? ' choice-button--selected' : ''
-                }`}
-                type="button"
-                role="radio"
-                aria-checked={settings.sync.preset === option.value}
-                disabled={saving}
-                key={option.value}
-                onClick={() => onSave({ sync: { preset: option.value } })}
-              >
-                <span className="choice-button__mark">
-                  {settings.sync.preset === option.value ? <Icon name="check" size={13} /> : null}
+            <div className="choice-grid" role="radiogroup" aria-label="Synchronization cadence">
+              {syncOptions.map((option) => (
+                <button
+                  className={`choice-button${
+                    settings.sync.preset === option.value ? ' choice-button--selected' : ''
+                  }`}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.sync.preset === option.value}
+                  disabled={saving}
+                  key={option.value}
+                  onClick={() => onSave({ sync: { preset: option.value } })}
+                >
+                  <span className="choice-button__mark">
+                    {settings.sync.preset === option.value ? <Icon name="check" size={13} /> : null}
+                  </span>
+                  <strong>{option.label}</strong>
+                  <span>{option.description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            id="account-settings"
+            aria-labelledby="github-account-heading"
+          >
+            <div className="settings-section__heading">
+              <span className="settings-section__icon">
+                <Icon name="github" size={17} />
+              </span>
+              <div>
+                <h2 id="github-account-heading">GitHub account</h2>
+                <p>
+                  Mission Control uses one active account at a time. Missing a repository? Check the
+                  GitHub App installation access before switching accounts.
+                </p>
+              </div>
+            </div>
+            <div className="github-account-card">
+              <div className="github-account-card__identity">
+                <span className="github-account-card__avatar" aria-hidden="true">
+                  <Icon name="github" size={18} />
                 </span>
-                <strong>{option.label}</strong>
-                <span>{option.description}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="github-account-heading">
-          <div className="settings-section__heading">
-            <span className="settings-section__icon">
-              <Icon name="github" size={17} />
-            </span>
-            <div>
-              <h2 id="github-account-heading">GitHub account</h2>
-              <p>
-                Mission Control uses one active account at a time. Missing a repository? Check the
-                GitHub App installation access before switching accounts.
-              </p>
-            </div>
-          </div>
-          <div className="github-account-card">
-            <div className="github-account-card__identity">
-              <span className="github-account-card__avatar" aria-hidden="true">
-                <Icon name="github" size={18} />
-              </span>
-              <span>
-                <strong>{githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}</strong>
-                <small>Tokens are stored in this Mac's system keychain.</small>
-              </span>
-            </div>
-            <div className="github-account-card__actions">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={accountBusy}
-                onClick={() => onOpenUrl(installationSettingsUrl)}
-              >
-                Manage repository access
-                <Icon name="arrow-up-right" size={14} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={accountBusy}
-                onClick={() => onOpenUrl(authorizationSettingsUrl)}
-              >
-                Review GitHub authorization
-                <Icon name="arrow-up-right" size={14} />
-              </Button>
-              <AccountActionDialog action="switch" busy={accountBusy} onConfirm={onSwitchAccount} />
-              <AccountActionDialog
-                action="disconnect"
-                busy={accountBusy}
-                onConfirm={onDisconnectAccount}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="notifications-heading">
-          <SettingToggle
-            icon="alert"
-            headingId="notifications-heading"
-            title="Native notifications"
-            description="Alert only when a pull request newly escalates into an actionable state."
-            checked={settings.notifications.enabled}
-            disabled={saving}
-            onChange={onNotificationsEnabled}
-          />
-          {notificationPermission === 'denied' ? (
-            <p className="settings-inline-warning">
-              <Icon name="alert" size={14} />
-              Notifications are blocked by the operating system. Re-enable them in system settings.
-            </p>
-          ) : null}
-          <div className="settings-subsection" aria-label="Pull request notification reasons">
-            <span className="settings-subsection__label">Notify me when</span>
-            <ReasonCheckbox
-              label="My review is requested"
-              checked={settings.notifications.reviewRequested}
-              disabled={!settings.notifications.enabled || saving}
-              onChange={(checked) => updateNotificationReason('reviewRequested', checked)}
-            />
-            <ReasonCheckbox
-              label="A review thread on my pull request is unresolved"
-              checked={settings.notifications.unresolvedThread}
-              disabled={!settings.notifications.enabled || saving}
-              onChange={(checked) => updateNotificationReason('unresolvedThread', checked)}
-            />
-            <ReasonCheckbox
-              label="Required checks on my pull request are failing"
-              checked={settings.notifications.requiredChecksFailing}
-              disabled={!settings.notifications.enabled || saving}
-              onChange={(checked) => updateNotificationReason('requiredChecksFailing', checked)}
-            />
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="repositories-heading">
-          <div className="settings-section__heading">
-            <span className="settings-section__icon">
-              <Icon name="branch" size={17} />
-            </span>
-            <div>
-              <h2 id="repositories-heading">Local repositories</h2>
-              <p>Attach the matching Git root before starting fix sessions or local terminals.</p>
-            </div>
-          </div>
-          <div className="repository-settings-list">
-            {repositories.length > 0 ? (
-              repositories.map((repository) => (
-                <RepositorySetting
-                  repository={repository}
-                  busy={actionStates[`repository:${repository.repositoryId}`] === 'running'}
-                  error={actionErrors[`repository:${repository.repositoryId}`] ?? null}
-                  onAttach={onAttachRepository}
-                  key={repository.repositoryId}
+                <span>
+                  <strong>{githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}</strong>
+                  <small>Tokens are stored in this Mac's system keychain.</small>
+                </span>
+              </div>
+              <div className="github-account-card__actions">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={accountBusy}
+                  onClick={() => onOpenUrl(installationSettingsUrl)}
+                >
+                  Manage repository access
+                  <Icon name="arrow-up-right" size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={accountBusy}
+                  onClick={() => onOpenUrl(authorizationSettingsUrl)}
+                >
+                  Review GitHub authorization
+                  <Icon name="arrow-up-right" size={14} />
+                </Button>
+                <AccountActionDialog
+                  action="switch"
+                  busy={accountBusy}
+                  onConfirm={onSwitchAccount}
                 />
-              ))
-            ) : (
-              <p className="settings-empty-copy">
-                Repositories appear after the first successful GitHub synchronization.
-              </p>
-            )}
-          </div>
-          <div className="settings-rows settings-rows--compact">
-            <label className="setting-row setting-row--field">
-              <span className="setting-row__copy">
-                <strong>Worktree directory</strong>
-                <span>Leave empty to use a managed sibling directory beside each repository.</span>
-              </span>
-              <Input
-                className="settings-text-input"
-                type="text"
-                defaultValue={settings.worktrees.baseDirectory ?? ''}
-                placeholder="Automatic"
-                disabled={saving}
-                onBlur={(event) =>
-                  onSave({
-                    worktrees: {
-                      ...settings.worktrees,
-                      baseDirectory: event.target.value.trim() || null,
-                    },
-                  })
-                }
-              />
-            </label>
-            <label className="setting-row setting-row--field">
-              <span className="setting-row__copy">
-                <strong>Cleanup policy</strong>
-                <span>Dirty worktrees and unique commits are always preserved.</span>
-              </span>
-              <select
-                className="settings-select"
-                value={settings.worktrees.cleanupPolicy}
-                disabled={saving}
-                onChange={(event) =>
-                  onSave({
-                    worktrees: {
-                      ...settings.worktrees,
-                      cleanupPolicy: event.target
-                        .value as AppSettings['worktrees']['cleanupPolicy'],
-                    },
-                  })
-                }
-              >
-                <option value="safe_only">Remove unchanged worktrees</option>
-                <option value="always_preserve">Always preserve</option>
-                <option value="always_ask">Preserve for manual cleanup</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="agents-heading">
-          <div className="settings-section__heading">
-            <span className="settings-section__icon">
-              <Icon name="terminal" size={17} />
-            </span>
-            <div>
-              <h2 id="agents-heading">Local agents</h2>
-              <p>Select the default for review replies and isolated fix sessions.</p>
+                <AccountActionDialog
+                  action="disconnect"
+                  busy={accountBusy}
+                  onConfirm={onDisconnectAccount}
+                />
+              </div>
             </div>
-          </div>
-          <div className="agent-settings-grid" role="radiogroup" aria-label="Default local agent">
-            {agents.map((agent) => (
-              <button
-                className={`agent-setting${
-                  settings.agents.defaultAgent === agent.agent ? ' agent-setting--selected' : ''
-                }`}
-                type="button"
-                role="radio"
-                aria-checked={settings.agents.defaultAgent === agent.agent}
-                disabled={!agent.available || saving}
-                key={agent.agent}
-                onClick={() =>
-                  onSave({ agents: { ...settings.agents, defaultAgent: agent.agent } })
-                }
-              >
-                <span className="agent-setting__mark">
-                  <Icon name={agent.available ? 'check' : 'alert'} size={14} />
-                </span>
-                <span>
-                  <strong>{agent.label}</strong>
-                  <small>{agent.available ? agent.version || 'Installed' : 'Not detected'}</small>
-                </span>
-                <span>
-                  {settings.agents.defaultAgent === agent.agent ? 'Default' : 'Available'}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="settings-subsection" aria-label="Agent permission behavior">
-            <span className="settings-subsection__label">Interactive session permissions</span>
-            <ReasonCheckbox
-              label="Allow Codex to bypass its approval sandbox in fix sessions"
-              checked={settings.agents.codexPermissionBypass}
-              disabled={
-                saving || !agents.some((agent) => agent.agent === 'codex' && agent.available)
-              }
-              onChange={(codexPermissionBypass) =>
-                onSave({ agents: { ...settings.agents, codexPermissionBypass } })
-              }
+          </section>
+
+          <section
+            className="settings-section"
+            id="notification-settings"
+            aria-labelledby="notifications-heading"
+          >
+            <SettingToggle
+              icon="alert"
+              headingId="notifications-heading"
+              title="Native notifications"
+              description="Alert only when a pull request newly escalates into an actionable state."
+              checked={settings.notifications.enabled}
+              disabled={saving}
+              onChange={onNotificationsEnabled}
             />
-            <ReasonCheckbox
-              label="Allow Claude Code to bypass permission prompts in fix sessions"
-              checked={settings.agents.claudePermissionBypass}
-              disabled={
-                saving || !agents.some((agent) => agent.agent === 'claude_code' && agent.available)
-              }
-              onChange={(claudePermissionBypass) =>
-                onSave({ agents: { ...settings.agents, claudePermissionBypass } })
-              }
-            />
-            {settings.agents.codexPermissionBypass || settings.agents.claudePermissionBypass ? (
+            {notificationPermission === 'denied' ? (
               <p className="settings-inline-warning">
                 <Icon name="alert" size={14} />
-                Permission bypass applies only to interactive sessions and increases local risk.
+                Notifications are blocked by the operating system. Re-enable them in system
+                settings.
               </p>
             ) : null}
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="general-heading">
-          <div className="settings-section__heading">
-            <span className="settings-section__icon">
-              <Icon name="settings" size={17} />
-            </span>
-            <div>
-              <h2 id="general-heading">Application behavior</h2>
-              <p>Keep monitoring available without making Mission Control intrusive.</p>
-            </div>
-          </div>
-          <div className="settings-rows">
-            <SettingToggle
-              title="Launch at login"
-              description="Start background monitoring when you sign in to this computer."
-              checked={settings.general.launchAtLogin}
-              disabled={saving}
-              onChange={(launchAtLogin) =>
-                onSave({ general: { ...settings.general, launchAtLogin } })
-              }
-            />
-            <div className="setting-row">
-              <div className="setting-row__copy">
-                <strong>When closing the window</strong>
-                <span>Choose whether Mission Control keeps monitoring in the menu bar.</span>
-              </div>
-              <CloseBehaviorControl
-                value={settings.general.closeBehavior}
-                disabled={saving}
-                onChange={(closeBehavior) =>
-                  onSave({ general: { ...settings.general, closeBehavior } })
-                }
+            <div className="settings-subsection" aria-label="Pull request notification reasons">
+              <span className="settings-subsection__label">Notify me when</span>
+              <ReasonCheckbox
+                label="My review is requested"
+                checked={settings.notifications.reviewRequested}
+                disabled={!settings.notifications.enabled || saving}
+                onChange={(checked) => updateNotificationReason('reviewRequested', checked)}
+              />
+              <ReasonCheckbox
+                label="A review thread on my pull request is unresolved"
+                checked={settings.notifications.unresolvedThread}
+                disabled={!settings.notifications.enabled || saving}
+                onChange={(checked) => updateNotificationReason('unresolvedThread', checked)}
+              />
+              <ReasonCheckbox
+                label="Required checks on my pull request are failing"
+                checked={settings.notifications.requiredChecksFailing}
+                disabled={!settings.notifications.enabled || saving}
+                onChange={(checked) => updateNotificationReason('requiredChecksFailing', checked)}
               />
             </div>
-          </div>
-        </section>
+          </section>
+
+          <section
+            className="settings-section"
+            id="repository-settings"
+            aria-labelledby="repositories-heading"
+          >
+            <div className="settings-section__heading">
+              <span className="settings-section__icon">
+                <Icon name="branch" size={17} />
+              </span>
+              <div>
+                <h2 id="repositories-heading">Local repositories</h2>
+                <p>Attach the matching Git root before starting fix sessions or local terminals.</p>
+              </div>
+            </div>
+            <div className="repository-settings-list">
+              {repositories.length > 0 ? (
+                repositories.map((repository) => (
+                  <RepositorySetting
+                    repository={repository}
+                    busy={actionStates[`repository:${repository.repositoryId}`] === 'running'}
+                    error={actionErrors[`repository:${repository.repositoryId}`] ?? null}
+                    onAttach={onAttachRepository}
+                    key={repository.repositoryId}
+                  />
+                ))
+              ) : (
+                <p className="settings-empty-copy">
+                  Repositories appear after the first successful GitHub synchronization.
+                </p>
+              )}
+            </div>
+            <div className="settings-rows settings-rows--compact">
+              <label className="setting-row setting-row--field">
+                <span className="setting-row__copy">
+                  <strong>Worktree directory</strong>
+                  <span>
+                    Leave empty to use a managed sibling directory beside each repository.
+                  </span>
+                </span>
+                <Input
+                  className="settings-text-input"
+                  type="text"
+                  defaultValue={settings.worktrees.baseDirectory ?? ''}
+                  placeholder="Automatic"
+                  disabled={saving}
+                  onBlur={(event) =>
+                    onSave({
+                      worktrees: {
+                        ...settings.worktrees,
+                        baseDirectory: event.target.value.trim() || null,
+                      },
+                    })
+                  }
+                />
+              </label>
+              <label className="setting-row setting-row--field">
+                <span className="setting-row__copy">
+                  <strong>Cleanup policy</strong>
+                  <span>Dirty worktrees and unique commits are always preserved.</span>
+                </span>
+                <select
+                  className="settings-select"
+                  value={settings.worktrees.cleanupPolicy}
+                  disabled={saving}
+                  onChange={(event) =>
+                    onSave({
+                      worktrees: {
+                        ...settings.worktrees,
+                        cleanupPolicy: event.target
+                          .value as AppSettings['worktrees']['cleanupPolicy'],
+                      },
+                    })
+                  }
+                >
+                  <option value="safe_only">Remove unchanged worktrees</option>
+                  <option value="always_preserve">Always preserve</option>
+                  <option value="always_ask">Preserve for manual cleanup</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            id="agent-settings"
+            aria-labelledby="agents-heading"
+          >
+            <div className="settings-section__heading">
+              <span className="settings-section__icon">
+                <Icon name="terminal" size={17} />
+              </span>
+              <div>
+                <h2 id="agents-heading">Local agents</h2>
+                <p>Select the default for review replies and isolated fix sessions.</p>
+              </div>
+            </div>
+            <div className="agent-settings-grid" role="radiogroup" aria-label="Default local agent">
+              {agents.map((agent) => (
+                <button
+                  className={`agent-setting${
+                    settings.agents.defaultAgent === agent.agent ? ' agent-setting--selected' : ''
+                  }`}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.agents.defaultAgent === agent.agent}
+                  disabled={!agent.available || saving}
+                  key={agent.agent}
+                  onClick={() =>
+                    onSave({ agents: { ...settings.agents, defaultAgent: agent.agent } })
+                  }
+                >
+                  <span className="agent-setting__mark">
+                    <Icon name={agent.available ? 'check' : 'alert'} size={14} />
+                  </span>
+                  <span>
+                    <strong>{agent.label}</strong>
+                    <small>{agent.available ? agent.version || 'Installed' : 'Not detected'}</small>
+                  </span>
+                  <span>
+                    {settings.agents.defaultAgent === agent.agent ? 'Default' : 'Available'}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="settings-subsection" aria-label="Agent permission behavior">
+              <span className="settings-subsection__label">Interactive session permissions</span>
+              <ReasonCheckbox
+                label="Allow Codex to bypass its approval sandbox in fix sessions"
+                checked={settings.agents.codexPermissionBypass}
+                disabled={
+                  saving || !agents.some((agent) => agent.agent === 'codex' && agent.available)
+                }
+                onChange={(codexPermissionBypass) =>
+                  onSave({ agents: { ...settings.agents, codexPermissionBypass } })
+                }
+              />
+              <ReasonCheckbox
+                label="Allow Claude Code to bypass permission prompts in fix sessions"
+                checked={settings.agents.claudePermissionBypass}
+                disabled={
+                  saving ||
+                  !agents.some((agent) => agent.agent === 'claude_code' && agent.available)
+                }
+                onChange={(claudePermissionBypass) =>
+                  onSave({ agents: { ...settings.agents, claudePermissionBypass } })
+                }
+              />
+              {settings.agents.codexPermissionBypass || settings.agents.claudePermissionBypass ? (
+                <p className="settings-inline-warning">
+                  <Icon name="alert" size={14} />
+                  Permission bypass applies only to interactive sessions and increases local risk.
+                </p>
+              ) : null}
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            id="application-settings"
+            aria-labelledby="general-heading"
+          >
+            <div className="settings-section__heading">
+              <span className="settings-section__icon">
+                <Icon name="settings" size={17} />
+              </span>
+              <div>
+                <h2 id="general-heading">Application behavior</h2>
+                <p>Keep monitoring available without making Mission Control intrusive.</p>
+              </div>
+            </div>
+            <div className="settings-rows">
+              <SettingToggle
+                title="Launch at login"
+                description="Start background monitoring when you sign in to this computer."
+                checked={settings.general.launchAtLogin}
+                disabled={saving}
+                onChange={(launchAtLogin) =>
+                  onSave({ general: { ...settings.general, launchAtLogin } })
+                }
+              />
+              <div className="setting-row">
+                <div className="setting-row__copy">
+                  <strong>When closing the window</strong>
+                  <span>Choose whether Mission Control keeps monitoring in the menu bar.</span>
+                </div>
+                <CloseBehaviorControl
+                  value={settings.general.closeBehavior}
+                  disabled={saving}
+                  onChange={(closeBehavior) =>
+                    onSave({ general: { ...settings.general, closeBehavior } })
+                  }
+                />
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   );

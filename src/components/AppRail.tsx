@@ -15,7 +15,7 @@ export function AppRail({
 }) {
   return (
     <aside className="app-rail" aria-label="Mission Control navigation">
-      <div className="app-mark" aria-label="Mission Control">
+      <div className="app-mark" role="img" aria-label="Mission Control">
         <Icon name="branch" size={19} strokeWidth={2.1} />
       </div>
       <nav className="app-rail__nav" aria-label="Primary navigation">

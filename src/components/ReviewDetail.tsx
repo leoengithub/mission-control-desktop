@@ -3,6 +3,14 @@ import type { AgentKind, AgentRun, CheckRun, ReviewThread } from '../contracts';
 import type { ReviewWorkflowModel } from '../hooks/useReviewWorkflow';
 import type { MissionControlClient } from '../lib/client';
 import { formatRelativeTime, type PullRequestInboxEntry } from '../lib/inbox';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Icon } from './Icon';
 import { ReasonPill, StatusPill } from './StatusMark';
 import { TerminalPanel } from './TerminalPanel';
@@ -18,8 +26,10 @@ interface ReviewDetailProps {
 }
 
 export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: ReviewDetailProps) {
-  const [tab, setTab] = useState<DetailTab>('threads');
   const { pullRequest, attention } = entry;
+  const preferredTab: DetailTab =
+    entry.primaryReason === 'required_checks_failing' ? 'checks' : 'threads';
+  const [tab, setTab] = useState<DetailTab>(preferredTab);
   const isAuthored =
     githubLogin?.toLocaleLowerCase() === pullRequest.authorLogin.toLocaleLowerCase();
   const detail = workflow.detail?.pullRequestId === pullRequest.id ? workflow.detail : null;
@@ -57,9 +67,9 @@ export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: R
           </div>
         </div>
         <div className="pr-detail__header-actions">
-          <button
-            className="button button--quiet"
-            type="button"
+          <Button
+            variant="outline"
+            size="lg"
             disabled={workflow.actionStates[copilotKey] === 'running'}
             onClick={() => void workflow.requestCopilotReview()}
           >
@@ -67,11 +77,11 @@ export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: R
             {workflow.actionStates[copilotKey] === 'running'
               ? 'Requesting…'
               : 'Request Copilot review'}
-          </button>
-          <button className="button button--primary" type="button" onClick={onOpen}>
+          </Button>
+          <Button size="lg" onClick={onOpen}>
             Open on GitHub
             <Icon name="arrow-up-right" size={15} />
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -85,24 +95,28 @@ export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: R
             }
           >
             <Icon name={attachedRepository?.localPath ? 'check' : 'alert'} size={13} />
-            {attachedRepository?.localPath
-              ? 'Local repository attached'
-              : 'Local actions need setup'}
+            {attachedRepository?.localPath ? 'Repository attached' : 'Local setup required'}
           </span>
         </div>
         <label className="agent-select">
           <span>Local agent</span>
-          <select
-            value={workflow.selectedAgent ?? ''}
-            onChange={(event) => workflow.setSelectedAgent(event.target.value as AgentKind)}
+          <Select
+            value={workflow.selectedAgent}
+            onValueChange={(value) => workflow.setSelectedAgent(value as AgentKind)}
           >
-            {workflow.selectedAgent ? null : <option value="">No local agent available</option>}
-            {workflow.agents.map((agent) => (
-              <option disabled={!agent.available} value={agent.agent} key={agent.agent}>
-                {agent.label} {agent.available ? '' : '(not installed)'}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="agent-select__trigger" aria-label="Local agent">
+              <SelectValue placeholder="No local agent available">
+                {workflow.agents.find((agent) => agent.agent === workflow.selectedAgent)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              {workflow.agents.map((agent) => (
+                <SelectItem disabled={!agent.available} value={agent.agent} key={agent.agent}>
+                  {agent.label} {agent.available ? '' : '(not installed)'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
       </div>
 
@@ -315,32 +329,26 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
       {!thread.resolved && !thread.outdated ? (
         <footer className="thread-card__actions">
           <div>
-            <button
-              className="button button--quiet"
-              type="button"
+            <Button
+              variant="outline"
               disabled={busy}
               onClick={() => void workflow.replyAndResolve(thread.id, failedRun?.id)}
             >
               <Icon name="check" size={14} />
               {busy ? 'Working…' : failedRun ? 'Retry reply and resolve' : 'Reply and resolve'}
-            </button>
-            <button
-              className="button button--primary"
-              type="button"
-              disabled={busy}
-              onClick={() => void workflow.startFixSession(thread.id)}
-            >
+            </Button>
+            <Button disabled={busy} onClick={() => void workflow.startFixSession(thread.id)}>
               <Icon name="spark" size={14} /> Fix and reply
-            </button>
+            </Button>
           </div>
-          <button
-            className="button button--quiet thread-card__terminal"
-            type="button"
+          <Button
+            className="thread-card__terminal"
+            variant="outline"
             disabled={busy}
             onClick={() => void workflow.openTerminal(thread.id)}
           >
             <Icon name="terminal" size={14} /> Open terminal
-          </button>
+          </Button>
         </footer>
       ) : null}
       {workflow.actionErrors[key] ? (
@@ -359,6 +367,15 @@ function ChecksView({ checks }: { checks: CheckRun[] }) {
       .map((tone) => ({ tone, checks: checks.filter((check) => checkTone(check) === tone) }))
       .filter((group) => group.checks.length > 0);
   }, [checks]);
+  const totals = useMemo(
+    () => ({
+      danger: checks.filter((check) => checkTone(check) === 'danger').length,
+      warning: checks.filter((check) => checkTone(check) === 'warning').length,
+      success: checks.filter((check) => checkTone(check) === 'success').length,
+      neutral: checks.filter((check) => checkTone(check) === 'neutral').length,
+    }),
+    [checks],
+  );
   if (checks.length === 0) {
     return (
       <div className="review-empty-state">
@@ -372,6 +389,27 @@ function ChecksView({ checks }: { checks: CheckRun[] }) {
   }
   return (
     <div className="check-groups">
+      <div className="check-summary" aria-label={`${checks.length} check runs`}>
+        <div className="check-summary__legend">
+          <CheckSummaryItem tone="danger" count={totals.danger} label="Failing" />
+          <CheckSummaryItem tone="warning" count={totals.warning} label="Pending" />
+          <CheckSummaryItem tone="success" count={totals.success} label="Successful" />
+          {totals.neutral > 0 ? (
+            <CheckSummaryItem tone="neutral" count={totals.neutral} label="Other" />
+          ) : null}
+        </div>
+        <div className="check-summary__bar" aria-hidden="true">
+          {(['danger', 'warning', 'success', 'neutral'] as const).map((tone) =>
+            totals[tone] > 0 ? (
+              <span
+                className={`check-summary__segment check-summary__segment--${tone}`}
+                style={{ flexGrow: totals[tone] }}
+                key={tone}
+              />
+            ) : null,
+          )}
+        </div>
+      </div>
       {grouped.map((group) => (
         <section className="check-group" key={group.tone}>
           <h3>{checkGroupLabel(group.tone, group.checks.length)}</h3>
@@ -396,6 +434,23 @@ function ChecksView({ checks }: { checks: CheckRun[] }) {
         </section>
       ))}
     </div>
+  );
+}
+
+function CheckSummaryItem({
+  tone,
+  count,
+  label,
+}: {
+  tone: ReturnType<typeof checkTone>;
+  count: number;
+  label: string;
+}) {
+  return (
+    <span className={`check-summary__item check-summary__item--${tone}`}>
+      <Icon name={tone === 'success' ? 'check' : tone === 'danger' ? 'x' : 'clock'} size={13} />
+      <strong>{count}</strong> {label}
+    </span>
   );
 }
 
@@ -433,13 +488,9 @@ function RunsView({ runs, workflow }: { runs: AgentRun[]; workflow: ReviewWorkfl
             <time>{formatRelativeTime(run.startedAt)}</time>
           </div>
           {run.logPath ? (
-            <button
-              className="button button--quiet"
-              type="button"
-              onClick={() => workflow.setActiveRun(run)}
-            >
+            <Button variant="outline" onClick={() => workflow.setActiveRun(run)}>
               View terminal
-            </button>
+            </Button>
           ) : null}
         </article>
       ))}

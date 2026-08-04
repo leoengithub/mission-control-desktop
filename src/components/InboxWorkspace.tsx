@@ -182,6 +182,7 @@ export function InboxWorkspace({
         <section className="detail-pane" aria-label="Pull request details">
           {selectedEntry ? (
             <ReviewDetail
+              key={selectedEntry.pullRequest.id}
               client={client}
               entry={selectedEntry}
               githubLogin={githubLogin}

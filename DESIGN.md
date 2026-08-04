@@ -2,14 +2,14 @@
 name: Mission Control Desktop
 description: A calm native attention inbox for pull request review work.
 colors:
-  canvas: 'oklch(97.7% 0.006 128)'
-  surface: 'oklch(99.2% 0.004 128)'
-  surface-raised: 'oklch(100% 0.002 128)'
-  surface-muted: 'oklch(95.8% 0.008 128)'
-  surface-selected: 'oklch(94.5% 0.018 139)'
+  canvas: 'oklch(97.7% 0.008 225)'
+  surface: 'oklch(99.2% 0.005 128)'
+  surface-raised: 'oklch(99.7% 0.004 128)'
+  surface-muted: 'oklch(96.1% 0.009 128)'
+  surface-selected: 'oklch(94.8% 0.024 139)'
   ink: 'oklch(23% 0.012 128)'
   ink-secondary: 'oklch(48% 0.01 128)'
-  ink-muted: 'oklch(61% 0.008 128)'
+  ink-muted: 'oklch(52% 0.01 128)'
   hairline: 'oklch(89.5% 0.008 128)'
   hairline-strong: 'oklch(84% 0.009 128)'
   action: 'oklch(21% 0.014 128)'
@@ -36,10 +36,10 @@ typography:
     letterSpacing: '-0.055em'
   headline:
     fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, system-ui, sans-serif'
-    fontSize: 'clamp(1.45rem, 2.2vw, 2rem)'
-    fontWeight: 680
-    lineHeight: 1.14
-    letterSpacing: '-0.035em'
+    fontSize: '1.35rem'
+    fontWeight: 670
+    lineHeight: 1.2
+    letterSpacing: '-0.025em'
   title:
     fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, system-ui, sans-serif'
     fontSize: '1.05rem'
@@ -132,6 +132,7 @@ Motion is responsive but restrained: 120ms for direct press feedback and 190ms f
 **Key Characteristics:**
 
 - Persistent narrow rail with a visible active destination and monitoring state
+- Section navigation inside settings, separated from global destinations
 - Master-detail review workspace with a 320–390px attention inventory
 - Compact rows paired with a spacious, readable pull request surface
 - Near-white tonal layers separated by 1px hairlines instead of card shadows
@@ -187,7 +188,7 @@ The palette is a cool botanical neutral field with low-chroma green surfaces and
 ### Hierarchy
 
 - **Display** (650, `typography.display`): First-run headline only; balanced to roughly 11 characters per line.
-- **Headline** (680, `typography.headline`): Current pull request title, capped near 38ch for scanability.
+- **Headline** (670, `typography.headline`): Current pull request title, fixed at 1.35rem and capped near 38ch for scanability.
 - **Title** (650, `typography.title`): Attention summaries, pane sections, and grouped review state.
 - **Body** (400, `typography.body`): Explanations and reason summaries; cap prose near 68ch.
 - **Label** (650, `typography.label`): Short section overlines and operational context. Uppercase is allowed only for these compact wayfinding labels.
@@ -248,6 +249,7 @@ Components are refined and restrained: compact dimensions, modest curvature, imm
 - **Style:** The desktop rail is fixed at 64px. Destinations use 40px square targets with 11px corners and inline SVG icons.
 - **State:** Hover uses Quiet Fill; active uses Selected Sage plus Review Green ink. The rail status includes hidden text and a visible state mark.
 - **Behavior:** Tooltips appear over 120ms. Navigation never animates the workspace layout.
+- **Settings:** A 190–220px tinted section rail sits inside the settings workspace at wide desktop sizes and collapses below the minimum comfortable split width.
 
 ### Attention Inbox
 
