@@ -490,6 +490,21 @@ export function createPreviewClient(preview: string | null): MissionControlClien
       };
       return { state: 'authorized', login: 'leo', avatarUrl: '' };
     },
+    async cancelGithubAuthorization() {
+      authorizationPolls = 0;
+      await wait(40);
+    },
+    async disconnectGithubAccount() {
+      await wait(180);
+      authorizationPolls = 0;
+      activation = {
+        step: 'github_authorization_required',
+        githubLogin: null,
+        accessibleRepositoryCount: 0,
+        initialSyncCompleted: false,
+      };
+      return activation;
+    },
     async openExternalUrl() {
       await wait(20);
     },

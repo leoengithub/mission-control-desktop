@@ -9,6 +9,7 @@ import {
   type PullRequestInboxEntry,
 } from '../lib/inbox';
 import { Icon } from './Icon';
+import emptyAttention from '../../assets/brand/raster/empty-attention.png';
 import { ReviewDetail } from './ReviewDetail';
 import { ReasonPill, StatusPill } from './StatusMark';
 
@@ -316,9 +317,14 @@ function InboxSkeleton() {
 function EmptyInbox({ onRefresh, refreshing }: { onRefresh(): void; refreshing: boolean }) {
   return (
     <div className="empty-inbox">
-      <span className="empty-inbox__mark">
-        <Icon name="inbox" size={22} />
-      </span>
+      <img
+        className="empty-inbox__art"
+        src={emptyAttention}
+        alt=""
+        aria-hidden="true"
+        decoding="async"
+        loading="lazy"
+      />
       <strong>Your inbox is clear</strong>
       <span>
         Authored and review-requested pull requests will appear here when GitHub finds them.

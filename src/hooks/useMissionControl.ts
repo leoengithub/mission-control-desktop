@@ -43,6 +43,8 @@ export function useMissionControl(
   const [contextualPrompts, setContextualPrompts] = useState<ContextualPrompt[]>([]);
   const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle');
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -151,6 +153,47 @@ export function useMissionControl(
       }
     }
   }, [client]);
+
+  const cancelAuthorization = useCallback(async () => {
+    const sessionId = authorization?.sessionId;
+    setAuthorization(null);
+    setAuthorizationPhase('idle');
+    setActivationError(null);
+    if (!sessionId) return;
+    try {
+      await client.cancelGithubAuthorization(sessionId);
+    } catch (error) {
+      if (mountedRef.current) setActivationError(errorMessage(error));
+    }
+  }, [authorization?.sessionId, client]);
+
+  const disconnectAccount = useCallback(async () => {
+    setAccountBusy(true);
+    setAccountError(null);
+    try {
+      const nextActivation = await client.disconnectGithubAccount();
+      if (!mountedRef.current) return false;
+      setActivation(nextActivation);
+      setAuthorization(null);
+      setAuthorizationPhase('idle');
+      setPullRequests([]);
+      setAttentionItems([]);
+      setInboxLoaded(false);
+      setContextualPrompts([]);
+      setLastCompletedSync(null);
+      return true;
+    } catch (error) {
+      if (mountedRef.current) setAccountError(errorMessage(error));
+      return false;
+    } finally {
+      if (mountedRef.current) setAccountBusy(false);
+    }
+  }, [client]);
+
+  const switchAccount = useCallback(async () => {
+    const disconnected = await disconnectAccount();
+    if (disconnected && mountedRef.current) await beginAuthorization();
+  }, [beginAuthorization, disconnectAccount]);
 
   useEffect(() => {
     if (!authorization || authorizationPhase !== 'waiting') return;
@@ -357,8 +400,13 @@ export function useMissionControl(
     contextualPrompts,
     settingsSaveState,
     settingsError,
+    accountBusy,
+    accountError,
     retryBootstrap: bootstrap,
     beginAuthorization,
+    cancelAuthorization,
+    disconnectAccount,
+    switchAccount,
     synchronizeActivation,
     refreshInbox: () => refreshInbox('manual'),
     loadCachedInbox,

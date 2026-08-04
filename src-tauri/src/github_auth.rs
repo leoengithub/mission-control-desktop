@@ -275,6 +275,21 @@ impl GithubAuthService {
         Ok(token.access_token)
     }
 
+    pub fn cancel(&self, session_id: &str) -> Result<(), GithubAuthError> {
+        self.remove_session(session_id)
+    }
+
+    pub fn disconnect(&self, database: &Database) -> Result<(), GithubAuthError> {
+        self.pending
+            .lock()
+            .map_err(|_| GithubAuthError::Protocol("authorization lock poisoned".into()))?
+            .clear();
+        delete_token(ACCESS_TOKEN_ACCOUNT)?;
+        delete_token(REFRESH_TOKEN_ACCOUNT)?;
+        clear_account_cache(database)?;
+        Ok(())
+    }
+
     fn poll_interval(&self, session_id: &str) -> Result<u64, GithubAuthError> {
         let pending = self
             .pending
@@ -349,6 +364,50 @@ fn read_token(account: &str) -> Result<String, GithubAuthError> {
         .map_err(GithubAuthError::CredentialStore)?
         .get_password()
         .map_err(GithubAuthError::CredentialStore)
+}
+
+fn delete_token(account: &str) -> Result<(), GithubAuthError> {
+    let entry =
+        keyring::Entry::new(KEYCHAIN_SERVICE, account).map_err(GithubAuthError::CredentialStore)?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(GithubAuthError::CredentialStore(error)),
+    }
+}
+
+fn clear_account_cache(database: &Database) -> Result<(), DatabaseError> {
+    let now = Utc::now().to_rfc3339();
+    database.with_connection(|connection| {
+        let transaction = connection.unchecked_transaction()?;
+        transaction.execute("DELETE FROM github_accounts", [])?;
+        transaction.execute(
+            "UPDATE pull_requests SET in_scope = 0, review_requested = 0",
+            [],
+        )?;
+        transaction.execute(
+            "UPDATE attention_items SET cleared_at = ?1, snoozed_until = NULL \
+             WHERE cleared_at IS NULL",
+            [&now],
+        )?;
+        transaction.execute("DELETE FROM notification_deliveries", [])?;
+        transaction.execute(
+            "DELETE FROM app_state WHERE key IN (
+                'accessible_repository_count', 'initial_sync_completed', 'last_inbox_sync_at'
+             )",
+            [],
+        )?;
+        for (key, value) in [
+            ("accessible_repository_count", "0"),
+            ("initial_sync_completed", "false"),
+        ] {
+            transaction.execute(
+                "INSERT INTO app_state (key, value, updated_at) VALUES (?1, ?2, ?3)",
+                rusqlite::params![key, value, now],
+            )?;
+        }
+        transaction.commit()
+    })?;
+    Ok(())
 }
 
 fn update_token_expiration(database: &Database, token: &GithubToken) -> Result<(), DatabaseError> {
@@ -469,6 +528,8 @@ struct GithubUser {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::tempdir;
+
     use super::*;
 
     #[test]
@@ -501,5 +562,77 @@ mod tests {
     fn rounds_subsecond_poll_delays_up() {
         assert_eq!(duration_ceiling_seconds(Duration::from_millis(1)), 1);
         assert_eq!(duration_ceiling_seconds(Duration::from_millis(1001)), 2);
+    }
+
+    #[test]
+    fn clearing_an_account_preserves_local_work_and_hides_cached_github_rows() {
+        let directory = tempdir().unwrap();
+        let database = Database::open(directory.path().join("account.sqlite3")).unwrap();
+        database
+            .with_connection(|connection| {
+                connection.execute_batch(
+                    "INSERT INTO github_accounts (id, login, avatar_url, authorized_at)
+                     VALUES ('account-1', 'reviewer', '', '2026-08-04T10:00:00Z');
+                     INSERT INTO repositories (
+                        id, owner, name, full_name, default_branch, private
+                     ) VALUES ('repo-1', 'owner', 'repo', 'owner/repo', 'main', 1);
+                     INSERT INTO pull_requests (
+                        id, repository_id, number, title, url, author_login, head_ref,
+                        head_sha, base_ref, draft, review_requested, in_scope, state,
+                        updated_at, last_synced_at
+                     ) VALUES (
+                        'pr-1', 'repo-1', 1, 'Review me', 'https://github.com/owner/repo/pull/1',
+                        'reviewer', 'feature', 'abc123', 'main', 0, 1, 1, 'OPEN',
+                        '2026-08-04T10:00:00Z', '2026-08-04T10:00:00Z'
+                     );
+                     INSERT INTO local_repositories (
+                        repository_id, local_path, default_branch, validation_state,
+                        last_validated_at
+                     ) VALUES ('repo-1', '/tmp/repo', 'main', 'valid', '2026-08-04T10:00:00Z');
+                     INSERT INTO agent_runs (
+                        id, pull_request_id, agent, status, worktree_path, log_path, started_at
+                     ) VALUES (
+                        'run-1', 'pr-1', 'codex', 'completed', '/tmp/worktree',
+                        '/tmp/run.log', '2026-08-04T10:00:00Z'
+                     );
+                     INSERT INTO attention_items (
+                        id, pull_request_id, reason, summary, first_detected_at, last_changed_at
+                     ) VALUES (
+                        'attention-1', 'pr-1', 'review_requested', 'Review requested',
+                        '2026-08-04T10:00:00Z', '2026-08-04T10:00:00Z'
+                     );",
+                )?;
+                Ok(())
+            })
+            .unwrap();
+
+        clear_account_cache(&database).unwrap();
+
+        let state = database
+            .with_connection(|connection| {
+                Ok((
+                    connection.query_row("SELECT COUNT(*) FROM github_accounts", [], |row| {
+                        row.get::<_, u32>(0)
+                    })?,
+                    connection.query_row(
+                        "SELECT in_scope FROM pull_requests WHERE id = 'pr-1'",
+                        [],
+                        |row| row.get::<_, bool>(0),
+                    )?,
+                    connection.query_row("SELECT COUNT(*) FROM local_repositories", [], |row| {
+                        row.get::<_, u32>(0)
+                    })?,
+                    connection.query_row("SELECT COUNT(*) FROM agent_runs", [], |row| {
+                        row.get::<_, u32>(0)
+                    })?,
+                    connection.query_row(
+                        "SELECT cleared_at IS NOT NULL FROM attention_items WHERE id = 'attention-1'",
+                        [],
+                        |row| row.get::<_, bool>(0),
+                    )?,
+                ))
+            })
+            .unwrap();
+        assert_eq!(state, (0, false, 1, 1, true));
     }
 }

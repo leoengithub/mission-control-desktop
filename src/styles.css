@@ -1,3 +1,34 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
 :root {
   color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
@@ -30,6 +61,26 @@
   --info-deep: oklch(43% 0.115 248);
   --info-soft: oklch(95% 0.025 248);
   --focus: oklch(58% 0.15 248);
+
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--action);
+  --primary-foreground: var(--surface-raised);
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--ink-secondary);
+  --accent: var(--surface-selected);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--hairline);
+  --input: var(--hairline-strong);
+  --ring: var(--focus);
+  --radius: 11px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -414,6 +465,17 @@ button:disabled {
   border-radius: 999px;
   background: var(--success-soft);
   color: var(--success-deep);
+}
+
+.activation__hero {
+  display: block;
+  width: min(100%, 520px);
+  max-height: 210px;
+  margin-top: var(--space-6);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  object-fit: cover;
+  object-position: center 46%;
 }
 
 .activation-panel {
@@ -821,6 +883,62 @@ button:disabled {
   color: var(--ink-secondary);
 }
 
+.github-account-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  margin-top: var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.github-account-card__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.github-account-card__identity > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.github-account-card__identity strong {
+  font-size: 0.875rem;
+}
+
+.github-account-card__identity small {
+  color: var(--ink-secondary);
+  font-size: 0.75rem;
+}
+
+.github-account-card__avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-selected);
+  color: var(--success-deep);
+}
+
+.github-account-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.account-dialog__primary {
+  color: var(--primary-foreground);
+}
+
 .choice-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -950,6 +1068,10 @@ button:disabled {
   color: var(--success-deep);
 }
 
+.switch-control__primitive[data-checked] {
+  background: var(--success-deep);
+}
+
 .switch-control--checked .switch-control__track {
   border-color: var(--success);
   background: var(--success-soft);
@@ -985,35 +1107,14 @@ button:disabled {
   font-size: 0.8rem;
 }
 
-.reason-checkbox input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.reason-checkbox__mark {
-  display: grid;
-  width: 17px;
-  height: 17px;
-  place-items: center;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 5px;
-  background: var(--surface);
-  color: var(--success-deep);
-}
-
-.reason-checkbox input:focus-visible + .reason-checkbox__mark {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.reason-checkbox:has(input:checked) {
+.reason-checkbox:has(.reason-checkbox__control[data-checked]) {
   color: var(--ink);
 }
 
-.reason-checkbox:has(input:checked) .reason-checkbox__mark {
+.reason-checkbox__control[data-checked] {
   border-color: var(--success);
-  background: var(--success-soft);
+  background: var(--success-deep);
+  color: var(--surface-raised);
 }
 
 .reason-checkbox--disabled {
@@ -1373,6 +1474,16 @@ button:disabled {
   place-items: center;
 }
 
+.status-pill__icon img {
+  width: 14px;
+  height: 14px;
+}
+
+.status-pill--compact .status-pill__icon img {
+  width: 12px;
+  height: 12px;
+}
+
 .status-pill--compact {
   min-height: 21px;
   gap: 4px;
@@ -1628,6 +1739,14 @@ button:disabled {
 
 .empty-inbox {
   gap: var(--space-2);
+}
+
+.empty-inbox__art {
+  width: min(100%, 250px);
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  object-fit: cover;
 }
 
 .empty-inbox strong,

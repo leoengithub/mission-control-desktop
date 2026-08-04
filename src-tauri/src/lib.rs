@@ -33,6 +33,7 @@ use sync::{
     CachedPullRequest, GithubSyncError, GithubSyncResult, GithubSyncService,
     list_cached_pull_requests,
 };
+use tauri::image::Image;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -1077,6 +1078,34 @@ async fn poll_github_authorization(
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn cancel_github_authorization(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<(), String> {
+    let service = state
+        .github_auth
+        .as_ref()
+        .ok_or("GitHub App client ID is not configured")?;
+    service
+        .cancel(&session_id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn disconnect_github_account(state: State<'_, AppState>) -> Result<ActivationState, String> {
+    let _guard = state.sync_lock.lock().await;
+    let service = state
+        .github_auth
+        .as_ref()
+        .ok_or("GitHub App client ID is not configured")?;
+    service
+        .disconnect(&state.database)
+        .map_err(|error| error.to_string())?;
+    resolve_activation_state(&state.database, github_client_id().is_some())
+        .map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1169,7 +1198,10 @@ pub fn run() {
             let show = MenuItem::with_id(app, "show", "Show Mission Control", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit Mission Control", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
+            let tray_icon = Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
             TrayIconBuilder::with_id(MAIN_TRAY_ID)
+                .icon(tray_icon)
+                .icon_as_template(true)
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -1256,7 +1288,9 @@ pub fn run() {
             cleanup_agent_worktree,
             refresh_inbox,
             start_github_authorization,
-            poll_github_authorization
+            poll_github_authorization,
+            cancel_github_authorization,
+            disconnect_github_account
         ])
         .run(tauri::generate_context!())
         .expect("error while running Mission Control");

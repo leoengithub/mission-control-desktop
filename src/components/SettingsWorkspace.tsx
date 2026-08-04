@@ -8,6 +8,22 @@ import type {
   SyncPreset,
 } from '../contracts';
 import { Icon } from './Icon';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface SettingsWorkspaceProps {
   settings: AppSettings | null;
@@ -18,10 +34,18 @@ interface SettingsWorkspaceProps {
   agents: AgentAvailability[];
   actionStates: Record<string, 'idle' | 'running' | 'error'>;
   actionErrors: Record<string, string>;
+  githubLogin: string | null;
+  accountBusy: boolean;
   onSave(patch: SettingsPatch): void;
   onNotificationsEnabled(enabled: boolean): void;
   onAttachRepository(repositoryId: string, localPath: string): void;
+  onOpenUrl(url: string): void;
+  onSwitchAccount(): void;
+  onDisconnectAccount(): void;
 }
+
+const installationSettingsUrl = 'https://github.com/settings/installations';
+const authorizationSettingsUrl = 'https://github.com/settings/applications';
 
 const syncOptions: Array<{
   value: SyncPreset;
@@ -46,9 +70,14 @@ export function SettingsWorkspace({
   agents,
   actionStates,
   actionErrors,
+  githubLogin,
+  accountBusy,
   onSave,
   onNotificationsEnabled,
   onAttachRepository,
+  onOpenUrl,
+  onSwitchAccount,
+  onDisconnectAccount,
 }: SettingsWorkspaceProps) {
   if (!settings) {
     return (
@@ -140,6 +169,58 @@ export function SettingsWorkspace({
           </div>
         </section>
 
+        <section className="settings-section" aria-labelledby="github-account-heading">
+          <div className="settings-section__heading">
+            <span className="settings-section__icon">
+              <Icon name="github" size={17} />
+            </span>
+            <div>
+              <h2 id="github-account-heading">GitHub account</h2>
+              <p>
+                Mission Control uses one active account at a time. Missing a repository? Check the
+                GitHub App installation access before switching accounts.
+              </p>
+            </div>
+          </div>
+          <div className="github-account-card">
+            <div className="github-account-card__identity">
+              <span className="github-account-card__avatar" aria-hidden="true">
+                <Icon name="github" size={18} />
+              </span>
+              <span>
+                <strong>{githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}</strong>
+                <small>Tokens are stored in this Mac's system keychain.</small>
+              </span>
+            </div>
+            <div className="github-account-card__actions">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={accountBusy}
+                onClick={() => onOpenUrl(installationSettingsUrl)}
+              >
+                Manage repository access
+                <Icon name="arrow-up-right" size={14} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={accountBusy}
+                onClick={() => onOpenUrl(authorizationSettingsUrl)}
+              >
+                Review GitHub authorization
+                <Icon name="arrow-up-right" size={14} />
+              </Button>
+              <AccountActionDialog action="switch" busy={accountBusy} onConfirm={onSwitchAccount} />
+              <AccountActionDialog
+                action="disconnect"
+                busy={accountBusy}
+                onConfirm={onDisconnectAccount}
+              />
+            </div>
+          </div>
+        </section>
+
         <section className="settings-section" aria-labelledby="notifications-heading">
           <SettingToggle
             icon="alert"
@@ -212,7 +293,7 @@ export function SettingsWorkspace({
                 <strong>Worktree directory</strong>
                 <span>Leave empty to use a managed sibling directory beside each repository.</span>
               </span>
-              <input
+              <Input
                 className="settings-text-input"
                 type="text"
                 defaultValue={settings.worktrees.baseDirectory ?? ''}
@@ -404,7 +485,7 @@ function RepositorySetting({
           </small>
         </span>
       </div>
-      <input
+      <Input
         className="settings-text-input repository-setting__input"
         type="text"
         name="localPath"
@@ -453,19 +534,15 @@ function SettingToggle({
         <strong id={headingId}>{title}</strong>
         <span>{description}</span>
       </div>
-      <button
-        className={`switch-control${checked ? ' switch-control--checked' : ''}`}
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-      >
-        <span className="switch-control__track">
-          <span className="switch-control__thumb" />
-        </span>
+      <span className={`switch-control${checked ? ' switch-control--checked' : ''}`}>
+        <Switch
+          className="switch-control__primitive"
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={onChange}
+        />
         <span>{checked ? 'On' : 'Off'}</span>
-      </button>
+      </span>
     </div>
   );
 }
@@ -483,17 +560,62 @@ function ReasonCheckbox({
 }) {
   return (
     <label className={`reason-checkbox${disabled ? ' reason-checkbox--disabled' : ''}`}>
-      <input
-        type="checkbox"
+      <Checkbox
+        className="reason-checkbox__control"
         checked={checked}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
+        onCheckedChange={onChange}
       />
-      <span className="reason-checkbox__mark">
-        {checked ? <Icon name="check" size={12} strokeWidth={2.4} /> : null}
-      </span>
       <span>{label}</span>
     </label>
+  );
+}
+
+function AccountActionDialog({
+  action,
+  busy,
+  onConfirm,
+}: {
+  action: 'switch' | 'disconnect';
+  busy: boolean;
+  onConfirm(): void;
+}) {
+  const switching = action === 'switch';
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger
+        render={<Button variant={switching ? 'secondary' : 'ghost'} size="sm" disabled={busy} />}
+      >
+        {switching ? 'Switch account' : 'Disconnect'}
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogMedia>
+            <Icon name={switching ? 'refresh' : 'alert'} size={20} />
+          </AlertDialogMedia>
+          <AlertDialogTitle>
+            {switching ? 'Switch GitHub account?' : 'Disconnect this GitHub account?'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {switching
+              ? 'Mission Control will remove the current local token and open GitHub Device Flow for another account.'
+              : 'Mission Control will remove the token from this Mac and clear the active inbox. GitHub authorization can be revoked separately in GitHub settings.'}{' '}
+            Local repositories, worktrees, and agent logs are preserved.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className={switching ? 'account-dialog__primary' : undefined}
+            variant={switching ? 'default' : 'destructive'}
+            disabled={busy}
+            onClick={onConfirm}
+          >
+            {busy ? 'Working…' : switching ? 'Switch account' : 'Disconnect'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

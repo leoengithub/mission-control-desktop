@@ -166,6 +166,14 @@ export function pollGithubAuthorization(sessionId: string): Promise<DeviceAuthor
   return invoke<DeviceAuthorizationPoll>('poll_github_authorization', { sessionId });
 }
 
+export function cancelGithubAuthorization(sessionId: string): Promise<void> {
+  return invoke<void>('cancel_github_authorization', { sessionId });
+}
+
+export function disconnectGithubAccount(): Promise<ActivationState> {
+  return invoke<ActivationState>('disconnect_github_account');
+}
+
 export function openExternalUrl(url: string): Promise<void> {
   return invoke<void>('plugin:opener|open_url', { url });
 }

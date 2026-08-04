@@ -22,9 +22,11 @@ import type {
 } from '../contracts';
 import {
   attachLocalRepository,
+  cancelGithubAuthorization,
   cleanupAgentWorktree,
   completeFixSession,
   detectAgents,
+  disconnectGithubAccount,
   getActivationState,
   getFoundationStatus,
   getNotificationPermission,
@@ -95,6 +97,8 @@ export interface MissionControlClient {
   onOpenPullRequest(handler: (event: OpenPullRequestEvent) => void): Promise<() => void>;
   startGithubAuthorization(): Promise<DeviceAuthorization>;
   pollGithubAuthorization(sessionId: string): Promise<DeviceAuthorizationPoll>;
+  cancelGithubAuthorization(sessionId: string): Promise<void>;
+  disconnectGithubAccount(): Promise<ActivationState>;
   openExternalUrl(url: string): Promise<void>;
 }
 
@@ -130,6 +134,8 @@ const nativeClient: MissionControlClient = {
   onOpenPullRequest,
   startGithubAuthorization,
   pollGithubAuthorization,
+  cancelGithubAuthorization,
+  disconnectGithubAccount,
   openExternalUrl,
 };
 

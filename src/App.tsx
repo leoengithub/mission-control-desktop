@@ -82,9 +82,11 @@ export function App() {
             activation={model.activation}
             authorization={model.authorization}
             authorizationPhase={model.authorizationPhase}
-            busy={model.activationBusy}
-            error={model.activationError}
+            busy={model.activationBusy || model.accountBusy}
+            error={model.accountError ?? model.activationError}
             onBeginAuthorization={() => void model.beginAuthorization()}
+            onCancelAuthorization={() => void model.cancelAuthorization()}
+            onSwitchAccount={() => void model.switchAccount()}
             onSynchronize={() => void model.synchronizeActivation()}
             onOpenUrl={(url) => void model.openExternalUrl(url)}
           />
@@ -123,16 +125,21 @@ export function App() {
           settings={model.settings}
           notificationPermission={model.notificationPermission}
           saveState={model.settingsSaveState}
-          error={model.settingsError}
+          error={model.accountError ?? model.settingsError}
           repositories={reviewWorkflow.repositories}
           agents={reviewWorkflow.agents}
           actionStates={reviewWorkflow.actionStates}
           actionErrors={reviewWorkflow.actionErrors}
+          githubLogin={model.activation.githubLogin}
+          accountBusy={model.accountBusy}
           onSave={(patch) => void model.saveSettings(patch)}
           onNotificationsEnabled={(enabled) => void model.setNotificationsEnabled(enabled)}
           onAttachRepository={(repositoryId, localPath) =>
             void reviewWorkflow.attachRepository(repositoryId, localPath)
           }
+          onOpenUrl={(url) => void model.openExternalUrl(url)}
+          onSwitchAccount={() => void model.switchAccount()}
+          onDisconnectAccount={() => void model.disconnectAccount()}
         />
       ) : null}
     </div>

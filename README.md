@@ -76,9 +76,26 @@ corepack pnpm check
 
 Mission Control never commits or pushes from these workflows. Worktrees with changes or a changed `HEAD` are preserved.
 
-## Releases
+## macOS dogfood builds
 
-Pushing a version tag such as `v0.1.0` creates a draft GitHub release with native bundles for macOS, Windows, and Linux. Public production releases still require project-owned signing and notarization credentials in GitHub Actions. Unsigned local development builds remain available without those secrets.
+The application can be used locally without a paid Apple Developer account. Build an ad-hoc-signed application bundle on an Apple Silicon Mac:
+
+```sh
+APPLE_SIGNING_IDENTITY=- corepack pnpm tauri build --bundles app
+open 'src-tauri/target/release/bundle/macos/Mission Control.app'
+```
+
+To keep the application outside Cargo's rebuildable output, copy it into your user Applications directory:
+
+```sh
+mkdir -p "$HOME/Applications"
+ditto 'src-tauri/target/release/bundle/macos/Mission Control.app' \
+  "$HOME/Applications/Mission Control.app"
+```
+
+The **Build macOS dogfood app** GitHub Actions workflow provides the same account-free path remotely. Run it manually, download the macOS arm64 DMG from the workflow artifacts, and drag Mission Control into Applications. The bundle is ad-hoc signed rather than notarized, so macOS may require confirming the first launch in **System Settings → Privacy & Security**.
+
+Public distribution remains a separate milestone. A broadly downloadable release will require a Developer ID Application certificate and Apple notarization credentials; Windows, Linux, and automatic updates are intentionally outside the current dogfood workflow.
 
 ## Privacy and security
 

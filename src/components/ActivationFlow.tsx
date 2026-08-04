@@ -1,5 +1,6 @@
 import type { ActivationState, DeviceAuthorization } from '../contracts';
 import { Icon } from './Icon';
+import onboardingHero from '../../assets/brand/raster/onboarding-hero.png';
 
 interface ActivationFlowProps {
   activation: ActivationState;
@@ -8,6 +9,8 @@ interface ActivationFlowProps {
   busy: boolean;
   error: string | null;
   onBeginAuthorization(): void;
+  onCancelAuthorization(): void;
+  onSwitchAccount(): void;
   onSynchronize(): void;
   onOpenUrl(url: string): void;
 }
@@ -21,6 +24,8 @@ export function ActivationFlow({
   busy,
   error,
   onBeginAuthorization,
+  onCancelAuthorization,
+  onSwitchAccount,
   onSynchronize,
   onOpenUrl,
 }: ActivationFlowProps) {
@@ -46,6 +51,14 @@ export function ActivationFlow({
           </span>
           Tokens stay in your system keychain. Monitoring stays on this Mac.
         </div>
+        <img
+          className="activation__hero"
+          src={onboardingHero}
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+          loading="lazy"
+        />
       </section>
 
       <section className="activation-panel" aria-label="Activation progress">
@@ -119,6 +132,7 @@ export function ActivationFlow({
             <DeviceCode
               authorization={authorization}
               onOpen={() => onOpenUrl(authorization.verificationUri)}
+              onCancel={onCancelAuthorization}
             />
           ) : null}
 
@@ -147,6 +161,15 @@ export function ActivationFlow({
               >
                 Manage GitHub access
                 <Icon name="arrow-up-right" size={15} />
+              </button>
+              <button
+                className="button button--quiet button--wide"
+                type="button"
+                onClick={onSwitchAccount}
+                disabled={busy}
+              >
+                <Icon name="github" size={15} />
+                Use another GitHub account
               </button>
             </div>
           ) : null}
@@ -200,9 +223,11 @@ function SetupStep({
 function DeviceCode({
   authorization,
   onOpen,
+  onCancel,
 }: {
   authorization: DeviceAuthorization;
   onOpen(): void;
+  onCancel(): void;
 }) {
   const copy = async () => {
     await navigator.clipboard.writeText(authorization.userCode);
@@ -232,6 +257,9 @@ function DeviceCode({
       <button className="button button--primary button--wide" type="button" onClick={onOpen}>
         Open GitHub
         <Icon name="arrow-up-right" size={15} />
+      </button>
+      <button className="button button--quiet button--wide" type="button" onClick={onCancel}>
+        Cancel authorization
       </button>
     </div>
   );
