@@ -4,6 +4,7 @@ use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
 
 const INITIAL_MIGRATION: &str = include_str!("../migrations/0001_initial.sql");
+const REVIEW_WORKFLOWS_MIGRATION: &str = include_str!("../migrations/0002_review_workflows.sql");
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
@@ -32,7 +33,15 @@ impl Database {
         )?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
         connection.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
-        connection.execute_batch(INITIAL_MIGRATION)?;
+        let mut version =
+            connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))?;
+        if version == 0 {
+            connection.execute_batch(INITIAL_MIGRATION)?;
+            version = 1;
+        }
+        if version == 1 {
+            connection.execute_batch(REVIEW_WORKFLOWS_MIGRATION)?;
+        }
         Ok(Self {
             connection: Mutex::new(connection),
         })
@@ -71,6 +80,15 @@ mod tests {
                 connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
             })
             .unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
+        let columns = database
+            .with_connection(|connection| {
+                let mut statement = connection.prepare("PRAGMA table_info(agent_runs)")?;
+                statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .unwrap();
+        assert!(columns.iter().any(|column| column == "thread_id"));
     }
 }

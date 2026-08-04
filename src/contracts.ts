@@ -123,11 +123,100 @@ export interface CachedPullRequest {
   title: string;
   url: string;
   authorLogin: string;
+  headRef: string;
   headSha: string;
+  baseRef: string;
   draft: boolean;
   reviewRequested: boolean;
   updatedAt: string;
   lastSyncedAt: string;
+}
+
+export interface ReviewComment {
+  id: string;
+  authorLogin: string;
+  body: string;
+  isBot: boolean;
+  diffHunk: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewThread {
+  id: string;
+  path: string | null;
+  line: number | null;
+  startLine: number | null;
+  originalLine: number | null;
+  originalStartLine: number | null;
+  side: string | null;
+  resolved: boolean;
+  outdated: boolean;
+  isBot: boolean;
+  hasNewActivity: boolean;
+  updatedAt: string;
+  comments: ReviewComment[];
+}
+
+export interface CheckRun {
+  id: string;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  required: boolean;
+  detailsUrl: string | null;
+  updatedAt: string;
+}
+
+export interface PullRequestReviewDetail {
+  pullRequestId: string;
+  threads: ReviewThread[];
+  checks: CheckRun[];
+}
+
+export interface LocalRepositoryAttachment {
+  repositoryId: string;
+  repository: string;
+  localPath: string | null;
+  defaultBranch: string;
+  validationState: string;
+  lastValidatedAt: string | null;
+}
+
+export type AgentAction = 'reply_resolve' | 'fix_reply_resolve' | 'open_terminal';
+export type AgentRunStatus = 'running' | 'completed' | 'failed' | 'interrupted' | 'stalled';
+
+export interface AgentRun {
+  id: string;
+  pullRequestId: string;
+  threadId: string | null;
+  action: AgentAction;
+  agent: AgentKind | 'shell';
+  status: AgentRunStatus;
+  worktreePath: string | null;
+  baseHeadSha: string | null;
+  logPath: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  summary: string | null;
+  exitCode: number | null;
+  replyPostedAt: string | null;
+  resolvedAt: string | null;
+}
+
+export interface AgentAvailability {
+  agent: AgentKind;
+  label: string;
+  available: boolean;
+  version: string | null;
+}
+
+export interface TerminalEvent {
+  runId: string;
+  kind: 'output' | 'exit';
+  data: string | null;
+  status: AgentRunStatus | null;
+  exitCode: number | null;
 }
 
 export interface GithubSyncResult {
@@ -135,3 +224,23 @@ export interface GithubSyncResult {
   attentionTransitionCount: number;
   completedAt: string;
 }
+
+export type SyncTrigger = 'manual' | 'focus' | 'activation' | 'background';
+
+export interface InboxSyncEvent {
+  status: 'completed' | 'failed';
+  trigger: SyncTrigger;
+  result: GithubSyncResult | null;
+  error: string | null;
+  retryAfterSeconds: number | null;
+  attentionPullRequestCount: number;
+}
+
+export interface OpenPullRequestEvent {
+  pullRequestId: string;
+}
+
+export type NotificationPermission = 'granted' | 'denied' | 'prompt';
+
+export type ContextualPrompt =
+  'enable_notifications' | 'enable_launch_at_login' | 'attach_local_repository' | 'configure_agent';

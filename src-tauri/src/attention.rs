@@ -22,7 +22,7 @@ pub enum AttentionReason {
 }
 
 impl AttentionReason {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::ReviewRequested => "review_requested",
             Self::UnresolvedThread => "unresolved_thread",
@@ -95,6 +95,17 @@ impl<'database> AttentionRepository<'database> {
             )?;
             let rows = statement.query_map([], map_attention_item)?;
             rows.collect()
+        })
+    }
+
+    pub fn active_pull_request_count(&self, now: DateTime<Utc>) -> Result<usize, DatabaseError> {
+        self.database.with_connection(|connection| {
+            connection.query_row(
+                "SELECT COUNT(DISTINCT pull_request_id) FROM attention_items \
+                 WHERE cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?1)",
+                [now.to_rfc3339()],
+                |row| row.get(0),
+            )
         })
     }
 
@@ -204,6 +215,141 @@ impl<'database> AttentionRepository<'database> {
 
             transaction.commit()?;
             Ok(transitions)
+        })
+    }
+
+    pub fn reconcile_github_for_pull_request(
+        &self,
+        pull_request_id: &str,
+        mut candidates: Vec<AttentionCandidate>,
+        now: DateTime<Utc>,
+    ) -> Result<Vec<AttentionTransition>, DatabaseError> {
+        let agent_candidates = self.database.with_connection(|connection| {
+            let mut statement = connection.prepare(
+                "SELECT reason, source_id, summary FROM attention_items \
+                 WHERE pull_request_id = ?1 AND cleared_at IS NULL AND reason IN (
+                   'agent_waiting_for_user', 'agent_failed', 'agent_stalled', 'agent_interrupted'
+                 )",
+            )?;
+            statement
+                .query_map([pull_request_id], |row| {
+                    Ok(AttentionCandidate {
+                        reason: AttentionReason::parse(&row.get::<_, String>(0)?)?,
+                        source_id: row.get(1)?,
+                        summary: row.get(2)?,
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })?;
+        candidates.extend(agent_candidates);
+        self.reconcile_for_pull_request(pull_request_id, candidates, now)
+    }
+
+    pub fn activate_candidate(
+        &self,
+        pull_request_id: &str,
+        candidate: AttentionCandidate,
+        now: DateTime<Utc>,
+    ) -> Result<Option<AttentionTransition>, DatabaseError> {
+        self.database.with_connection(|connection| {
+            let existing = connection
+                .query_row(
+                    "SELECT id, summary, cleared_at FROM attention_items \
+                     WHERE pull_request_id = ?1 AND reason = ?2 AND source_id IS ?3",
+                    params![
+                        pull_request_id,
+                        candidate.reason.as_str(),
+                        candidate.source_id
+                    ],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, Option<String>>(2)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            let now_text = now.to_rfc3339();
+            if let Some((id, previous_summary, cleared_at)) = existing {
+                if cleared_at.is_none() {
+                    if previous_summary != candidate.summary {
+                        connection.execute(
+                            "UPDATE attention_items SET summary = ?1, last_changed_at = ?2 \
+                             WHERE id = ?3",
+                            params![candidate.summary, now_text, id],
+                        )?;
+                    }
+                    return Ok(None);
+                }
+                connection.execute(
+                    "UPDATE attention_items SET summary = ?1, first_detected_at = ?2, \
+                     last_changed_at = ?2, snoozed_until = NULL, cleared_at = NULL WHERE id = ?3",
+                    params![candidate.summary, now_text, id],
+                )?;
+                return Ok(Some(AttentionTransition::Activated(AttentionItem {
+                    id,
+                    pull_request_id: pull_request_id.to_owned(),
+                    reason: candidate.reason,
+                    source_id: candidate.source_id,
+                    summary: candidate.summary,
+                    first_detected_at: now,
+                    last_changed_at: now,
+                    snoozed_until: None,
+                })));
+            }
+            let id = Uuid::new_v4().to_string();
+            connection.execute(
+                "INSERT INTO attention_items (
+                    id, pull_request_id, reason, source_id, summary,
+                    first_detected_at, last_changed_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
+                params![
+                    id,
+                    pull_request_id,
+                    candidate.reason.as_str(),
+                    candidate.source_id,
+                    candidate.summary,
+                    now_text,
+                ],
+            )?;
+            Ok(Some(AttentionTransition::Activated(AttentionItem {
+                id,
+                pull_request_id: pull_request_id.to_owned(),
+                reason: candidate.reason,
+                source_id: candidate.source_id,
+                summary: candidate.summary,
+                first_detected_at: now,
+                last_changed_at: now,
+                snoozed_until: None,
+            })))
+        })
+    }
+
+    pub fn clear_candidate(
+        &self,
+        pull_request_id: &str,
+        reason: AttentionReason,
+        source_id: Option<&str>,
+        now: DateTime<Utc>,
+    ) -> Result<Option<AttentionTransition>, DatabaseError> {
+        self.database.with_connection(|connection| {
+            let id = connection
+                .query_row(
+                    "SELECT id FROM attention_items WHERE pull_request_id = ?1 AND reason = ?2 \
+                     AND source_id IS ?3 AND cleared_at IS NULL",
+                    params![pull_request_id, reason.as_str(), source_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            let Some(id) = id else {
+                return Ok(None);
+            };
+            connection.execute(
+                "UPDATE attention_items SET cleared_at = ?1, last_changed_at = ?1 WHERE id = ?2",
+                params![now.to_rfc3339(), id],
+            )?;
+            Ok(Some(AttentionTransition::Cleared { id }))
         })
     }
 
@@ -360,5 +506,68 @@ mod tests {
         let active = repository.list_active().unwrap();
         assert_eq!(active[0].first_detected_at, second_time);
         assert_eq!(active[0].snoozed_until, None);
+    }
+
+    #[test]
+    fn github_reconciliation_preserves_local_agent_attention() {
+        let database = database_with_pr();
+        let repository = AttentionRepository::new(&database);
+        let now = Utc.with_ymd_and_hms(2026, 8, 3, 12, 0, 0).unwrap();
+        repository
+            .activate_candidate(
+                "pr-1",
+                AttentionCandidate {
+                    reason: AttentionReason::AgentWaitingForUser,
+                    source_id: Some("run-1".into()),
+                    summary: "Agent is waiting".into(),
+                },
+                now,
+            )
+            .unwrap();
+
+        repository
+            .reconcile_github_for_pull_request("pr-1", Vec::new(), now)
+            .unwrap();
+
+        let active = repository.list_active().unwrap();
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].reason, AttentionReason::AgentWaitingForUser);
+    }
+
+    #[test]
+    fn badge_count_deduplicates_pull_requests_and_excludes_snoozed_items() {
+        let database = database_with_pr();
+        let repository = AttentionRepository::new(&database);
+        let now = Utc.with_ymd_and_hms(2026, 8, 3, 12, 0, 0).unwrap();
+        repository
+            .reconcile_for_pull_request(
+                "pr-1",
+                vec![
+                    AttentionCandidate {
+                        reason: AttentionReason::RequiredChecksFailing,
+                        source_id: None,
+                        summary: "Required checks are failing".into(),
+                    },
+                    AttentionCandidate {
+                        reason: AttentionReason::UnresolvedThread,
+                        source_id: Some("thread-1".into()),
+                        summary: "A review thread is unresolved".into(),
+                    },
+                ],
+                now,
+            )
+            .unwrap();
+        assert_eq!(repository.active_pull_request_count(now).unwrap(), 1);
+
+        database
+            .with_connection(|connection| {
+                connection.execute(
+                    "UPDATE attention_items SET snoozed_until = ?1",
+                    [(now + chrono::Duration::hours(1)).to_rfc3339()],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(repository.active_pull_request_count(now).unwrap(), 0);
     }
 }

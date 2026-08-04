@@ -13,6 +13,10 @@ use crate::{
 };
 
 const GRAPHQL_URL: &str = "https://api.github.com/graphql";
+const ACTIONABLE_BOT_KEYWORDS: [&str; 11] = [
+    "error", "fail", "failed", "failure", "block", "blocked", "blocking", "required", "must",
+    "critical", "breaking",
+];
 const SEARCH_QUERY: &str = r#"
 query PullRequestInbox($query: String!, $after: String) {
   viewer {
@@ -39,7 +43,16 @@ query PullRequestAttention($id: ID!) {
   node(id: $id) {
     ... on PullRequest {
       reviewThreads(first: 100) {
-        nodes { id isResolved isOutdated }
+        nodes {
+          id isResolved isOutdated path line startLine originalLine originalStartLine diffSide
+          comments(first: 100) {
+            nodes {
+              id body diffHunk createdAt updatedAt
+              author { login }
+            }
+            pageInfo { hasNextPage }
+          }
+        }
         pageInfo { hasNextPage }
       }
       statusCheckRollup {
@@ -70,6 +83,8 @@ pub enum GithubSyncError {
     Request(#[source] reqwest::Error),
     #[error("GitHub returned HTTP {0}")]
     Http(StatusCode),
+    #[error("GitHub rate limit reached; retry in {retry_after_seconds} seconds")]
+    RateLimited { retry_after_seconds: u64 },
     #[error("GitHub GraphQL error: {0}")]
     Graphql(String),
     #[error("GitHub returned more review data than this version can safely reconcile")]
@@ -87,7 +102,9 @@ pub struct CachedPullRequest {
     pub title: String,
     pub url: String,
     pub author_login: String,
+    pub head_ref: String,
     pub head_sha: String,
+    pub base_ref: String,
     pub draft: bool,
     pub review_requested: bool,
     pub updated_at: String,
@@ -154,17 +171,10 @@ impl GithubSyncService {
         let mut transitions = Vec::new();
         for pull_request in &pull_requests {
             let review_requested = requested_ids.contains(&pull_request.id);
-            let (threads, failing_checks) = if pull_request
-                .author
-                .as_ref()
-                .is_some_and(|author| author.login.eq_ignore_ascii_case(&login))
-            {
-                let detail = self.attention(access_token, &pull_request.id).await?;
-                persist_attention_detail(database, &pull_request.id, &detail)?;
-                (detail.threads, detail.failing_required_checks)
-            } else {
-                (Vec::new(), Vec::new())
-            };
+            let detail = self.attention(access_token, &pull_request.id).await?;
+            persist_attention_detail(database, &pull_request.id, &detail)?;
+            let threads = detail.threads;
+            let failing_checks = detail.failing_required_checks;
             let snapshot = PullRequestAttentionSnapshot {
                 id: pull_request.id.clone(),
                 title: pull_request.title.clone(),
@@ -177,7 +187,7 @@ impl GithubSyncService {
                 review_threads: threads,
             };
             transitions.extend(
-                AttentionRepository::new(database).reconcile_for_pull_request(
+                AttentionRepository::new(database).reconcile_github_for_pull_request(
                     &pull_request.id,
                     derive_attention_candidates(&snapshot, &login),
                     Utc::now(),
@@ -193,6 +203,84 @@ impl GithubSyncService {
             },
             transitions,
         ))
+    }
+
+    pub async fn reply_to_thread(
+        &self,
+        access_token: &str,
+        thread_id: &str,
+        body: &str,
+    ) -> Result<(), GithubSyncError> {
+        let _: serde_json::Value = self
+            .graphql(
+                access_token,
+                r#"
+                mutation ReplyToReviewThread($threadId: ID!, $body: String!) {
+                  addPullRequestReviewThreadReply(
+                    input: { pullRequestReviewThreadId: $threadId, body: $body }
+                  ) { comment { id } }
+                }
+                "#,
+                json!({ "threadId": thread_id, "body": body }),
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub async fn resolve_thread(
+        &self,
+        access_token: &str,
+        thread_id: &str,
+    ) -> Result<(), GithubSyncError> {
+        let _: serde_json::Value = self
+            .graphql(
+                access_token,
+                r#"
+                mutation ResolveReviewThread($threadId: ID!) {
+                  resolveReviewThread(input: { threadId: $threadId }) {
+                    thread { id isResolved }
+                  }
+                }
+                "#,
+                json!({ "threadId": thread_id }),
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub async fn request_copilot_review(
+        &self,
+        access_token: &str,
+        repository: &str,
+        number: i64,
+    ) -> Result<(), GithubSyncError> {
+        let url =
+            format!("https://api.github.com/repos/{repository}/pulls/{number}/requested_reviewers");
+        let response = self
+            .client
+            .post(&url)
+            .bearer_auth(access_token)
+            .json(&json!({ "reviewers": ["copilot-pull-request-reviewer[bot]"] }))
+            .send()
+            .await
+            .map_err(GithubSyncError::Request)?;
+        let status = response.status();
+        let response_headers = response.headers().clone();
+        if status.is_success() {
+            return Ok(());
+        }
+        if is_rate_limited(status, &response_headers) {
+            return Err(GithubSyncError::RateLimited {
+                retry_after_seconds: retry_after_seconds(&response_headers),
+            });
+        }
+        if status == StatusCode::UNPROCESSABLE_ENTITY {
+            return Err(GithubSyncError::Graphql(
+                "GitHub did not accept Copilot for this repository; check the repository or organization Copilot review policy"
+                    .into(),
+            ));
+        }
+        Err(GithubSyncError::Http(status))
     }
 
     async fn search(
@@ -241,6 +329,12 @@ impl GithubSyncService {
             .ok_or_else(|| GithubSyncError::Graphql("pull request no longer exists".into()))?;
         if node.review_threads.page_info.has_next_page
             || node
+                .review_threads
+                .nodes
+                .iter()
+                .flatten()
+                .any(|thread| thread.comments.page_info.has_next_page)
+            || node
                 .status_check_rollup
                 .as_ref()
                 .is_some_and(|rollup| rollup.contexts.page_info.has_next_page)
@@ -252,11 +346,8 @@ impl GithubSyncService {
             .nodes
             .into_iter()
             .flatten()
-            .map(|thread| ReviewThreadSnapshot {
-                id: thread.id,
-                resolved: thread.is_resolved,
-                outdated: thread.is_outdated,
-            })
+            .map(review_thread_snapshot)
+            .filter(thread_is_actionable)
             .collect();
         let checks = node
             .status_check_rollup
@@ -296,22 +387,33 @@ impl GithubSyncService {
             .send()
             .await
             .map_err(GithubSyncError::Request)?;
-        if !response.status().is_success() {
-            return Err(GithubSyncError::Http(response.status()));
+        let status = response.status();
+        let response_headers = response.headers().clone();
+        if !status.is_success() {
+            if is_rate_limited(status, &response_headers) {
+                return Err(GithubSyncError::RateLimited {
+                    retry_after_seconds: retry_after_seconds(&response_headers),
+                });
+            }
+            return Err(GithubSyncError::Http(status));
         }
         let response = response
             .json::<GraphqlEnvelope<T>>()
             .await
             .map_err(GithubSyncError::Request)?;
         if !response.errors.is_empty() {
-            return Err(GithubSyncError::Graphql(
-                response
-                    .errors
-                    .into_iter()
-                    .map(|error| error.message)
-                    .collect::<Vec<_>>()
-                    .join("; "),
-            ));
+            let message = response
+                .errors
+                .into_iter()
+                .map(|error| error.message)
+                .collect::<Vec<_>>()
+                .join("; ");
+            if message.to_ascii_lowercase().contains("rate limit") {
+                return Err(GithubSyncError::RateLimited {
+                    retry_after_seconds: retry_after_seconds(&response_headers),
+                });
+            }
+            return Err(GithubSyncError::Graphql(message));
         }
         response
             .data
@@ -319,13 +421,40 @@ impl GithubSyncService {
     }
 }
 
+fn is_rate_limited(status: StatusCode, headers: &header::HeaderMap) -> bool {
+    status == StatusCode::TOO_MANY_REQUESTS
+        || (status == StatusCode::FORBIDDEN
+            && headers
+                .get("x-ratelimit-remaining")
+                .and_then(|value| value.to_str().ok())
+                == Some("0"))
+}
+
+fn retry_after_seconds(headers: &header::HeaderMap) -> u64 {
+    if let Some(seconds) = headers
+        .get(header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+    {
+        return seconds.max(1);
+    }
+    if let Some(reset_at) = headers
+        .get("x-ratelimit-reset")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<i64>().ok())
+    {
+        return reset_at.saturating_sub(Utc::now().timestamp()).max(1) as u64;
+    }
+    300
+}
+
 pub fn list_cached_pull_requests(
     database: &Database,
 ) -> Result<Vec<CachedPullRequest>, DatabaseError> {
     database.with_connection(|connection| {
         let mut statement = connection.prepare(
-            "SELECT p.id, r.full_name, p.number, p.title, p.url, p.author_login, p.head_sha, \
-             p.draft, p.review_requested, p.updated_at, p.last_synced_at \
+            "SELECT p.id, r.full_name, p.number, p.title, p.url, p.author_login, p.head_ref, \
+             p.head_sha, p.base_ref, p.draft, p.review_requested, p.updated_at, p.last_synced_at \
              FROM pull_requests p JOIN repositories r ON r.id = p.repository_id \
              WHERE p.in_scope = 1 AND p.state = 'OPEN' ORDER BY p.updated_at DESC",
         )?;
@@ -338,11 +467,13 @@ pub fn list_cached_pull_requests(
                     title: row.get(3)?,
                     url: row.get(4)?,
                     author_login: row.get(5)?,
-                    head_sha: row.get(6)?,
-                    draft: row.get(7)?,
-                    review_requested: row.get(8)?,
-                    updated_at: row.get(9)?,
-                    last_synced_at: row.get(10)?,
+                    head_ref: row.get(6)?,
+                    head_sha: row.get(7)?,
+                    base_ref: row.get(8)?,
+                    draft: row.get(9)?,
+                    review_requested: row.get(10)?,
+                    updated_at: row.get(11)?,
+                    last_synced_at: row.get(12)?,
                 })
             })?
             .collect()
@@ -413,14 +544,71 @@ fn persist_attention_detail(
     let now = Utc::now().to_rfc3339();
     database.with_connection(|connection| {
         let transaction = connection.unchecked_transaction()?;
-        transaction.execute("DELETE FROM review_threads WHERE pull_request_id = ?1", [pull_request_id])?;
+        let incoming_thread_ids: HashSet<_> = detail
+            .threads
+            .iter()
+            .map(|thread| thread.id.as_str())
+            .collect();
+        let existing_thread_ids = {
+            let mut statement = transaction
+                .prepare("SELECT id FROM review_threads WHERE pull_request_id = ?1")?;
+            statement
+                .query_map([pull_request_id], |row| row.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        for existing_id in existing_thread_ids {
+            if !incoming_thread_ids.contains(existing_id.as_str()) {
+                transaction.execute("DELETE FROM review_threads WHERE id = ?1", [existing_id])?;
+            }
+        }
         transaction.execute("DELETE FROM check_runs WHERE pull_request_id = ?1", [pull_request_id])?;
         for thread in &detail.threads {
+            let updated_at = thread
+                .comments
+                .last()
+                .map_or(now.as_str(), |comment| comment.updated_at.as_str());
             transaction.execute(
-                "INSERT INTO review_threads (id, pull_request_id, resolved, outdated, updated_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                rusqlite::params![thread.id, pull_request_id, thread.resolved, thread.outdated, now],
+                "INSERT INTO review_threads (
+                    id, pull_request_id, path, line, start_line, original_line,
+                    original_start_line, side, resolved, outdated, updated_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                 ON CONFLICT(id) DO UPDATE SET path=excluded.path, line=excluded.line,
+                 start_line=excluded.start_line, original_line=excluded.original_line,
+                 original_start_line=excluded.original_start_line, side=excluded.side,
+                 resolved=excluded.resolved, outdated=excluded.outdated,
+                 updated_at=excluded.updated_at",
+                rusqlite::params![
+                    thread.id,
+                    pull_request_id,
+                    thread.path,
+                    thread.line,
+                    thread.start_line,
+                    thread.original_line,
+                    thread.original_start_line,
+                    thread.diff_side,
+                    thread.resolved,
+                    thread.outdated,
+                    updated_at,
+                ],
             )?;
+            transaction.execute("DELETE FROM review_comments WHERE thread_id = ?1", [&thread.id])?;
+            for comment in &thread.comments {
+                transaction.execute(
+                    "INSERT INTO review_comments (
+                        id, thread_id, author_login, body, is_bot, diff_hunk, created_at, updated_at
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    rusqlite::params![
+                        comment.id,
+                        thread.id,
+                        comment.author_login,
+                        comment.body,
+                        comment.is_bot,
+                        comment.diff_hunk,
+                        comment.created_at,
+                        comment.updated_at,
+                    ],
+                )?;
+            }
         }
         for check in &detail.checks {
             transaction.execute(
@@ -563,6 +751,31 @@ struct ThreadNode {
     id: String,
     is_resolved: bool,
     is_outdated: bool,
+    path: Option<String>,
+    line: Option<i64>,
+    start_line: Option<i64>,
+    original_line: Option<i64>,
+    original_start_line: Option<i64>,
+    diff_side: Option<String>,
+    comments: ReviewCommentConnection,
+}
+
+#[derive(Deserialize)]
+struct ReviewCommentConnection {
+    nodes: Vec<Option<ReviewCommentNode>>,
+    #[serde(rename = "pageInfo")]
+    page_info: HasNextPage,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewCommentNode {
+    id: String,
+    body: String,
+    diff_hunk: Option<String>,
+    created_at: String,
+    updated_at: String,
+    author: Option<Actor>,
 }
 
 #[derive(Deserialize)]
@@ -682,6 +895,24 @@ pub struct ReviewThreadSnapshot {
     pub id: String,
     pub resolved: bool,
     pub outdated: bool,
+    pub path: Option<String>,
+    pub line: Option<i64>,
+    pub start_line: Option<i64>,
+    pub original_line: Option<i64>,
+    pub original_start_line: Option<i64>,
+    pub diff_side: Option<String>,
+    pub comments: Vec<ReviewCommentSnapshot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewCommentSnapshot {
+    pub id: String,
+    pub author_login: String,
+    pub body: String,
+    pub is_bot: bool,
+    pub diff_hunk: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -692,6 +923,62 @@ pub struct PullRequestAttentionSnapshot {
     pub review_requested_from_viewer: bool,
     pub failing_required_check_names: Vec<String>,
     pub review_threads: Vec<ReviewThreadSnapshot>,
+}
+
+fn review_thread_snapshot(thread: ThreadNode) -> ReviewThreadSnapshot {
+    let comments = thread
+        .comments
+        .nodes
+        .into_iter()
+        .flatten()
+        .map(|comment| {
+            let author_login = comment
+                .author
+                .map_or_else(|| "ghost".into(), |author| author.login);
+            ReviewCommentSnapshot {
+                id: comment.id,
+                is_bot: is_bot_login(&author_login),
+                author_login,
+                body: comment.body,
+                diff_hunk: comment.diff_hunk,
+                created_at: comment.created_at,
+                updated_at: comment.updated_at,
+            }
+        })
+        .collect();
+    ReviewThreadSnapshot {
+        id: thread.id,
+        resolved: thread.is_resolved,
+        outdated: thread.is_outdated,
+        path: thread.path,
+        line: thread.line,
+        start_line: thread.start_line,
+        original_line: thread.original_line,
+        original_start_line: thread.original_start_line,
+        diff_side: thread.diff_side,
+        comments,
+    }
+}
+
+fn is_bot_login(login: &str) -> bool {
+    let normalized = login.to_ascii_lowercase();
+    normalized.ends_with("[bot]") || normalized.ends_with("-bot") || normalized == "copilot"
+}
+
+fn thread_is_actionable(thread: &ReviewThreadSnapshot) -> bool {
+    if !thread
+        .comments
+        .first()
+        .is_some_and(|comment| comment.is_bot)
+    {
+        return true;
+    }
+    thread.comments.iter().any(|comment| {
+        let body = comment.body.to_ascii_lowercase();
+        ACTIONABLE_BOT_KEYWORDS
+            .iter()
+            .any(|keyword| body.contains(keyword))
+    })
 }
 
 pub fn derive_attention_candidates(
@@ -759,21 +1046,28 @@ mod tests {
         }
     }
 
+    fn thread(id: &str, resolved: bool, outdated: bool) -> ReviewThreadSnapshot {
+        ReviewThreadSnapshot {
+            id: id.into(),
+            resolved,
+            outdated,
+            path: Some("src/example.ts".into()),
+            line: Some(12),
+            start_line: None,
+            original_line: Some(12),
+            original_start_line: None,
+            diff_side: Some("RIGHT".into()),
+            comments: Vec::new(),
+        }
+    }
+
     #[test]
     fn authored_pr_surfaces_threads_and_required_checks() {
         let mut value = snapshot();
         value.failing_required_check_names = vec!["CI".into(), "E2E".into()];
         value.review_threads = vec![
-            ReviewThreadSnapshot {
-                id: "thread-open".into(),
-                resolved: false,
-                outdated: false,
-            },
-            ReviewThreadSnapshot {
-                id: "thread-resolved".into(),
-                resolved: true,
-                outdated: false,
-            },
+            thread("thread-open", false, false),
+            thread("thread-resolved", true, false),
         ];
         let candidates = derive_attention_candidates(&value, "VIEWER");
         assert_eq!(candidates.len(), 2);
@@ -787,11 +1081,7 @@ mod tests {
         value.author_login = "someone-else".into();
         value.review_requested_from_viewer = true;
         value.failing_required_check_names = vec!["CI".into()];
-        value.review_threads = vec![ReviewThreadSnapshot {
-            id: "thread-open".into(),
-            resolved: false,
-            outdated: false,
-        }];
+        value.review_threads = vec![thread("thread-open", false, false)];
         let candidates = derive_attention_candidates(&value, "viewer");
         assert_eq!(candidates.len(), 1);
         assert_eq!(candidates[0].reason, AttentionReason::ReviewRequested);
@@ -803,5 +1093,43 @@ mod tests {
         value.author_login = "someone-else".into();
         value.failing_required_check_names = vec!["CI".into()];
         assert!(derive_attention_candidates(&value, "viewer").is_empty());
+    }
+
+    #[test]
+    fn rate_limit_responses_are_detected_without_retrying_immediately() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "x-ratelimit-remaining",
+            header::HeaderValue::from_static("0"),
+        );
+        headers.insert(header::RETRY_AFTER, header::HeaderValue::from_static("47"));
+        assert!(is_rate_limited(StatusCode::FORBIDDEN, &headers));
+        assert_eq!(retry_after_seconds(&headers), 47);
+    }
+
+    #[test]
+    fn ordinary_forbidden_responses_are_not_misclassified() {
+        assert!(!is_rate_limited(
+            StatusCode::FORBIDDEN,
+            &header::HeaderMap::new()
+        ));
+        assert_eq!(retry_after_seconds(&header::HeaderMap::new()), 300);
+    }
+
+    #[test]
+    fn bot_threads_require_an_actionable_keyword() {
+        let mut review_thread = thread("bot-thread", false, false);
+        review_thread.comments.push(ReviewCommentSnapshot {
+            id: "comment-1".into(),
+            author_login: "reviewer[bot]".into(),
+            body: "Consider renaming this variable.".into(),
+            is_bot: true,
+            diff_hunk: None,
+            created_at: "2026-08-03T12:00:00Z".into(),
+            updated_at: "2026-08-03T12:00:00Z".into(),
+        });
+        assert!(!thread_is_actionable(&review_thread));
+        review_thread.comments[0].body = "This failure blocks the required check.".into();
+        assert!(thread_is_actionable(&review_thread));
     }
 }

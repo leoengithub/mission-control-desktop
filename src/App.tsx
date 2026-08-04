@@ -1,14 +1,59 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivationFlow } from './components/ActivationFlow';
-import { AppRail } from './components/AppRail';
+import { AppRail, type AppView } from './components/AppRail';
 import { Icon } from './components/Icon';
 import { InboxWorkspace } from './components/InboxWorkspace';
+import { SettingsWorkspace } from './components/SettingsWorkspace';
 import { useMissionControl } from './hooks/useMissionControl';
+import { useReviewWorkflow } from './hooks/useReviewWorkflow';
 import { createMissionControlClient } from './lib/client';
+import type { ContextualPrompt } from './contracts';
 
 export function App() {
   const client = useMemo(() => createMissionControlClient(), []);
-  const model = useMissionControl(client);
+  const [activeView, setActiveView] = useState<AppView>('reviews');
+  const [selectedPullRequestId, setSelectedPullRequestId] = useState<string | null>(null);
+  const openPullRequest = useCallback((pullRequestId: string) => {
+    setSelectedPullRequestId(pullRequestId);
+    setActiveView('reviews');
+  }, []);
+  const model = useMissionControl(client, openPullRequest);
+  const effectivePullRequestId = model.pullRequests.some(
+    (pullRequest) => pullRequest.id === selectedPullRequestId,
+  )
+    ? selectedPullRequestId
+    : (model.pullRequests[0]?.id ?? null);
+  const reviewWorkflow = useReviewWorkflow(
+    client,
+    effectivePullRequestId,
+    model.settings?.agents.defaultAgent ?? null,
+  );
+  const attentionCount = useMemo(
+    () =>
+      new Set(
+        model.attentionItems
+          .filter((item) => !item.snoozedUntil || new Date(item.snoozedUntil) <= new Date())
+          .map((item) => item.pullRequestId),
+      ).size,
+    [model.attentionItems],
+  );
+
+  const enableContextualPrompt = useCallback(
+    async (prompt: ContextualPrompt) => {
+      if (prompt === 'enable_notifications') {
+        await model.setNotificationsEnabled(true);
+        return;
+      }
+      if (prompt === 'enable_launch_at_login' && model.settings) {
+        await model.saveSettings({
+          general: { ...model.settings.general, launchAtLogin: true },
+        });
+        return;
+      }
+      setActiveView('settings');
+    },
+    [model],
+  );
 
   return (
     <div
@@ -18,7 +63,12 @@ export function App() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <AppRail />
+      <AppRail
+        activeView={activeView}
+        attentionCount={attentionCount}
+        monitoringActive={model.activation?.step === 'ready'}
+        onNavigate={setActiveView}
+      />
 
       {model.isBooting ? <BootScreen /> : null}
 
@@ -41,7 +91,10 @@ export function App() {
         ) : null
       ) : null}
 
-      {!model.isBooting && !model.bootError && model.activation?.step === 'ready' ? (
+      {!model.isBooting &&
+      !model.bootError &&
+      model.activation?.step === 'ready' &&
+      activeView === 'reviews' ? (
         <InboxWorkspace
           githubLogin={model.activation.githubLogin}
           pullRequests={model.pullRequests}
@@ -50,8 +103,36 @@ export function App() {
           refreshing={model.isRefreshing}
           refreshError={model.refreshError}
           lastCompletedSync={model.lastCompletedSync}
+          selectedPullRequestId={effectivePullRequestId}
+          contextualPrompt={model.contextualPrompts[0] ?? null}
+          reviewWorkflow={reviewWorkflow}
+          client={client}
           onRefresh={() => void model.refreshInbox()}
           onOpenUrl={(url) => void model.openExternalUrl(url)}
+          onSelectPullRequest={setSelectedPullRequestId}
+          onEnableContextualPrompt={(prompt) => void enableContextualPrompt(prompt)}
+          onDismissContextualPrompt={(prompt) => void model.dismissContextualPrompt(prompt)}
+        />
+      ) : null}
+
+      {!model.isBooting &&
+      !model.bootError &&
+      model.activation?.step === 'ready' &&
+      activeView === 'settings' ? (
+        <SettingsWorkspace
+          settings={model.settings}
+          notificationPermission={model.notificationPermission}
+          saveState={model.settingsSaveState}
+          error={model.settingsError}
+          repositories={reviewWorkflow.repositories}
+          agents={reviewWorkflow.agents}
+          actionStates={reviewWorkflow.actionStates}
+          actionErrors={reviewWorkflow.actionErrors}
+          onSave={(patch) => void model.saveSettings(patch)}
+          onNotificationsEnabled={(enabled) => void model.setNotificationsEnabled(enabled)}
+          onAttachRepository={(repositoryId, localPath) =>
+            void reviewWorkflow.attachRepository(repositoryId, localPath)
+          }
         />
       ) : null}
     </div>

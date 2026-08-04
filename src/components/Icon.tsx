@@ -13,6 +13,7 @@ export type IconName =
   | 'settings'
   | 'spark'
   | 'sync'
+  | 'terminal'
   | 'x';
 
 interface IconProps {
@@ -136,6 +137,14 @@ export function Icon({ name, size = 16, strokeWidth = 1.8 }: IconProps) {
         <svg {...common}>
           <path d="M20 7h-6V1" />
           <path d="m20 7-3.5-3.5A8 8 0 1 0 19 16" />
+        </svg>
+      );
+    case 'terminal':
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="m7 9 3 3-3 3" />
+          <path d="M13 15h4" />
         </svg>
       );
     case 'x':

@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import type { AttentionItem, CachedPullRequest } from '../contracts';
+import type { AttentionItem, CachedPullRequest, ContextualPrompt } from '../contracts';
+import type { ReviewWorkflowModel } from '../hooks/useReviewWorkflow';
+import type { MissionControlClient } from '../lib/client';
 import {
   buildInboxEntries,
   formatRelativeTime,
   latestSyncTime,
-  reasonPresentation,
   type PullRequestInboxEntry,
 } from '../lib/inbox';
 import { Icon } from './Icon';
+import { ReviewDetail } from './ReviewDetail';
 import { ReasonPill, StatusPill } from './StatusMark';
 
 interface InboxWorkspaceProps {
@@ -18,8 +20,15 @@ interface InboxWorkspaceProps {
   refreshing: boolean;
   refreshError: string | null;
   lastCompletedSync: string | null;
+  selectedPullRequestId: string | null;
+  contextualPrompt: ContextualPrompt | null;
+  reviewWorkflow: ReviewWorkflowModel;
+  client: MissionControlClient;
   onRefresh(): void;
   onOpenUrl(url: string): void;
+  onSelectPullRequest(pullRequestId: string): void;
+  onEnableContextualPrompt(prompt: ContextualPrompt): void;
+  onDismissContextualPrompt(prompt: ContextualPrompt): void;
 }
 
 export function InboxWorkspace({
@@ -30,11 +39,17 @@ export function InboxWorkspace({
   refreshing,
   refreshError,
   lastCompletedSync,
+  selectedPullRequestId,
+  contextualPrompt,
+  reviewWorkflow,
+  client,
   onRefresh,
   onOpenUrl,
+  onSelectPullRequest,
+  onEnableContextualPrompt,
+  onDismissContextualPrompt,
 }: InboxWorkspaceProps) {
   const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const entries = useMemo(
     () => buildInboxEntries(pullRequests, attentionItems),
     [attentionItems, pullRequests],
@@ -52,7 +67,7 @@ export function InboxWorkspace({
   const attentionEntries = filteredEntries.filter((entry) => entry.attention.length > 0);
   const openEntries = filteredEntries.filter((entry) => entry.attention.length === 0);
   const selectedEntry =
-    filteredEntries.find((entry) => entry.pullRequest.id === selectedId) ??
+    filteredEntries.find((entry) => entry.pullRequest.id === selectedPullRequestId) ??
     filteredEntries[0] ??
     null;
   const syncTime = lastCompletedSync ?? latestSyncTime(pullRequests);
@@ -95,6 +110,14 @@ export function InboxWorkspace({
         </div>
       ) : null}
 
+      {contextualPrompt ? (
+        <ContextualSetupBanner
+          prompt={contextualPrompt}
+          onEnable={() => onEnableContextualPrompt(contextualPrompt)}
+          onDismiss={() => onDismissContextualPrompt(contextualPrompt)}
+        />
+      ) : null}
+
       <div className="workspace-grid">
         <aside className="inbox-pane" aria-label="Pull requests">
           <div className="inbox-toolbar">
@@ -135,7 +158,7 @@ export function InboxWorkspace({
                   key={entry.pullRequest.id}
                   entry={entry}
                   selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
-                  onSelect={() => setSelectedId(entry.pullRequest.id)}
+                  onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
                 />
               ))}
             </InboxGroup>
@@ -148,7 +171,7 @@ export function InboxWorkspace({
                   key={entry.pullRequest.id}
                   entry={entry}
                   selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
-                  onSelect={() => setSelectedId(entry.pullRequest.id)}
+                  onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
                 />
               ))}
             </InboxGroup>
@@ -157,9 +180,11 @@ export function InboxWorkspace({
 
         <section className="detail-pane" aria-label="Pull request details">
           {selectedEntry ? (
-            <PullRequestDetail
+            <ReviewDetail
+              client={client}
               entry={selectedEntry}
               githubLogin={githubLogin}
+              workflow={reviewWorkflow}
               onOpen={() => onOpenUrl(selectedEntry.pullRequest.url)}
             />
           ) : (
@@ -168,6 +193,41 @@ export function InboxWorkspace({
         </section>
       </div>
     </main>
+  );
+}
+
+function ContextualSetupBanner({
+  prompt,
+  onEnable,
+  onDismiss,
+}: {
+  prompt: ContextualPrompt;
+  onEnable(): void;
+  onDismiss(): void;
+}) {
+  const notificationPrompt = prompt === 'enable_notifications';
+  return (
+    <aside className="contextual-banner" aria-label="Recommended setup">
+      <span className="contextual-banner__mark">
+        <Icon name={notificationPrompt ? 'alert' : 'sync'} size={16} />
+      </span>
+      <div className="contextual-banner__copy">
+        <strong>
+          {notificationPrompt ? 'Know when attention escalates' : 'Monitor from login'}
+        </strong>
+        <span>
+          {notificationPrompt
+            ? 'Enable native alerts for new review requests, unresolved threads, and failing required checks.'
+            : 'Launch Mission Control when you sign in so background monitoring starts automatically.'}
+        </span>
+      </div>
+      <button className="button button--quiet" type="button" onClick={onEnable}>
+        {notificationPrompt ? 'Enable notifications' : 'Enable launch at login'}
+      </button>
+      <button className="contextual-banner__dismiss" type="button" onClick={onDismiss}>
+        Not now
+      </button>
+    </aside>
   );
 }
 
@@ -233,123 +293,6 @@ function PullRequestRow({
         <span className="pr-row__time">{formatRelativeTime(pullRequest.updatedAt)}</span>
       </span>
     </button>
-  );
-}
-
-function PullRequestDetail({
-  entry,
-  githubLogin,
-  onOpen,
-}: {
-  entry: PullRequestInboxEntry;
-  githubLogin: string | null;
-  onOpen(): void;
-}) {
-  const { pullRequest, attention } = entry;
-  const isAuthored =
-    githubLogin?.toLocaleLowerCase() === pullRequest.authorLogin.toLocaleLowerCase();
-  return (
-    <article className="pr-detail">
-      <header className="pr-detail__header">
-        <div className="pr-detail__identity">
-          <div className="pr-detail__overline">
-            {entry.primaryReason ? (
-              <ReasonPill reason={entry.primaryReason} />
-            ) : (
-              <StatusPill tone="success" label="No active escalation" />
-            )}
-            {pullRequest.draft ? <StatusPill tone="neutral" label="Draft" /> : null}
-            <span>
-              {pullRequest.repository} #{pullRequest.number}
-            </span>
-          </div>
-          <h2>{pullRequest.title}</h2>
-          <div className="pr-detail__metadata">
-            <span>
-              <Icon name="branch" size={14} />
-              {pullRequest.headSha.slice(0, 7)}
-            </span>
-            <span>Authored by @{pullRequest.authorLogin}</span>
-            <span>Updated {formatRelativeTime(pullRequest.updatedAt)}</span>
-          </div>
-        </div>
-        <button className="button button--primary" type="button" onClick={onOpen}>
-          Open on GitHub
-          <Icon name="arrow-up-right" size={15} />
-        </button>
-      </header>
-
-      <div className="pr-detail__summary">
-        <div>
-          <span className="section-label">Attention summary</span>
-          <h3>
-            {attention.length > 0
-              ? `${attention.length} active ${attention.length === 1 ? 'reason' : 'reasons'}`
-              : 'Nothing is asking for you right now'}
-          </h3>
-        </div>
-        <div className="pr-detail__role">
-          <span>{isAuthored ? 'Your pull request' : 'Reviewing'}</span>
-          <strong>{isAuthored ? 'Author' : 'Reviewer'}</strong>
-        </div>
-      </div>
-
-      {attention.length > 0 ? (
-        <div className="attention-list">
-          {attention.map((item) => {
-            const presentation = reasonPresentation[item.reason];
-            return (
-              <section className="attention-row" key={item.id}>
-                <div className={`attention-row__mark attention-row__mark--${presentation.tone}`}>
-                  <Icon
-                    name={
-                      presentation.tone === 'danger'
-                        ? 'x'
-                        : presentation.tone === 'warning'
-                          ? 'clock'
-                          : 'spark'
-                    }
-                    size={16}
-                    strokeWidth={2.2}
-                  />
-                </div>
-                <div className="attention-row__content">
-                  <div className="attention-row__heading">
-                    <h4>{presentation.label}</h4>
-                    <span>{formatRelativeTime(item.lastChangedAt)}</span>
-                  </div>
-                  <p>{item.summary || presentation.detail}</p>
-                  <span className="attention-row__source">
-                    {item.sourceId ? 'GitHub review thread' : 'GitHub pull request state'}
-                  </span>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="clear-state">
-          <span className="clear-state__mark">
-            <Icon name="check" size={21} strokeWidth={2.2} />
-          </span>
-          <div>
-            <h3>Up to date</h3>
-            <p>
-              Mission Control is still monitoring this pull request for new review activity and
-              required-check failures.
-            </p>
-          </div>
-        </div>
-      )}
-
-      <footer className="pr-detail__footer">
-        <span>
-          <Icon name="sync" size={14} />
-          Cached locally and monitored in the background
-        </span>
-        <span>Last synchronized {formatRelativeTime(pullRequest.lastSyncedAt)}</span>
-      </footer>
-    </article>
   );
 }
 
