@@ -19,7 +19,7 @@ keyring = { version = "3.6", features = ["apple-native", "windows-native", "sync
 notify-rust = "4.18"
 portable-pty = "0.9"
 reqwest = { version = "0.13", default-features = false, features = ["json", "form", "rustls"] }
-rusqlite = { version = "0.37", features = ["bundled", "chrono"] }
+rusqlite = { version = "0.40", features = ["bundled", "chrono"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = ["image-png", "tray-icon"] }
