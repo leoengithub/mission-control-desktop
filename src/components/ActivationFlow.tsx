@@ -1,6 +1,8 @@
-import type { ActivationState, DeviceAuthorization } from '../contracts';
+import { useMemo, useState } from 'react';
+import type { ActivationState, DeviceAuthorization, LocalRepositoryAttachment } from '../contracts';
 import { Icon } from './Icon';
 import onboardingHero from '../../assets/brand/raster/onboarding-hero.png';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ActivationFlowProps {
   activation: ActivationState;
@@ -8,10 +10,14 @@ interface ActivationFlowProps {
   authorizationPhase: 'idle' | 'starting' | 'waiting' | 'authorized';
   busy: boolean;
   error: string | null;
+  repositories: LocalRepositoryAttachment[];
+  repositorySelectionBusy: boolean;
+  repositorySelectionError: string | null;
   onBeginAuthorization(): void;
   onCancelAuthorization(): void;
   onSwitchAccount(): void;
   onSynchronize(): void;
+  onCompleteRepositorySelection(repositoryIds: string[]): void;
   onOpenUrl(url: string): void;
 }
 
@@ -23,14 +29,19 @@ export function ActivationFlow({
   authorizationPhase,
   busy,
   error,
+  repositories,
+  repositorySelectionBusy,
+  repositorySelectionError,
   onBeginAuthorization,
   onCancelAuthorization,
   onSwitchAccount,
   onSynchronize,
+  onCompleteRepositorySelection,
   onOpenUrl,
 }: ActivationFlowProps) {
   const connected = activation.githubLogin !== null;
   const repositoryAccess = activation.accessibleRepositoryCount > 0;
+  const repositoriesSelected = activation.repositorySelectionCompleted;
   const complete = activation.initialSyncCompleted;
 
   return (
@@ -68,7 +79,8 @@ export function ActivationFlow({
             <h2>Start with GitHub</h2>
           </div>
           <span className="activation-panel__count">
-            {[connected, repositoryAccess, complete].filter(Boolean).length}/3
+            {[connected, repositoryAccess, repositoriesSelected, complete].filter(Boolean).length}
+            /4
           </span>
         </div>
 
@@ -95,13 +107,23 @@ export function ActivationFlow({
           />
           <SetupStep
             number={3}
+            title="Choose monitored repositories"
+            description={
+              repositoriesSelected
+                ? `${repositories.filter((repository) => repository.monitored).length} monitored`
+                : 'Keep the inbox focused on the repositories you choose'
+            }
+            state={repositoriesSelected ? 'complete' : repositoryAccess ? 'current' : 'upcoming'}
+          />
+          <SetupStep
+            number={4}
             title="Build your attention inbox"
             description={
               complete
                 ? 'Initial scan complete'
                 : 'Find review requests, threads, and failing checks'
             }
-            state={complete ? 'complete' : repositoryAccess ? 'current' : 'upcoming'}
+            state={complete ? 'complete' : repositoriesSelected ? 'current' : 'upcoming'}
           />
         </ol>
 
@@ -186,10 +208,116 @@ export function ActivationFlow({
             </button>
           ) : null}
 
+          {activation.step === 'repository_selection_required' ? (
+            <RepositorySelection
+              repositories={repositories}
+              busy={repositorySelectionBusy}
+              error={repositorySelectionError}
+              onComplete={onCompleteRepositorySelection}
+              onManageAccess={() => onOpenUrl(installationSettingsUrl)}
+            />
+          ) : null}
+
           {error ? <InlineError message={error} /> : null}
         </div>
       </section>
     </main>
+  );
+}
+
+function RepositorySelection({
+  repositories,
+  busy,
+  error,
+  onComplete,
+  onManageAccess,
+}: {
+  repositories: LocalRepositoryAttachment[];
+  busy: boolean;
+  error: string | null;
+  onComplete(repositoryIds: string[]): void;
+  onManageAccess(): void;
+}) {
+  const [query, setQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const filteredRepositories = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase();
+    if (!normalized) return repositories;
+    return repositories.filter((repository) =>
+      repository.repository.toLocaleLowerCase().includes(normalized),
+    );
+  }, [query, repositories]);
+  const selected = new Set(selectedIds);
+
+  const toggle = (repositoryId: string, checked: boolean) => {
+    setSelectedIds((current) =>
+      checked
+        ? Array.from(new Set([...current, repositoryId]))
+        : current.filter((id) => id !== repositoryId),
+    );
+  };
+
+  return (
+    <div className="repository-picker">
+      <div className="repository-picker__header">
+        <label className="search-field">
+          <span className="sr-only">Search accessible repositories</span>
+          <Icon name="search" size={15} />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search repositories"
+          />
+        </label>
+        <span>{selectedIds.length} selected</span>
+      </div>
+      <div className="repository-picker__list" aria-label="Accessible repositories">
+        {filteredRepositories.map((repository) => (
+          <label className="repository-picker__row" key={repository.repositoryId}>
+            <Checkbox
+              checked={selected.has(repository.repositoryId)}
+              disabled={busy}
+              onCheckedChange={(checked) => toggle(repository.repositoryId, checked === true)}
+            />
+            <span>{repository.repository}</span>
+          </label>
+        ))}
+        {filteredRepositories.length === 0 ? (
+          <p className="repository-picker__empty">
+            {repositories.length === 0
+              ? 'Loading accessible repositories…'
+              : 'No accessible repository matches that search.'}
+          </p>
+        ) : null}
+      </div>
+      <div className="repository-picker__bulk">
+        <button
+          type="button"
+          onClick={() => setSelectedIds(repositories.map(({ repositoryId }) => repositoryId))}
+        >
+          Select all
+        </button>
+        <button type="button" onClick={() => setSelectedIds([])}>
+          Clear
+        </button>
+      </div>
+      <button
+        className="button button--primary button--wide"
+        type="button"
+        disabled={busy || selectedIds.length === 0}
+        onClick={() => onComplete(selectedIds)}
+      >
+        {busy ? <span className="spinner" /> : <Icon name="check" size={16} />}
+        {busy ? 'Saving repositories' : 'Continue with selected repositories'}
+      </button>
+      <button className="button button--quiet button--wide" type="button" onClick={onManageAccess}>
+        Missing a repository? Manage GitHub access
+        <Icon name="arrow-up-right" size={15} />
+      </button>
+      {error ? <InlineError message={error} /> : null}
+    </div>
   );
 }
 

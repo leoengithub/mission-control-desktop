@@ -74,6 +74,7 @@ export type ActivationStep =
   | 'github_app_configuration_required'
   | 'github_authorization_required'
   | 'repository_access_required'
+  | 'repository_selection_required'
   | 'initial_sync_required'
   | 'ready';
 
@@ -81,6 +82,7 @@ export interface ActivationState {
   step: ActivationStep;
   githubLogin: string | null;
   accessibleRepositoryCount: number;
+  repositorySelectionCompleted: boolean;
   initialSyncCompleted: boolean;
 }
 
@@ -177,6 +179,7 @@ export interface PullRequestReviewDetail {
 export interface LocalRepositoryAttachment {
   repositoryId: string;
   repository: string;
+  monitored: boolean;
   localPath: string | null;
   defaultBranch: string;
   validationState: string;

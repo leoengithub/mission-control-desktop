@@ -84,6 +84,12 @@ export function attachLocalRepository(
   return invoke<LocalRepositoryAttachment>('attach_local_repository', { repositoryId, localPath });
 }
 
+export function setRepositoryMonitoring(
+  repositoryIds: string[],
+): Promise<LocalRepositoryAttachment[]> {
+  return invoke<LocalRepositoryAttachment[]>('set_repository_monitoring', { repositoryIds });
+}
+
 export function detectAgents(): Promise<AgentAvailability[]> {
   return invoke<AgentAvailability[]>('detect_agents');
 }

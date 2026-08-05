@@ -30,6 +30,7 @@ interface InboxWorkspaceProps {
   onSelectPullRequest(pullRequestId: string): void;
   onEnableContextualPrompt(prompt: ContextualPrompt): void;
   onDismissContextualPrompt(prompt: ContextualPrompt): void;
+  onOpenSettings(): void;
 }
 
 export function InboxWorkspace({
@@ -49,6 +50,7 @@ export function InboxWorkspace({
   onSelectPullRequest,
   onEnableContextualPrompt,
   onDismissContextualPrompt,
+  onOpenSettings,
 }: InboxWorkspaceProps) {
   const [query, setQuery] = useState('');
   const entries = useMemo(
@@ -78,7 +80,7 @@ export function InboxWorkspace({
       <header className="workspace-header">
         <div>
           <span className="workspace-header__context">Pull request review</span>
-          <h1>Reviews</h1>
+          <h1>Mission Control</h1>
         </div>
         <div className="sync-summary" aria-live="polite">
           <span className={`sync-summary__dot${refreshing ? ' sync-summary__dot--active' : ''}`} />
@@ -121,62 +123,82 @@ export function InboxWorkspace({
 
       <div className="workspace-grid">
         <aside className="inbox-pane" aria-label="Pull requests">
-          <div className="inbox-toolbar">
-            <label className="search-field">
-              <span className="sr-only">Search pull requests</span>
-              <Icon name="search" size={16} />
-              <input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search pull requests"
-              />
-            </label>
-            <span className="inbox-toolbar__count">{entries.length} open</span>
-          </div>
-
-          {!loaded ? <InboxSkeleton /> : null}
-
-          {loaded && entries.length === 0 ? (
-            <EmptyInbox onRefresh={onRefresh} refreshing={refreshing} />
-          ) : null}
-
-          {loaded && entries.length > 0 && filteredEntries.length === 0 ? (
-            <div className="no-results">
-              <Icon name="search" size={19} />
-              <strong>No matching pull requests</strong>
-              <span>Try a repository, author, title, or number.</span>
-              <button type="button" onClick={() => setQuery('')}>
-                Clear search
-              </button>
+          <div className="inbox-scroll">
+            <div className="inbox-toolbar">
+              <label className="search-field">
+                <span className="sr-only">Search pull requests</span>
+                <Icon name="search" size={16} />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search pull requests"
+                />
+              </label>
+              <span className="inbox-toolbar__count">{entries.length} open</span>
             </div>
-          ) : null}
 
-          {attentionEntries.length > 0 ? (
-            <InboxGroup title="Needs attention" count={attentionEntries.length} tone="warning">
-              {attentionEntries.map((entry) => (
-                <PullRequestRow
-                  key={entry.pullRequest.id}
-                  entry={entry}
-                  selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
-                  onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
-                />
-              ))}
-            </InboxGroup>
-          ) : null}
+            {!loaded ? <InboxSkeleton /> : null}
 
-          {openEntries.length > 0 ? (
-            <InboxGroup title="Other open" count={openEntries.length} tone="neutral">
-              {openEntries.map((entry) => (
-                <PullRequestRow
-                  key={entry.pullRequest.id}
-                  entry={entry}
-                  selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
-                  onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
-                />
-              ))}
-            </InboxGroup>
-          ) : null}
+            {loaded && entries.length === 0 ? (
+              <EmptyInbox onRefresh={onRefresh} refreshing={refreshing} />
+            ) : null}
+
+            {loaded && entries.length > 0 && filteredEntries.length === 0 ? (
+              <div className="no-results">
+                <Icon name="search" size={19} />
+                <strong>No matching pull requests</strong>
+                <span>Try a repository, author, title, or number.</span>
+                <button type="button" onClick={() => setQuery('')}>
+                  Clear search
+                </button>
+              </div>
+            ) : null}
+
+            {attentionEntries.length > 0 ? (
+              <InboxGroup title="Needs attention" count={attentionEntries.length} tone="warning">
+                {attentionEntries.map((entry) => (
+                  <PullRequestRow
+                    key={entry.pullRequest.id}
+                    entry={entry}
+                    selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
+                    onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
+                  />
+                ))}
+              </InboxGroup>
+            ) : null}
+
+            {openEntries.length > 0 ? (
+              <InboxGroup title="Other open" count={openEntries.length} tone="neutral">
+                {openEntries.map((entry) => (
+                  <PullRequestRow
+                    key={entry.pullRequest.id}
+                    entry={entry}
+                    selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
+                    onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
+                  />
+                ))}
+              </InboxGroup>
+            ) : null}
+          </div>
+          <footer className="inbox-account">
+            <button className="inbox-account__identity" type="button" onClick={onOpenSettings}>
+              <span className="inbox-account__avatar" aria-hidden="true">
+                <Icon name="github" size={16} />
+              </span>
+              <span className="inbox-account__copy">
+                <strong>{githubLogin ? `@${githubLogin}` : 'GitHub account'}</strong>
+              </span>
+            </button>
+            <button
+              className="icon-button inbox-account__settings"
+              type="button"
+              aria-label="Open settings"
+              onClick={onOpenSettings}
+            >
+              <Icon name="settings" size={17} />
+            </button>
+          </footer>
         </aside>
 
         <section className="detail-pane" aria-label="Pull request details">
@@ -185,7 +207,6 @@ export function InboxWorkspace({
               key={selectedEntry.pullRequest.id}
               client={client}
               entry={selectedEntry}
-              githubLogin={githubLogin}
               workflow={reviewWorkflow}
               onOpen={() => onOpenUrl(selectedEntry.pullRequest.url)}
             />

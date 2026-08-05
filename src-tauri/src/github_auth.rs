@@ -384,6 +384,7 @@ fn clear_account_cache(database: &Database) -> Result<(), DatabaseError> {
             "UPDATE pull_requests SET in_scope = 0, review_requested = 0",
             [],
         )?;
+        transaction.execute("UPDATE repositories SET accessible = 0, monitored = 0", [])?;
         transaction.execute(
             "UPDATE attention_items SET cleared_at = ?1, snoozed_until = NULL \
              WHERE cleared_at IS NULL",
@@ -392,7 +393,8 @@ fn clear_account_cache(database: &Database) -> Result<(), DatabaseError> {
         transaction.execute("DELETE FROM notification_deliveries", [])?;
         transaction.execute(
             "DELETE FROM app_state WHERE key IN (
-                'accessible_repository_count', 'initial_sync_completed', 'last_inbox_sync_at'
+                'accessible_repository_count', 'repository_selection_completed',
+                'initial_sync_completed', 'last_inbox_sync_at'
              )",
             [],
         )?;

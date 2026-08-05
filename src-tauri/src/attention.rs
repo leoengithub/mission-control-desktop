@@ -88,10 +88,13 @@ impl<'database> AttentionRepository<'database> {
     pub fn list_active(&self) -> Result<Vec<AttentionItem>, DatabaseError> {
         self.database.with_connection(|connection| {
             let mut statement = connection.prepare(
-                "SELECT id, pull_request_id, reason, source_id, summary, first_detected_at, \
-                 last_changed_at, snoozed_until \
-                 FROM attention_items WHERE cleared_at IS NULL \
-                 ORDER BY last_changed_at DESC",
+                "SELECT a.id, a.pull_request_id, a.reason, a.source_id, a.summary, a.first_detected_at, \
+                 a.last_changed_at, a.snoozed_until \
+                 FROM attention_items a \
+                 JOIN pull_requests p ON p.id = a.pull_request_id \
+                 JOIN repositories r ON r.id = p.repository_id \
+                 WHERE a.cleared_at IS NULL AND r.accessible = 1 AND r.monitored = 1 \
+                 ORDER BY a.last_changed_at DESC",
             )?;
             let rows = statement.query_map([], map_attention_item)?;
             rows.collect()
@@ -101,8 +104,11 @@ impl<'database> AttentionRepository<'database> {
     pub fn active_pull_request_count(&self, now: DateTime<Utc>) -> Result<usize, DatabaseError> {
         self.database.with_connection(|connection| {
             connection.query_row(
-                "SELECT COUNT(DISTINCT pull_request_id) FROM attention_items \
-                 WHERE cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?1)",
+                "SELECT COUNT(DISTINCT a.pull_request_id) FROM attention_items a \
+                 JOIN pull_requests p ON p.id = a.pull_request_id \
+                 JOIN repositories r ON r.id = p.repository_id \
+                 WHERE a.cleared_at IS NULL AND r.accessible = 1 AND r.monitored = 1 \
+                 AND (a.snoozed_until IS NULL OR a.snoozed_until <= ?1)",
                 [now.to_rfc3339()],
                 |row| row.get(0),
             )

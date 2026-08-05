@@ -213,12 +213,14 @@ export function createPreviewClient(preview: string | null): MissionControlClien
           step: 'github_authorization_required',
           githubLogin: null,
           accessibleRepositoryCount: 0,
+          repositorySelectionCompleted: false,
           initialSyncCompleted: false,
         }
       : {
           step: 'ready',
           githubLogin: 'leo',
           accessibleRepositoryCount: 18,
+          repositorySelectionCompleted: true,
           initialSyncCompleted: true,
         };
   let authorizationPolls = 0;
@@ -258,6 +260,7 @@ export function createPreviewClient(preview: string | null): MissionControlClien
     {
       repositoryId: 'repo-tembo',
       repository: 'tembo-io/monorepo',
+      monitored: true,
       localPath: '/Users/leo/Work/tembo/monorepo',
       defaultBranch: 'main',
       validationState: 'valid',
@@ -266,6 +269,16 @@ export function createPreviewClient(preview: string | null): MissionControlClien
     {
       repositoryId: 'repo-revolico',
       repository: 'revolico/web',
+      monitored: true,
+      localPath: null,
+      defaultBranch: 'main',
+      validationState: 'not_attached',
+      lastValidatedAt: null,
+    },
+    {
+      repositoryId: 'repo-mission-control',
+      repository: 'mission-control/desktop',
+      monitored: true,
       localPath: null,
       defaultBranch: 'main',
       validationState: 'not_attached',
@@ -283,7 +296,7 @@ export function createPreviewClient(preview: string | null): MissionControlClien
       await wait(40);
       return {
         settingsSchemaVersion: 1,
-        databaseSchemaVersion: 2,
+        databaseSchemaVersion: 3,
         githubAppConfigured: true,
         actionablePollSeconds: 60,
         discoveryPollSeconds: 300,
@@ -322,11 +335,30 @@ export function createPreviewClient(preview: string | null): MissionControlClien
     },
     async listAttentionItems() {
       await wait(80);
-      return preview === 'empty' ? [] : previewAttention;
+      if (preview === 'empty') return [];
+      const monitoredRepositories = new Set(
+        repositories
+          .filter((repository) => repository.monitored)
+          .map((repository) => repository.repository),
+      );
+      const visiblePullRequestIds = new Set(
+        previewPullRequests
+          .filter((pullRequest) => monitoredRepositories.has(pullRequest.repository))
+          .map((pullRequest) => pullRequest.id),
+      );
+      return previewAttention.filter((item) => visiblePullRequestIds.has(item.pullRequestId));
     },
     async listPullRequests() {
       await wait(80);
-      return preview === 'empty' ? [] : previewPullRequests;
+      if (preview === 'empty') return [];
+      const monitoredRepositories = new Set(
+        repositories
+          .filter((repository) => repository.monitored)
+          .map((repository) => repository.repository),
+      );
+      return previewPullRequests.filter((pullRequest) =>
+        monitoredRepositories.has(pullRequest.repository),
+      );
     },
     async getPullRequestReviewDetail(pullRequestId) {
       await wait(90);
@@ -345,6 +377,7 @@ export function createPreviewClient(preview: string | null): MissionControlClien
       const attached: LocalRepositoryAttachment = {
         repositoryId,
         repository: current?.repository ?? 'owner/repository',
+        monitored: current?.monitored ?? true,
         localPath,
         defaultBranch: current?.defaultBranch ?? 'main',
         validationState: 'valid',
@@ -355,6 +388,16 @@ export function createPreviewClient(preview: string | null): MissionControlClien
         attached,
       ];
       return attached;
+    },
+    async setRepositoryMonitoring(repositoryIds) {
+      await wait(180);
+      const selected = new Set(repositoryIds);
+      repositories = repositories.map((repository) => ({
+        ...repository,
+        monitored: selected.has(repository.repositoryId),
+      }));
+      activation = { ...activation, repositorySelectionCompleted: true };
+      return repositories;
     },
     async detectAgents() {
       await wait(80);
@@ -437,10 +480,11 @@ export function createPreviewClient(preview: string | null): MissionControlClien
     async refreshInbox(trigger = 'manual') {
       await wait(700);
       activation = {
-        step: 'ready',
+        step: activation.repositorySelectionCompleted ? 'ready' : 'repository_selection_required',
         githubLogin: 'leo',
-        accessibleRepositoryCount: 18,
-        initialSyncCompleted: true,
+        accessibleRepositoryCount: repositories.length,
+        repositorySelectionCompleted: activation.repositorySelectionCompleted,
+        initialSyncCompleted: activation.repositorySelectionCompleted,
       };
       const result = {
         pullRequestCount: previewPullRequests.length,
@@ -486,6 +530,7 @@ export function createPreviewClient(preview: string | null): MissionControlClien
         step: 'repository_access_required',
         githubLogin: 'leo',
         accessibleRepositoryCount: 0,
+        repositorySelectionCompleted: false,
         initialSyncCompleted: false,
       };
       return { state: 'authorized', login: 'leo', avatarUrl: '' };
@@ -501,6 +546,7 @@ export function createPreviewClient(preview: string | null): MissionControlClien
         step: 'github_authorization_required',
         githubLogin: null,
         accessibleRepositoryCount: 0,
+        repositorySelectionCompleted: false,
         initialSyncCompleted: false,
       };
       return activation;

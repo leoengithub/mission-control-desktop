@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import type {
   AppSettings,
   AgentAvailability,
@@ -36,9 +37,11 @@ interface SettingsWorkspaceProps {
   actionErrors: Record<string, string>;
   githubLogin: string | null;
   accountBusy: boolean;
+  onBack(): void;
   onSave(patch: SettingsPatch): void;
   onNotificationsEnabled(enabled: boolean): void;
   onAttachRepository(repositoryId: string, localPath: string): void;
+  onSetRepositoryMonitoring(repositoryIds: string[]): void;
   onOpenUrl(url: string): void;
   onSwitchAccount(): void;
   onDisconnectAccount(): void;
@@ -72,20 +75,45 @@ export function SettingsWorkspace({
   actionErrors,
   githubLogin,
   accountBusy,
+  onBack,
   onSave,
   onNotificationsEnabled,
   onAttachRepository,
+  onSetRepositoryMonitoring,
   onOpenUrl,
   onSwitchAccount,
   onDisconnectAccount,
 }: SettingsWorkspaceProps) {
+  const [repositoryQuery, setRepositoryQuery] = useState('');
+  const filteredRepositories = useMemo(() => {
+    const normalized = repositoryQuery.trim().toLocaleLowerCase();
+    if (!normalized) return repositories;
+    return repositories.filter((repository) =>
+      repository.repository.toLocaleLowerCase().includes(normalized),
+    );
+  }, [repositories, repositoryQuery]);
+  const automaticWorktreeDirectory = useMemo(
+    () => resolveAutomaticWorktreeDirectory(repositories),
+    [repositories],
+  );
+
   if (!settings) {
     return (
       <main className="workspace settings-workspace" id="main-content">
         <header className="workspace-header">
-          <div>
-            <span className="workspace-header__context">Mission Control</span>
-            <h1>Settings</h1>
+          <div className="workspace-header__leading">
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="Back to reviews"
+              onClick={onBack}
+            >
+              <Icon name="arrow-left" size={17} />
+            </button>
+            <div>
+              <span className="workspace-header__context">Mission Control</span>
+              <h1>Settings</h1>
+            </div>
           </div>
         </header>
         <div className="settings-loading" aria-label="Loading settings">
@@ -107,9 +135,19 @@ export function SettingsWorkspace({
   return (
     <main className="workspace settings-workspace" id="main-content">
       <header className="workspace-header">
-        <div>
-          <span className="workspace-header__context">Mission Control</span>
-          <h1>Settings</h1>
+        <div className="workspace-header__leading">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Back to reviews"
+            onClick={onBack}
+          >
+            <Icon name="arrow-left" size={17} />
+          </button>
+          <div>
+            <span className="workspace-header__context">Mission Control</span>
+            <h1>Settings</h1>
+          </div>
         </div>
         <div className={`settings-save-state settings-save-state--${saveState}`} aria-live="polite">
           <Icon
@@ -313,24 +351,89 @@ export function SettingsWorkspace({
                 <Icon name="branch" size={17} />
               </span>
               <div>
-                <h2 id="repositories-heading">Local repositories</h2>
-                <p>Attach the matching Git root before starting fix sessions or local terminals.</p>
+                <h2 id="repositories-heading">Repositories</h2>
+                <p>
+                  Choose which accessible repositories appear in the inbox, then optionally attach
+                  their local Git roots for fix sessions.
+                </p>
               </div>
             </div>
+            <div className="repository-monitor-toolbar">
+              <label className="search-field">
+                <span className="sr-only">Search accessible repositories</span>
+                <Icon name="search" size={15} />
+                <input
+                  type="search"
+                  value={repositoryQuery}
+                  onChange={(event) => setRepositoryQuery(event.target.value)}
+                  placeholder="Search repositories"
+                />
+              </label>
+              <span>
+                {repositories.filter((repository) => repository.monitored).length} of{' '}
+                {repositories.length} monitored
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={actionStates['repository-monitoring'] === 'running'}
+                onClick={() =>
+                  onSetRepositoryMonitoring(
+                    repositories.map((repository) => repository.repositoryId),
+                  )
+                }
+              >
+                Select all
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={actionStates['repository-monitoring'] === 'running'}
+                onClick={() => onSetRepositoryMonitoring([])}
+              >
+                Clear
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenUrl(installationSettingsUrl)}
+              >
+                Manage GitHub access
+                <Icon name="arrow-up-right" size={14} />
+              </Button>
+            </div>
+            {actionErrors['repository-monitoring'] ? (
+              <p className="repository-setting__error" role="alert">
+                <Icon name="alert" size={13} /> {actionErrors['repository-monitoring']}
+              </p>
+            ) : null}
             <div className="repository-settings-list">
-              {repositories.length > 0 ? (
-                repositories.map((repository) => (
+              {filteredRepositories.length > 0 ? (
+                filteredRepositories.map((repository) => (
                   <RepositorySetting
                     repository={repository}
+                    monitoringBusy={actionStates['repository-monitoring'] === 'running'}
                     busy={actionStates[`repository:${repository.repositoryId}`] === 'running'}
                     error={actionErrors[`repository:${repository.repositoryId}`] ?? null}
                     onAttach={onAttachRepository}
+                    onMonitorChange={(checked) => {
+                      const monitoredIds = repositories
+                        .filter((candidate) =>
+                          candidate.repositoryId === repository.repositoryId
+                            ? checked
+                            : candidate.monitored,
+                        )
+                        .map((candidate) => candidate.repositoryId);
+                      onSetRepositoryMonitoring(monitoredIds);
+                    }}
                     key={repository.repositoryId}
                   />
                 ))
               ) : (
                 <p className="settings-empty-copy">
-                  Repositories appear after the first successful GitHub synchronization.
+                  {repositories.length === 0
+                    ? 'Repositories appear after GitHub access is synchronized.'
+                    : 'No accessible repository matches that search.'}
                 </p>
               )}
             </div>
@@ -346,7 +449,7 @@ export function SettingsWorkspace({
                   className="settings-text-input"
                   type="text"
                   defaultValue={settings.worktrees.baseDirectory ?? ''}
-                  placeholder="Automatic"
+                  placeholder={automaticWorktreeDirectory}
                   disabled={saving}
                   onBlur={(event) =>
                     onSave({
@@ -504,16 +607,36 @@ export function SettingsWorkspace({
   );
 }
 
+function resolveAutomaticWorktreeDirectory(repositories: LocalRepositoryAttachment[]): string {
+  const localPath = repositories.find((repository) => repository.localPath)?.localPath;
+  if (!localPath) return 'Attach a repository to resolve this path';
+
+  const normalizedPath = localPath.replace(/[\\/]+$/, '');
+  const parentBoundary = Math.max(
+    normalizedPath.lastIndexOf('/'),
+    normalizedPath.lastIndexOf('\\'),
+  );
+  const separator = normalizedPath.lastIndexOf('\\') > normalizedPath.lastIndexOf('/') ? '\\' : '/';
+  const parentPath =
+    parentBoundary === 0 ? separator : normalizedPath.slice(0, Math.max(parentBoundary, 0));
+
+  return `${parentPath}${parentPath.endsWith(separator) ? '' : separator}.mission-control-worktrees`;
+}
+
 function RepositorySetting({
   repository,
   busy,
+  monitoringBusy,
   error,
   onAttach,
+  onMonitorChange,
 }: {
   repository: LocalRepositoryAttachment;
   busy: boolean;
+  monitoringBusy: boolean;
   error: string | null;
   onAttach(repositoryId: string, localPath: string): void;
+  onMonitorChange(checked: boolean): void;
 }) {
   return (
     <form
@@ -544,6 +667,14 @@ function RepositorySetting({
           </small>
         </span>
       </div>
+      <label className="repository-setting__monitor">
+        <Switch
+          checked={repository.monitored}
+          disabled={monitoringBusy}
+          onCheckedChange={onMonitorChange}
+        />
+        <span>{repository.monitored ? 'Monitored' : 'Hidden'}</span>
+      </label>
       <Input
         className="settings-text-input repository-setting__input"
         type="text"

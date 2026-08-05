@@ -43,7 +43,7 @@ use tauri_plugin_autostart::ManagerExt as AutostartManagerExt;
 use tauri_plugin_notification::{NotificationExt, PermissionState};
 use workspace::LocalRepositoryAttachment;
 
-const DATABASE_SCHEMA_VERSION: u32 = 2;
+const DATABASE_SCHEMA_VERSION: u32 = 3;
 const INBOX_SYNC_EVENT: &str = "mission-control://inbox-sync";
 const MAIN_TRAY_ID: &str = "main-tray";
 
@@ -277,6 +277,15 @@ fn attach_local_repository(
     local_path: String,
 ) -> Result<LocalRepositoryAttachment, String> {
     workspace::attach_local_repository(&state.database, &repository_id, &local_path)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn set_repository_monitoring(
+    state: State<'_, AppState>,
+    repository_ids: Vec<String>,
+) -> Result<Vec<LocalRepositoryAttachment>, String> {
+    workspace::set_repository_monitoring(&state.database, &repository_ids)
         .map_err(|error| error.to_string())
 }
 
@@ -1038,8 +1047,13 @@ fn background_interval(state: &AppState) -> Duration {
             connection.query_row(
                 "SELECT EXISTS(SELECT 1 FROM pull_requests p \
                  JOIN github_accounts a ON a.login = p.author_login \
-                 WHERE p.in_scope = 1 AND p.state = 'OPEN') OR \
-                 EXISTS(SELECT 1 FROM attention_items WHERE cleared_at IS NULL)",
+                 JOIN repositories r ON r.id = p.repository_id \
+                 WHERE p.in_scope = 1 AND p.state = 'OPEN' AND r.accessible = 1 \
+                 AND r.monitored = 1) OR \
+                 EXISTS(SELECT 1 FROM attention_items i \
+                 JOIN pull_requests p ON p.id = i.pull_request_id \
+                 JOIN repositories r ON r.id = p.repository_id \
+                 WHERE i.cleared_at IS NULL AND r.accessible = 1 AND r.monitored = 1)",
                 [],
                 |row| row.get::<_, bool>(0),
             )
@@ -1274,6 +1288,7 @@ pub fn run() {
             mark_pull_request_seen,
             list_local_repositories,
             attach_local_repository,
+            set_repository_monitoring,
             detect_agents,
             list_agent_runs,
             read_agent_run_log,

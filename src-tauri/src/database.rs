@@ -5,6 +5,8 @@ use thiserror::Error;
 
 const INITIAL_MIGRATION: &str = include_str!("../migrations/0001_initial.sql");
 const REVIEW_WORKFLOWS_MIGRATION: &str = include_str!("../migrations/0002_review_workflows.sql");
+const REPOSITORY_MONITORING_MIGRATION: &str =
+    include_str!("../migrations/0003_repository_monitoring.sql");
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
@@ -41,6 +43,10 @@ impl Database {
         }
         if version == 1 {
             connection.execute_batch(REVIEW_WORKFLOWS_MIGRATION)?;
+            version = 2;
+        }
+        if version == 2 {
+            connection.execute_batch(REPOSITORY_MONITORING_MIGRATION)?;
         }
         Ok(Self {
             connection: Mutex::new(connection),
@@ -80,7 +86,7 @@ mod tests {
                 connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
             })
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
         let columns = database
             .with_connection(|connection| {
                 let mut statement = connection.prepare("PRAGMA table_info(agent_runs)")?;
@@ -90,5 +96,23 @@ mod tests {
             })
             .unwrap();
         assert!(columns.iter().any(|column| column == "thread_id"));
+        let repository_columns = database
+            .with_connection(|connection| {
+                let mut statement = connection.prepare("PRAGMA table_info(repositories)")?;
+                statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .unwrap();
+        assert!(
+            repository_columns
+                .iter()
+                .any(|column| column == "monitored")
+        );
+        assert!(
+            repository_columns
+                .iter()
+                .any(|column| column == "accessible")
+        );
     }
 }

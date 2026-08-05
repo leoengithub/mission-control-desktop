@@ -43,6 +43,7 @@ pub enum WorkspaceError {
 pub struct LocalRepositoryAttachment {
     pub repository_id: String,
     pub repository: String,
+    pub monitored: bool,
     pub local_path: Option<String>,
     pub default_branch: String,
     pub validation_state: String,
@@ -68,25 +69,54 @@ pub fn list_local_repositories(
     database
         .with_connection(|connection| {
             let mut statement = connection.prepare(
-                "SELECT r.id, r.full_name, lr.local_path, r.default_branch, \
+                "SELECT r.id, r.full_name, r.monitored, lr.local_path, r.default_branch, \
                  COALESCE(lr.validation_state, 'not_attached'), lr.last_validated_at \
                  FROM repositories r LEFT JOIN local_repositories lr ON lr.repository_id = r.id \
-                 ORDER BY r.full_name COLLATE NOCASE ASC",
+                 WHERE r.accessible = 1 ORDER BY r.full_name COLLATE NOCASE ASC",
             )?;
             statement
                 .query_map([], |row| {
                     Ok(LocalRepositoryAttachment {
                         repository_id: row.get(0)?,
                         repository: row.get(1)?,
-                        local_path: row.get(2)?,
-                        default_branch: row.get(3)?,
-                        validation_state: row.get(4)?,
-                        last_validated_at: row.get(5)?,
+                        monitored: row.get(2)?,
+                        local_path: row.get(3)?,
+                        default_branch: row.get(4)?,
+                        validation_state: row.get(5)?,
+                        last_validated_at: row.get(6)?,
                     })
                 })?
                 .collect()
         })
         .map_err(WorkspaceError::Database)
+}
+
+pub fn set_repository_monitoring(
+    database: &Database,
+    repository_ids: &[String],
+) -> Result<Vec<LocalRepositoryAttachment>, WorkspaceError> {
+    let now = Utc::now().to_rfc3339();
+    database.with_connection(|connection| {
+        let transaction = connection.unchecked_transaction()?;
+        transaction.execute(
+            "UPDATE repositories SET monitored = 0 WHERE accessible = 1",
+            [],
+        )?;
+        for repository_id in repository_ids {
+            transaction.execute(
+                "UPDATE repositories SET monitored = 1 WHERE id = ?1 AND accessible = 1",
+                [repository_id],
+            )?;
+        }
+        transaction.execute(
+            "INSERT INTO app_state (key, value, updated_at) \
+             VALUES ('repository_selection_completed', 'true', ?1) \
+             ON CONFLICT(key) DO UPDATE SET value='true', updated_at=excluded.updated_at",
+            [&now],
+        )?;
+        transaction.commit()
+    })?;
+    list_local_repositories(database)
 }
 
 pub fn attach_local_repository(
@@ -138,6 +168,13 @@ pub fn attach_local_repository(
     Ok(LocalRepositoryAttachment {
         repository_id: repository_id.into(),
         repository: expected,
+        monitored: database.with_connection(|connection| {
+            connection.query_row(
+                "SELECT monitored FROM repositories WHERE id = ?1",
+                [repository_id],
+                |row| row.get(0),
+            )
+        })?,
         local_path: Some(canonical_text),
         default_branch,
         validation_state: "valid".into(),
@@ -355,6 +392,48 @@ mod tests {
             normalize_github_remote("https://example.com/owner/repo"),
             None
         );
+    }
+
+    #[test]
+    fn repository_monitoring_is_an_explicit_persisted_selection() {
+        let directory = TempDir::new().unwrap();
+        let database = Database::open(directory.path().join("monitoring.sqlite3")).unwrap();
+        database
+            .with_connection(|connection| {
+                connection.execute_batch(
+                    "INSERT INTO repositories (
+                        id, owner, name, full_name, default_branch, private, monitored, accessible
+                     ) VALUES
+                        ('repo-1', 'owner', 'one', 'owner/one', 'main', 0, 0, 1),
+                        ('repo-2', 'owner', 'two', 'owner/two', 'main', 0, 1, 1);",
+                )?;
+                Ok(())
+            })
+            .unwrap();
+
+        let repositories = set_repository_monitoring(&database, &["repo-1".into()]).unwrap();
+
+        assert_eq!(repositories.len(), 2);
+        assert!(
+            repositories
+                .iter()
+                .any(|repository| { repository.repository_id == "repo-1" && repository.monitored })
+        );
+        assert!(
+            repositories.iter().any(|repository| {
+                repository.repository_id == "repo-2" && !repository.monitored
+            })
+        );
+        let completed = database
+            .with_connection(|connection| {
+                connection.query_row(
+                    "SELECT value FROM app_state WHERE key = 'repository_selection_completed'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+            })
+            .unwrap();
+        assert_eq!(completed, "true");
     }
 
     #[test]

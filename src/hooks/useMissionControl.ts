@@ -215,6 +215,7 @@ export function useMissionControl(
                 ...current,
                 githubLogin: result.login,
                 step: 'repository_access_required',
+                repositorySelectionCompleted: false,
               }
             : current,
         );

@@ -51,6 +51,7 @@ import {
   readAgentRunLog,
   startFixSession,
   startGithubAuthorization,
+  setRepositoryMonitoring,
   updateSettings,
   terminalInput,
   terminalResize,
@@ -75,6 +76,7 @@ export interface MissionControlClient {
     repositoryId: string,
     localPath: string,
   ): Promise<LocalRepositoryAttachment>;
+  setRepositoryMonitoring(repositoryIds: string[]): Promise<LocalRepositoryAttachment[]>;
   detectAgents(): Promise<AgentAvailability[]>;
   listAgentRuns(pullRequestId: string): Promise<AgentRun[]>;
   readAgentRunLog(runId: string): Promise<string>;
@@ -116,6 +118,7 @@ const nativeClient: MissionControlClient = {
   markPullRequestSeen,
   listLocalRepositories,
   attachLocalRepository,
+  setRepositoryMonitoring,
   detectAgents,
   listAgentRuns,
   readAgentRunLog,

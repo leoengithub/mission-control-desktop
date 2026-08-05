@@ -123,7 +123,7 @@ components:
 
 **Creative North Star: "The Review Desk"**
 
-Mission Control is a bright, organized desk for focused pull request work. A persistent 64px rail anchors the app; a compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Density belongs at the edge. Comprehension gets space in the center.
+Mission Control is a bright, organized desk for focused pull request work. A compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Account identity, monitoring state, and settings live in the inventory footer instead of consuming a separate navigation rail. Density belongs at the edge. Comprehension gets space in the center.
 
 The system is calm, precise, and quietly capable. It uses softly tinted near-white materials, graphite text, hairline boundaries, and semantic accents only when state deserves attention. It rejects GitHub's fragmented navigation, generic card-heavy SaaS dashboards, terminal-first neon decoration, color-only status, and marketing-page typography.
 
@@ -131,7 +131,7 @@ Motion is responsive but restrained: 120ms for direct press feedback and 190ms f
 
 **Key Characteristics:**
 
-- Persistent narrow rail with a visible active destination and monitoring state
+- Persistent inventory footer with GitHub identity, monitoring state, and settings access
 - Section navigation inside settings, separated from global destinations
 - Master-detail review workspace with a 320–390px attention inventory
 - Compact rows paired with a spacious, readable pull request surface
@@ -246,9 +246,8 @@ Components are refined and restrained: compact dimensions, modest curvature, imm
 
 ### Navigation
 
-- **Style:** The desktop rail is fixed at 64px. Destinations use 40px square targets with 11px corners and inline SVG icons.
-- **State:** Hover uses Quiet Fill; active uses Selected Sage plus Review Green ink. The rail status includes hidden text and a visible state mark.
-- **Behavior:** Tooltips appear over 120ms. Navigation never animates the workspace layout.
+- **Style:** Reviews are the default workspace. The pull-request inventory footer combines GitHub identity, written monitoring state, and a 34px settings target.
+- **Behavior:** Settings replace the workspace and provide an explicit Back to reviews action. Navigation never animates the workspace layout.
 - **Settings:** A 190–220px tinted section rail sits inside the settings workspace at wide desktop sizes and collapses below the minimum comfortable split width.
 
 ### Attention Inbox
@@ -269,7 +268,7 @@ Components are refined and restrained: compact dimensions, modest curvature, imm
 ### Do:
 
 - **Do** lead with escalated work and the reason it changed before showing ordinary inventory.
-- **Do** preserve the 64px rail, 320–390px inventory pane, and adjacent detail surface when context switching would otherwise be required.
+- **Do** preserve the 320–390px inventory pane, its account footer, and the adjacent detail surface when context switching would otherwise be required.
 - **Do** keep pull request rows compact and make selection visible through fill, type weight, position, and `aria-pressed`.
 - **Do** pair every semantic color with an icon, written label, count, shape, or pattern.
 - **Do** show cache provenance and synchronization time; trust depends on knowing how fresh the state is.

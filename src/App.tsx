@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivationFlow } from './components/ActivationFlow';
-import { AppRail, type AppView } from './components/AppRail';
 import { Icon } from './components/Icon';
 import { InboxWorkspace } from './components/InboxWorkspace';
 import { SettingsWorkspace } from './components/SettingsWorkspace';
@@ -8,6 +7,8 @@ import { useMissionControl } from './hooks/useMissionControl';
 import { useReviewWorkflow } from './hooks/useReviewWorkflow';
 import { createMissionControlClient } from './lib/client';
 import type { ContextualPrompt } from './contracts';
+
+type AppView = 'reviews' | 'settings';
 
 export function App() {
   const client = useMemo(() => createMissionControlClient(), []);
@@ -28,16 +29,29 @@ export function App() {
     effectivePullRequestId,
     model.settings?.agents.defaultAgent ?? null,
   );
-  const attentionCount = useMemo(
-    () =>
-      new Set(
-        model.attentionItems
-          .filter((item) => !item.snoozedUntil || new Date(item.snoozedUntil) <= new Date())
-          .map((item) => item.pullRequestId),
-      ).size,
-    [model.attentionItems],
+  const reloadWorkspaceSupport = reviewWorkflow.reloadWorkspaceSupport;
+  useEffect(() => {
+    if (model.activation?.step === 'repository_selection_required') {
+      void reloadWorkspaceSupport();
+    }
+  }, [model.activation?.step, reloadWorkspaceSupport]);
+
+  const updateRepositoryMonitoring = useCallback(
+    async (repositoryIds: string[]) => {
+      const updated = await reviewWorkflow.setRepositoryMonitoring(repositoryIds);
+      if (updated) await model.refreshInbox();
+      return updated;
+    },
+    [model, reviewWorkflow],
   );
 
+  const completeRepositorySelection = useCallback(
+    async (repositoryIds: string[]) => {
+      const updated = await reviewWorkflow.setRepositoryMonitoring(repositoryIds);
+      if (updated) await model.synchronizeActivation();
+    },
+    [model, reviewWorkflow],
+  );
   const enableContextualPrompt = useCallback(
     async (prompt: ContextualPrompt) => {
       if (prompt === 'enable_notifications') {
@@ -63,13 +77,6 @@ export function App() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <AppRail
-        activeView={activeView}
-        attentionCount={attentionCount}
-        monitoringActive={model.activation?.step === 'ready'}
-        onNavigate={setActiveView}
-      />
-
       {model.isBooting ? <BootScreen /> : null}
 
       {!model.isBooting && model.bootError ? (
@@ -84,10 +91,18 @@ export function App() {
             authorizationPhase={model.authorizationPhase}
             busy={model.activationBusy || model.accountBusy}
             error={model.accountError ?? model.activationError}
+            repositories={reviewWorkflow.repositories}
+            repositorySelectionBusy={
+              reviewWorkflow.actionStates['repository-monitoring'] === 'running'
+            }
+            repositorySelectionError={reviewWorkflow.actionErrors['repository-monitoring'] ?? null}
             onBeginAuthorization={() => void model.beginAuthorization()}
             onCancelAuthorization={() => void model.cancelAuthorization()}
             onSwitchAccount={() => void model.switchAccount()}
             onSynchronize={() => void model.synchronizeActivation()}
+            onCompleteRepositorySelection={(repositoryIds) =>
+              void completeRepositorySelection(repositoryIds)
+            }
             onOpenUrl={(url) => void model.openExternalUrl(url)}
           />
         ) : null
@@ -114,6 +129,7 @@ export function App() {
           onSelectPullRequest={setSelectedPullRequestId}
           onEnableContextualPrompt={(prompt) => void enableContextualPrompt(prompt)}
           onDismissContextualPrompt={(prompt) => void model.dismissContextualPrompt(prompt)}
+          onOpenSettings={() => setActiveView('settings')}
         />
       ) : null}
 
@@ -132,10 +148,14 @@ export function App() {
           actionErrors={reviewWorkflow.actionErrors}
           githubLogin={model.activation.githubLogin}
           accountBusy={model.accountBusy}
+          onBack={() => setActiveView('reviews')}
           onSave={(patch) => void model.saveSettings(patch)}
           onNotificationsEnabled={(enabled) => void model.setNotificationsEnabled(enabled)}
           onAttachRepository={(repositoryId, localPath) =>
             void reviewWorkflow.attachRepository(repositoryId, localPath)
+          }
+          onSetRepositoryMonitoring={(repositoryIds) =>
+            void updateRepositoryMonitoring(repositoryIds)
           }
           onOpenUrl={(url) => void model.openExternalUrl(url)}
           onSwitchAccount={() => void model.switchAccount()}

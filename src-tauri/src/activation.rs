@@ -8,6 +8,7 @@ pub enum ActivationStep {
     GithubAppConfigurationRequired,
     GithubAuthorizationRequired,
     RepositoryAccessRequired,
+    RepositorySelectionRequired,
     InitialSyncRequired,
     Ready,
 }
@@ -18,6 +19,7 @@ pub struct ActivationState {
     pub step: ActivationStep,
     pub github_login: Option<String>,
     pub accessible_repository_count: u32,
+    pub repository_selection_completed: bool,
     pub initial_sync_completed: bool,
 }
 
@@ -56,6 +58,14 @@ pub fn resolve_activation_state(
             )
             .optional()?
             .is_some_and(|value| value == "true");
+        let repository_selection_completed = connection
+            .query_row(
+                "SELECT value FROM app_state WHERE key = 'repository_selection_completed'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .is_some_and(|value| value == "true");
 
         let step = if !github_app_configured {
             ActivationStep::GithubAppConfigurationRequired
@@ -63,6 +73,8 @@ pub fn resolve_activation_state(
             ActivationStep::GithubAuthorizationRequired
         } else if repository_count == 0 {
             ActivationStep::RepositoryAccessRequired
+        } else if !repository_selection_completed {
+            ActivationStep::RepositorySelectionRequired
         } else if !initial_sync_completed {
             ActivationStep::InitialSyncRequired
         } else {
@@ -73,6 +85,7 @@ pub fn resolve_activation_state(
             step,
             github_login: account,
             accessible_repository_count: repository_count,
+            repository_selection_completed,
             initial_sync_completed,
         })
     })
@@ -116,6 +129,7 @@ mod tests {
                 connection.execute(
                     "INSERT INTO app_state (key, value, updated_at) VALUES \
                      ('accessible_repository_count', '3', '2026-08-03T12:00:00Z'), \
+                     ('repository_selection_completed', 'true', '2026-08-03T12:00:00Z'), \
                      ('initial_sync_completed', 'true', '2026-08-03T12:00:00Z')",
                     [],
                 )?;
@@ -127,5 +141,31 @@ mod tests {
 
         assert_eq!(state.step, ActivationStep::Ready);
         assert_eq!(state.accessible_repository_count, 3);
+    }
+
+    #[test]
+    fn repository_choice_precedes_initial_sync() {
+        let directory = tempdir().unwrap();
+        let database = Database::open(directory.path().join("activation.sqlite3")).unwrap();
+        database
+            .with_connection(|connection| {
+                connection.execute(
+                    "INSERT INTO github_accounts (id, login, avatar_url, authorized_at) \
+                     VALUES ('account-1', 'reviewer', '', '2026-08-03T12:00:00Z')",
+                    [],
+                )?;
+                connection.execute(
+                    "INSERT INTO app_state (key, value, updated_at) VALUES \
+                     ('accessible_repository_count', '3', '2026-08-03T12:00:00Z')",
+                    [],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+
+        let state = resolve_activation_state(&database, true).unwrap();
+
+        assert_eq!(state.step, ActivationStep::RepositorySelectionRequired);
+        assert!(!state.repository_selection_completed);
     }
 }

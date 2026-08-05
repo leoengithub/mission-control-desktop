@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use chrono::Utc;
 use reqwest::{Client, StatusCode, header};
+use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use thiserror::Error;
@@ -19,9 +20,6 @@ const ACTIONABLE_BOT_KEYWORDS: [&str; 11] = [
 ];
 const SEARCH_QUERY: &str = r#"
 query PullRequestInbox($query: String!, $after: String) {
-  viewer {
-    repositories(first: 1) { totalCount }
-  }
   search(query: $query, type: ISSUE, first: 50, after: $after) {
     nodes {
       ... on PullRequest {
@@ -34,6 +32,21 @@ query PullRequestInbox($query: String!, $after: String) {
       }
     }
     pageInfo { hasNextPage endCursor }
+  }
+  rateLimit { cost remaining resetAt }
+}
+"#;
+const REPOSITORIES_QUERY: &str = r#"
+query AccessibleRepositories($after: String) {
+  viewer {
+    repositories(first: 100, after: $after, orderBy: {field: NAME, direction: ASC}) {
+      nodes {
+        id nameWithOwner isPrivate
+        defaultBranchRef { name }
+      }
+      pageInfo { hasNextPage endCursor }
+      totalCount
+    }
   }
   rateLimit { cost remaining resetAt }
 }
@@ -150,12 +163,26 @@ impl GithubSyncService {
         database: &Database,
         access_token: &str,
     ) -> Result<(GithubSyncResult, Vec<AttentionTransition>), GithubSyncError> {
+        let repositories = self.repositories(access_token).await?;
+        let accessible_repository_count = repositories.len() as u32;
+        persist_accessible_repositories(database, &repositories)?;
+        mark_repository_discovery(database, accessible_repository_count)?;
+        if !repository_selection_completed(database)? {
+            return Ok((
+                GithubSyncResult {
+                    pull_request_count: 0,
+                    attention_transition_count: 0,
+                    completed_at: Utc::now().to_rfc3339(),
+                },
+                Vec::new(),
+            ));
+        }
+        let monitored_repository_ids = monitored_repository_ids(database)?;
         let login = github_login(database)?;
         let authored_query = format!("is:pr is:open author:{login}");
         let requested_query = format!("is:pr is:open review-requested:{login}");
-        let (authored, accessible_repository_count) =
-            self.search(access_token, &authored_query).await?;
-        let (requested, _) = self.search(access_token, &requested_query).await?;
+        let authored = self.search(access_token, &authored_query).await?;
+        let requested = self.search(access_token, &requested_query).await?;
         let requested_ids: HashSet<_> = requested
             .iter()
             .map(|pull_request| pull_request.id.clone())
@@ -165,6 +192,8 @@ impl GithubSyncService {
             by_id.entry(pull_request.id.clone()).or_insert(pull_request);
         }
         let mut pull_requests: Vec<_> = by_id.into_values().collect();
+        pull_requests
+            .retain(|pull_request| monitored_repository_ids.contains(&pull_request.repository.id));
         pull_requests.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
         persist_discovery(database, &pull_requests, &requested_ids)?;
 
@@ -283,11 +312,34 @@ impl GithubSyncService {
         Err(GithubSyncError::Http(status))
     }
 
+    async fn repositories(
+        &self,
+        access_token: &str,
+    ) -> Result<Vec<SearchRepository>, GithubSyncError> {
+        let mut cursor: Option<String> = None;
+        let mut repositories = Vec::new();
+        loop {
+            let data: RepositoriesData = self
+                .graphql(access_token, REPOSITORIES_QUERY, json!({ "after": cursor }))
+                .await?;
+            repositories.extend(data.viewer.repositories.nodes.into_iter().flatten());
+            if !data.viewer.repositories.page_info.has_next_page {
+                return Ok(repositories);
+            }
+            cursor = data.viewer.repositories.page_info.end_cursor;
+            if cursor.is_none() {
+                return Err(GithubSyncError::Graphql(
+                    "repository pagination omitted its end cursor".into(),
+                ));
+            }
+        }
+    }
+
     async fn search(
         &self,
         access_token: &str,
         query: &str,
-    ) -> Result<(Vec<SearchPullRequest>, u32), GithubSyncError> {
+    ) -> Result<Vec<SearchPullRequest>, GithubSyncError> {
         let mut cursor: Option<String> = None;
         let mut pull_requests = Vec::new();
         loop {
@@ -298,10 +350,9 @@ impl GithubSyncService {
                     json!({ "query": query, "after": cursor }),
                 )
                 .await?;
-            let accessible_repository_count = data.viewer.repositories.total_count;
             pull_requests.extend(data.search.nodes.into_iter().flatten());
             if !data.search.page_info.has_next_page {
-                return Ok((pull_requests, accessible_repository_count));
+                return Ok(pull_requests);
             }
             cursor = data.search.page_info.end_cursor;
             if cursor.is_none() {
@@ -456,7 +507,8 @@ pub fn list_cached_pull_requests(
             "SELECT p.id, r.full_name, p.number, p.title, p.url, p.author_login, p.head_ref, \
              p.head_sha, p.base_ref, p.draft, p.review_requested, p.updated_at, p.last_synced_at \
              FROM pull_requests p JOIN repositories r ON r.id = p.repository_id \
-             WHERE p.in_scope = 1 AND p.state = 'OPEN' ORDER BY p.updated_at DESC",
+             WHERE p.in_scope = 1 AND p.state = 'OPEN' AND r.accessible = 1 \
+             AND r.monitored = 1 ORDER BY p.updated_at DESC",
         )?;
         statement
             .query_map([], |row| {
@@ -488,6 +540,69 @@ fn github_login(database: &Database) -> Result<String, DatabaseError> {
             [],
             |row| row.get(0),
         )
+    })
+}
+
+fn repository_selection_completed(database: &Database) -> Result<bool, DatabaseError> {
+    database.with_connection(|connection| {
+        connection
+            .query_row(
+                "SELECT value FROM app_state WHERE key = 'repository_selection_completed'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map(|value| value.is_some_and(|value| value == "true"))
+    })
+}
+
+fn monitored_repository_ids(database: &Database) -> Result<HashSet<String>, DatabaseError> {
+    database.with_connection(|connection| {
+        let mut statement = connection
+            .prepare("SELECT id FROM repositories WHERE accessible = 1 AND monitored = 1")?;
+        statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect()
+    })
+}
+
+fn persist_accessible_repositories(
+    database: &Database,
+    repositories: &[SearchRepository],
+) -> Result<(), DatabaseError> {
+    let synced_at = Utc::now().to_rfc3339();
+    database.with_connection(|connection| {
+        let transaction = connection.unchecked_transaction()?;
+        transaction.execute("UPDATE repositories SET accessible = 0", [])?;
+        for repository in repositories {
+            let (owner, name) = repository
+                .name_with_owner
+                .split_once('/')
+                .unwrap_or(("unknown", repository.name_with_owner.as_str()));
+            transaction.execute(
+                "INSERT INTO repositories (
+                    id, owner, name, full_name, default_branch, private, last_synced_at,
+                    monitored, accessible
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 1)
+                 ON CONFLICT(id) DO UPDATE SET owner=excluded.owner, name=excluded.name,
+                 full_name=excluded.full_name, default_branch=excluded.default_branch,
+                 private=excluded.private, last_synced_at=excluded.last_synced_at,
+                 accessible=1, sync_error=NULL",
+                rusqlite::params![
+                    repository.id,
+                    owner,
+                    name,
+                    repository.name_with_owner,
+                    repository
+                        .default_branch_ref
+                        .as_ref()
+                        .map_or("", |branch| branch.name.as_str()),
+                    repository.is_private,
+                    synced_at,
+                ],
+            )?;
+        }
+        transaction.commit()
     })
 }
 
@@ -647,6 +762,22 @@ fn mark_sync_complete(
     })
 }
 
+fn mark_repository_discovery(
+    database: &Database,
+    accessible_repository_count: u32,
+) -> Result<(), DatabaseError> {
+    let now = Utc::now().to_rfc3339();
+    database.with_connection(|connection| {
+        connection.execute(
+            "INSERT INTO app_state (key, value, updated_at) \
+             VALUES ('accessible_repository_count', ?1, ?2) \
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            rusqlite::params![accessible_repository_count.to_string(), now],
+        )?;
+        Ok(())
+    })
+}
+
 #[derive(Deserialize)]
 struct GraphqlEnvelope<T> {
     data: Option<T>,
@@ -661,18 +792,26 @@ struct GraphqlError {
 
 #[derive(Deserialize)]
 struct SearchData {
-    viewer: ViewerData,
     search: SearchConnection,
 }
 
 #[derive(Deserialize)]
-struct ViewerData {
+struct RepositoriesData {
+    viewer: RepositoriesViewerData,
+}
+
+#[derive(Deserialize)]
+struct RepositoriesViewerData {
     repositories: RepositoryConnection,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RepositoryConnection {
+    nodes: Vec<Option<SearchRepository>>,
+    #[serde(rename = "pageInfo")]
+    page_info: PageInfo,
+    #[allow(dead_code)]
     total_count: u32,
 }
 

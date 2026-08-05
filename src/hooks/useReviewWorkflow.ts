@@ -208,6 +208,17 @@ export function useReviewWorkflow(
     [client, loadWorkspaceSupport, runAction],
   );
 
+  const setRepositoryMonitoring = useCallback(
+    async (repositoryIds: string[]) => {
+      const result = await runAction('repository-monitoring', () =>
+        client.setRepositoryMonitoring(repositoryIds),
+      );
+      if (result && mountedRef.current) setRepositories(result);
+      return result;
+    },
+    [client, runAction],
+  );
+
   return {
     detail,
     detailLoading,
@@ -228,6 +239,8 @@ export function useReviewWorkflow(
     completeFixSession,
     requestCopilotReview,
     attachRepository,
+    setRepositoryMonitoring,
+    reloadWorkspaceSupport: loadWorkspaceSupport,
   };
 }
 

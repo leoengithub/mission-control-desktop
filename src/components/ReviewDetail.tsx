@@ -20,25 +20,19 @@ type DetailTab = 'threads' | 'checks' | 'runs';
 interface ReviewDetailProps {
   client: MissionControlClient;
   entry: PullRequestInboxEntry;
-  githubLogin: string | null;
   workflow: ReviewWorkflowModel;
   onOpen(): void;
 }
 
-export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: ReviewDetailProps) {
+export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailProps) {
   const { pullRequest, attention } = entry;
   const preferredTab: DetailTab =
     entry.primaryReason === 'required_checks_failing' ? 'checks' : 'threads';
   const [tab, setTab] = useState<DetailTab>(preferredTab);
-  const isAuthored =
-    githubLogin?.toLocaleLowerCase() === pullRequest.authorLogin.toLocaleLowerCase();
   const detail = workflow.detail?.pullRequestId === pullRequest.id ? workflow.detail : null;
   const openThreads =
     detail?.threads.filter((thread) => !thread.resolved && !thread.outdated) ?? [];
   const failedChecks = detail?.checks.filter((check) => checkTone(check) === 'danger').length ?? 0;
-  const attachedRepository = workflow.repositories.find(
-    (repository) => repository.repository === pullRequest.repository,
-  );
   const copilotKey = `copilot:${pullRequest.id}`;
 
   return (
@@ -85,41 +79,6 @@ export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: R
         </div>
       </header>
 
-      <div className="review-command-bar">
-        <div className="review-command-bar__role">
-          <span className="section-label">Workspace</span>
-          <strong>{isAuthored ? 'Your pull request' : 'Requested review'}</strong>
-          <span
-            className={
-              attachedRepository?.localPath ? 'repo-state repo-state--ready' : 'repo-state'
-            }
-          >
-            <Icon name={attachedRepository?.localPath ? 'check' : 'alert'} size={13} />
-            {attachedRepository?.localPath ? 'Repository attached' : 'Local setup required'}
-          </span>
-        </div>
-        <label className="agent-select">
-          <span>Local agent</span>
-          <Select
-            value={workflow.selectedAgent}
-            onValueChange={(value) => workflow.setSelectedAgent(value as AgentKind)}
-          >
-            <SelectTrigger className="agent-select__trigger" aria-label="Local agent">
-              <SelectValue placeholder="No local agent available">
-                {workflow.agents.find((agent) => agent.agent === workflow.selectedAgent)?.label}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="end">
-              {workflow.agents.map((agent) => (
-                <SelectItem disabled={!agent.available} value={agent.agent} key={agent.agent}>
-                  {agent.label} {agent.available ? '' : '(not installed)'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
-      </div>
-
       {workflow.detailError ? (
         <div className="detail-inline-error" role="alert">
           <Icon name="alert" size={15} />
@@ -156,6 +115,26 @@ export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: R
           count={workflow.runs.length}
           onClick={() => setTab('runs')}
         />
+        <label className="agent-select">
+          <span>Local agent</span>
+          <Select
+            value={workflow.selectedAgent}
+            onValueChange={(value) => workflow.setSelectedAgent(value as AgentKind)}
+          >
+            <SelectTrigger className="agent-select__trigger" aria-label="Local agent">
+              <SelectValue placeholder="No local agent available">
+                {workflow.agents.find((agent) => agent.agent === workflow.selectedAgent)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              {workflow.agents.map((agent) => (
+                <SelectItem disabled={!agent.available} value={agent.agent} key={agent.agent}>
+                  {agent.label} {agent.available ? '' : '(not installed)'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
       </nav>
 
       <div className="review-content" aria-busy={workflow.detailLoading}>
@@ -186,14 +165,6 @@ export function ReviewDetail({ client, entry, githubLogin, workflow, onOpen }: R
           onComplete={(runId) => void workflow.completeFixSession(runId)}
         />
       ) : null}
-
-      <footer className="pr-detail__footer">
-        <span>
-          <Icon name="sync" size={14} />
-          Cached locally and monitored in the background
-        </span>
-        <span>Last synchronized {formatRelativeTime(pullRequest.lastSyncedAt)}</span>
-      </footer>
     </article>
   );
 }
@@ -245,21 +216,13 @@ function ThreadsView({
   }
   return (
     <div className="thread-groups">
-      <section className="thread-group" aria-label="Open review threads">
-        <header>
-          <div>
-            <span className="thread-group__status thread-group__status--open">
-              <Icon name="clock" size={14} /> Open
-            </span>
-            <h3>
-              {active.length} thread{active.length === 1 ? '' : 's'} to address
-            </h3>
-          </div>
-        </header>
-        {active.map((thread) => (
-          <ThreadCard thread={thread} workflow={workflow} key={thread.id} />
-        ))}
-      </section>
+      {active.length > 0 ? (
+        <section className="thread-group" aria-label="Open review threads">
+          {active.map((thread) => (
+            <ThreadCard thread={thread} workflow={workflow} key={thread.id} />
+          ))}
+        </section>
+      ) : null}
       {resolved.length > 0 ? (
         <details className="resolved-threads">
           <summary>

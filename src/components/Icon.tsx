@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  ArrowLeft,
   Check,
   ChevronDown,
   CircleUserRound,
@@ -20,6 +21,7 @@ import {
 export type IconName =
   | 'alert'
   | 'arrow-up-right'
+  | 'arrow-left'
   | 'branch'
   | 'check'
   | 'chevron-down'
@@ -38,6 +40,7 @@ export type IconName =
 const icons: Record<IconName, LucideIcon> = {
   alert: TriangleAlert,
   'arrow-up-right': ArrowUpRight,
+  'arrow-left': ArrowLeft,
   branch: GitBranch,
   check: Check,
   'chevron-down': ChevronDown,
