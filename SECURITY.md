@@ -8,7 +8,7 @@ Until a dedicated security contact is published, use GitHub's private vulnerabil
 
 ## Security principles
 
-- GitHub tokens never enter renderer storage or SQLite.
+- GitHub CLI owns credential storage; GitHub tokens enter native core memory only for requests and never enter renderer storage or SQLite.
 - The renderer has no Node.js or shell access.
 - Agent permission bypass is disabled by default and requires an explicit advanced setting.
 - Worktree removal verifies the configured base boundary, attached repository, dirty state, active Mission Control session, and original pull request head before removal.

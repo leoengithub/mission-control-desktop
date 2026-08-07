@@ -181,7 +181,7 @@ The palette is a cool botanical neutral field with low-chroma green surfaces and
 
 **Body Font:** The same native system sans
 
-**Label/Mono Font:** SFMono-Regular, Menlo, or Consolas for SHAs, device codes, paths, commands, and terminal content only
+**Label/Mono Font:** SFMono-Regular, Menlo, or Consolas for SHAs, paths, commands, and terminal content only
 
 **Character:** Compact, modern, and native. Hierarchy comes from weight, spacing, and placement more often than dramatic size shifts; the first-run message is the only deliberate display-scale exception.
 
@@ -259,9 +259,9 @@ Components are refined and restrained: compact dimensions, modest curvature, imm
 
 ### Activation Panel
 
-- **Structure:** Exactly three visible steps—GitHub authorization, repository access, and first inbox synchronization—with written Current, Later, and Done states.
-- **Copy:** Descriptions wrap at the 960px minimum window; repository access language must never be truncated.
-- **Progress:** Waiting and scanning use restrained spinners or pulses plus live text. Device codes use system monospace and an explicit copy control.
+- **Structure:** Four visible steps cover the active GitHub CLI account, repository discovery, repository selection, and first inbox synchronization, with written Current, Later, and Done states.
+- **Copy:** Descriptions wrap at the 960px minimum window; GitHub CLI and repository-access language must never be truncated.
+- **Progress:** Waiting and scanning use restrained spinners plus live text. Terminal commands use system monospace and an explicit copy control.
 
 ## Do's and Don'ts
 

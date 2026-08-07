@@ -11,7 +11,7 @@ The production application does not expose an unauthenticated localhost HTTP ser
 
 ## Data
 
-- Secrets: operating system keychain only.
+- Secrets: GitHub CLI credential storage; tokens are read into native core memory only for requests.
 - Preferences: versioned JSON written atomically.
 - Operational state: SQLite in WAL mode with embedded forward-only migrations.
 - Review cache: pull request, thread, comment, and check snapshots in SQLite.
@@ -33,11 +33,11 @@ HTTP `429`, exhausted `403`, and GraphQL rate-limit responses open a native retr
 
 The monitored universe is the union of open pull requests authored by the signed-in user and open pull requests where that user is currently requested as a reviewer. GitHub node IDs deduplicate overlap between those scopes.
 
-GitHub authorization uses the GitHub App device flow so the distributed native client never embeds a client secret. Device codes stay in core memory, polling respects GitHub's server-provided interval and `slow_down` response, and access/refresh tokens are written to the operating system credential store before account activation is persisted.
+GitHub authorization follows the active `github.com` account managed by GitHub CLI. The native core resolves `gh`, requests its active token when needed, verifies the corresponding GitHub user, and keeps only non-secret account identity in SQLite. Mission Control does not install an app in user or organization repositories and does not copy GitHub CLI credentials into its own store. Disconnecting Mission Control clears its cached GitHub scope without logging the user out of GitHub CLI.
 
 ## Progressive setup
 
-Only GitHub authorization, repository access, and the initial sync belong to activation. Notifications, launch at login, local repository attachment, and agent setup are contextual prompts after activation and can be dismissed. Local tooling is never required to monitor or review a pull request.
+GitHub CLI availability, an authenticated active account, repository selection, and the initial sync belong to activation. Notifications, launch at login, local repository attachment, and agent setup are contextual prompts after activation and can be dismissed. GitHub CLI is required for the initial public beta; local repository and agent tooling remain optional for monitoring and review.
 
 Notification and launch-at-login prompts appear only after their value is clear. Enabling notifications requests operating-system permission at the point of action. All choices remain editable in Settings and are persisted atomically.
 
@@ -62,6 +62,7 @@ Only newly activated attention transitions can notify. The core claims each deli
 - Tauri and Rust provide a portable native core without bundling Chromium.
 - React remains the renderer because rich diffs, Markdown, xterm, keyboard navigation, and accessibility are product-critical.
 - System Git remains the source of worktree behavior and existing user credentials.
+- GitHub CLI is the initial and public-beta authentication provider.
 - Codex and Claude Code are detected external tools, never bundled dependencies.
 - Portable PTYs provide one native terminal model across supported operating systems.
 - GitHub Actions creates draft multi-platform release artifacts; signing credentials stay outside the repository.

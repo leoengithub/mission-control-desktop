@@ -5,15 +5,12 @@ import type {
   AttentionItem,
   CachedPullRequest,
   ContextualPrompt,
-  DeviceAuthorization,
   FoundationStatus,
   NotificationPermission,
   SettingsPatch,
   SyncTrigger,
 } from '../contracts';
 import type { MissionControlClient } from '../lib/client';
-
-type AuthorizationPhase = 'idle' | 'starting' | 'waiting' | 'authorized';
 
 type SettingsSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -27,8 +24,6 @@ export function useMissionControl(
   const [activation, setActivation] = useState<ActivationState | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
-  const [authorization, setAuthorization] = useState<DeviceAuthorization | null>(null);
-  const [authorizationPhase, setAuthorizationPhase] = useState<AuthorizationPhase>('idle');
   const [activationBusy, setActivationBusy] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
   const [pullRequests, setPullRequests] = useState<CachedPullRequest[]>([]);
@@ -122,7 +117,7 @@ export function useMissionControl(
         await loadContextualPrompts();
       } else if (nextActivation.step === 'repository_access_required') {
         setActivationError(
-          'Mission Control cannot see a repository yet. Grant the GitHub App access, then check again.',
+          'The active GitHub CLI account does not expose any repositories yet. Check `gh auth status` and your organization SSO access, then try again.',
         );
       }
     } catch (error) {
@@ -137,35 +132,23 @@ export function useMissionControl(
     }
   }, [client, loadCachedInbox, loadContextualPrompts]);
 
-  const beginAuthorization = useCallback(async () => {
-    setAuthorizationPhase('starting');
+  const connectAccount = useCallback(async () => {
+    setAccountBusy(true);
+    setAccountError(null);
     setActivationError(null);
     try {
-      const nextAuthorization = await client.startGithubAuthorization();
+      const nextActivation = await client.connectGithubAccount();
       if (!mountedRef.current) return;
-      setAuthorization(nextAuthorization);
-      setAuthorizationPhase('waiting');
-      await client.openExternalUrl(nextAuthorization.verificationUri);
+      setActivation(nextActivation);
+      await synchronizeActivation();
     } catch (error) {
       if (mountedRef.current) {
-        setAuthorizationPhase('idle');
-        setActivationError(errorMessage(error));
+        setAccountError(errorMessage(error));
       }
+    } finally {
+      if (mountedRef.current) setAccountBusy(false);
     }
-  }, [client]);
-
-  const cancelAuthorization = useCallback(async () => {
-    const sessionId = authorization?.sessionId;
-    setAuthorization(null);
-    setAuthorizationPhase('idle');
-    setActivationError(null);
-    if (!sessionId) return;
-    try {
-      await client.cancelGithubAuthorization(sessionId);
-    } catch (error) {
-      if (mountedRef.current) setActivationError(errorMessage(error));
-    }
-  }, [authorization?.sessionId, client]);
+  }, [client, synchronizeActivation]);
 
   const disconnectAccount = useCallback(async () => {
     setAccountBusy(true);
@@ -174,8 +157,6 @@ export function useMissionControl(
       const nextActivation = await client.disconnectGithubAccount();
       if (!mountedRef.current) return false;
       setActivation(nextActivation);
-      setAuthorization(null);
-      setAuthorizationPhase('idle');
       setPullRequests([]);
       setAttentionItems([]);
       setInboxLoaded(false);
@@ -191,49 +172,24 @@ export function useMissionControl(
   }, [client]);
 
   const switchAccount = useCallback(async () => {
-    const disconnected = await disconnectAccount();
-    if (disconnected && mountedRef.current) await beginAuthorization();
-  }, [beginAuthorization, disconnectAccount]);
-
-  useEffect(() => {
-    if (!authorization || authorizationPhase !== 'waiting') return;
-    let cancelled = false;
-    let timer: number | undefined;
-
-    const poll = async () => {
-      try {
-        const result = await client.pollGithubAuthorization(authorization.sessionId);
-        if (cancelled || !mountedRef.current) return;
-        if (result.state === 'pending') {
-          timer = window.setTimeout(poll, result.retryAfterSeconds * 1000);
-          return;
-        }
-        setAuthorizationPhase('authorized');
-        setActivation((current) =>
-          current
-            ? {
-                ...current,
-                githubLogin: result.login,
-                step: 'repository_access_required',
-                repositorySelectionCompleted: false,
-              }
-            : current,
-        );
-        await synchronizeActivation();
-      } catch (error) {
-        if (!cancelled && mountedRef.current) {
-          setAuthorizationPhase('idle');
-          setActivationError(errorMessage(error));
-        }
-      }
-    };
-
-    timer = window.setTimeout(poll, authorization.pollIntervalSeconds * 1000);
-    return () => {
-      cancelled = true;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [authorization, authorizationPhase, client, synchronizeActivation]);
+    setAccountBusy(true);
+    setAccountError(null);
+    try {
+      const nextActivation = await client.switchGithubAccount();
+      if (!mountedRef.current) return;
+      setActivation(nextActivation);
+      setPullRequests([]);
+      setAttentionItems([]);
+      setInboxLoaded(false);
+      setContextualPrompts([]);
+      setLastCompletedSync(null);
+      await synchronizeActivation();
+    } catch (error) {
+      if (mountedRef.current) setAccountError(errorMessage(error));
+    } finally {
+      if (mountedRef.current) setAccountBusy(false);
+    }
+  }, [client, synchronizeActivation]);
 
   const refreshInbox = useCallback(
     async (trigger: SyncTrigger = 'manual') => {
@@ -386,8 +342,6 @@ export function useMissionControl(
     activation,
     isBooting,
     bootError,
-    authorization,
-    authorizationPhase,
     activationBusy,
     activationError,
     pullRequests,
@@ -404,8 +358,7 @@ export function useMissionControl(
     accountBusy,
     accountError,
     retryBootstrap: bootstrap,
-    beginAuthorization,
-    cancelAuthorization,
+    connectAccount,
     disconnectAccount,
     switchAccount,
     synchronizeActivation,

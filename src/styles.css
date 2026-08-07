@@ -1222,7 +1222,7 @@ button:disabled {
   min-height: 56px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-5) 0 88px;
   border-bottom: 1px solid var(--hairline);
   background: var(--surface);
 }

@@ -77,7 +77,7 @@ export function InboxWorkspace({
 
   return (
     <main className="workspace" id="main-content">
-      <header className="workspace-header">
+      <header className="workspace-header" data-tauri-drag-region>
         <div>
           <span className="workspace-header__context">Pull request review</span>
           <h1>Mission Control</h1>

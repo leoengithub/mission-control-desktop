@@ -12,7 +12,7 @@ Mission Control is for software developers and pull request reviewers who need t
 
 Mission Control is a local-first attention inbox for pull requests. It combines review requests, unresolved threads, failing required checks, and agent escalation states into one prioritized workspace. Success means the user can answer three questions immediately: what needs me, why does it need me, and what can I do next.
 
-The product should reduce manual refreshes and fragmented navigation through background synchronization, cached state, native notifications, and focused detail views. Monitoring and review must work without local tooling. Terminals, worktrees, and agent controls appear contextually when they help complete the work.
+The product should reduce manual refreshes and fragmented navigation through background synchronization, cached state, native notifications, and focused detail views. The initial public beta uses the developer's authenticated GitHub CLI account; local repositories and agent tools remain optional for monitoring and review. Terminals, worktrees, and agent controls appear contextually when they help complete the work.
 
 ## Brand Personality
 

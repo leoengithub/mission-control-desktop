@@ -47,7 +47,6 @@ interface SettingsWorkspaceProps {
   onDisconnectAccount(): void;
 }
 
-const installationSettingsUrl = 'https://github.com/settings/installations';
 const authorizationSettingsUrl = 'https://github.com/settings/applications';
 
 const syncOptions: Array<{
@@ -100,7 +99,7 @@ export function SettingsWorkspace({
   if (!settings) {
     return (
       <main className="workspace settings-workspace" id="main-content">
-        <header className="workspace-header">
+        <header className="workspace-header" data-tauri-drag-region>
           <div className="workspace-header__leading">
             <button
               className="icon-button"
@@ -134,7 +133,7 @@ export function SettingsWorkspace({
 
   return (
     <main className="workspace settings-workspace" id="main-content">
-      <header className="workspace-header">
+      <header className="workspace-header" data-tauri-drag-region>
         <div className="workspace-header__leading">
           <button
             className="icon-button"
@@ -184,13 +183,13 @@ export function SettingsWorkspace({
             <Icon name="github" size={15} />
             GitHub account
           </a>
-          <a href="#notification-settings">
-            <Icon name="alert" size={15} />
-            Notifications
-          </a>
           <a href="#repository-settings">
             <Icon name="branch" size={15} />
             Repositories
+          </a>
+          <a href="#notification-settings">
+            <Icon name="alert" size={15} />
+            Notifications
           </a>
           <span className="settings-nav__label settings-nav__label--spaced">Tools</span>
           <a href="#agent-settings">
@@ -249,8 +248,8 @@ export function SettingsWorkspace({
               <div>
                 <h2 id="github-account-heading">GitHub account</h2>
                 <p>
-                  Mission Control uses one active account at a time. Missing a repository? Check the
-                  GitHub App installation access before switching accounts.
+                  Mission Control follows the active GitHub CLI account and never requires a
+                  repository installation.
                 </p>
               </div>
             </div>
@@ -261,7 +260,7 @@ export function SettingsWorkspace({
                 </span>
                 <span>
                   <strong>{githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}</strong>
-                  <small>Tokens are stored in this Mac's system keychain.</small>
+                  <small>Credentials remain managed by GitHub CLI outside Mission Control.</small>
                 </span>
               </div>
               <div className="github-account-card__actions">
@@ -269,18 +268,9 @@ export function SettingsWorkspace({
                   variant="outline"
                   size="sm"
                   disabled={accountBusy}
-                  onClick={() => onOpenUrl(installationSettingsUrl)}
-                >
-                  Manage repository access
-                  <Icon name="arrow-up-right" size={14} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={accountBusy}
                   onClick={() => onOpenUrl(authorizationSettingsUrl)}
                 >
-                  Review GitHub authorization
+                  Review GitHub CLI authorization
                   <Icon name="arrow-up-right" size={14} />
                 </Button>
                 <AccountActionDialog
@@ -299,50 +289,6 @@ export function SettingsWorkspace({
 
           <section
             className="settings-section"
-            id="notification-settings"
-            aria-labelledby="notifications-heading"
-          >
-            <SettingToggle
-              icon="alert"
-              headingId="notifications-heading"
-              title="Native notifications"
-              description="Alert only when a pull request newly escalates into an actionable state."
-              checked={settings.notifications.enabled}
-              disabled={saving}
-              onChange={onNotificationsEnabled}
-            />
-            {notificationPermission === 'denied' ? (
-              <p className="settings-inline-warning">
-                <Icon name="alert" size={14} />
-                Notifications are blocked by the operating system. Re-enable them in system
-                settings.
-              </p>
-            ) : null}
-            <div className="settings-subsection" aria-label="Pull request notification reasons">
-              <span className="settings-subsection__label">Notify me when</span>
-              <ReasonCheckbox
-                label="My review is requested"
-                checked={settings.notifications.reviewRequested}
-                disabled={!settings.notifications.enabled || saving}
-                onChange={(checked) => updateNotificationReason('reviewRequested', checked)}
-              />
-              <ReasonCheckbox
-                label="A review thread on my pull request is unresolved"
-                checked={settings.notifications.unresolvedThread}
-                disabled={!settings.notifications.enabled || saving}
-                onChange={(checked) => updateNotificationReason('unresolvedThread', checked)}
-              />
-              <ReasonCheckbox
-                label="Required checks on my pull request are failing"
-                checked={settings.notifications.requiredChecksFailing}
-                disabled={!settings.notifications.enabled || saving}
-                onChange={(checked) => updateNotificationReason('requiredChecksFailing', checked)}
-              />
-            </div>
-          </section>
-
-          <section
-            className="settings-section"
             id="repository-settings"
             aria-labelledby="repositories-heading"
           >
@@ -353,8 +299,9 @@ export function SettingsWorkspace({
               <div>
                 <h2 id="repositories-heading">Repositories</h2>
                 <p>
-                  Choose which accessible repositories appear in the inbox, then optionally attach
-                  their local Git roots for fix sessions.
+                  These are repositories visible to the active GitHub CLI account
+                  {githubLogin ? ` @${githubLogin}` : ''}. Choose which appear in the inbox, then
+                  optionally attach local Git roots for fix sessions.
                 </p>
               </div>
             </div>
@@ -392,14 +339,6 @@ export function SettingsWorkspace({
                 onClick={() => onSetRepositoryMonitoring([])}
               >
                 Clear
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onOpenUrl(installationSettingsUrl)}
-              >
-                Manage GitHub access
-                <Icon name="arrow-up-right" size={14} />
               </Button>
             </div>
             {actionErrors['repository-monitoring'] ? (
@@ -485,6 +424,50 @@ export function SettingsWorkspace({
                   <option value="always_ask">Preserve for manual cleanup</option>
                 </select>
               </label>
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            id="notification-settings"
+            aria-labelledby="notifications-heading"
+          >
+            <SettingToggle
+              icon="alert"
+              headingId="notifications-heading"
+              title="Native notifications"
+              description="Alert only when a pull request newly escalates into an actionable state."
+              checked={settings.notifications.enabled}
+              disabled={saving}
+              onChange={onNotificationsEnabled}
+            />
+            {notificationPermission === 'denied' ? (
+              <p className="settings-inline-warning">
+                <Icon name="alert" size={14} />
+                Notifications are blocked by the operating system. Re-enable them in system
+                settings.
+              </p>
+            ) : null}
+            <div className="settings-subsection" aria-label="Pull request notification reasons">
+              <span className="settings-subsection__label">Notify me when</span>
+              <ReasonCheckbox
+                label="My review is requested"
+                checked={settings.notifications.reviewRequested}
+                disabled={!settings.notifications.enabled || saving}
+                onChange={(checked) => updateNotificationReason('reviewRequested', checked)}
+              />
+              <ReasonCheckbox
+                label="A review thread on my pull request is unresolved"
+                checked={settings.notifications.unresolvedThread}
+                disabled={!settings.notifications.enabled || saving}
+                onChange={(checked) => updateNotificationReason('unresolvedThread', checked)}
+              />
+              <ReasonCheckbox
+                label="Required checks on my pull request are failing"
+                checked={settings.notifications.requiredChecksFailing}
+                disabled={!settings.notifications.enabled || saving}
+                onChange={(checked) => updateNotificationReason('requiredChecksFailing', checked)}
+              />
             </div>
           </section>
 
@@ -788,8 +771,8 @@ function AccountActionDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             {switching
-              ? 'Mission Control will remove the current local token and open GitHub Device Flow for another account.'
-              : 'Mission Control will remove the token from this Mac and clear the active inbox. GitHub authorization can be revoked separately in GitHub settings.'}{' '}
+              ? 'Mission Control will ask GitHub CLI to activate your other signed-in account. Add another account with `gh auth login` first if only one is available.'
+              : 'Mission Control will stop using the active GitHub CLI account and clear the active inbox. Your GitHub CLI login remains available to Terminal and other tools.'}{' '}
             Local repositories, worktrees, and agent logs are preserved.
           </AlertDialogDescription>
         </AlertDialogHeader>

@@ -12,12 +12,12 @@ The repository contains the first complete local review workflow:
 - versioned safe-by-default settings
 - SQLite persistence and initial schema
 - attention-state reconciliation contracts
-- GitHub App device authorization with keychain-backed token rotation
+- GitHub CLI authentication using the user's active `gh` account
 - cached authored/review-requested PR synchronization with background refresh
 - event-driven renderer updates after native background synchronization
 - rate-limit-aware retry windows while cached pull requests stay available offline
 - typed renderer-to-core commands
-- three-step GitHub authorization, repository access, and first-sync onboarding
+- GitHub CLI, repository selection, and first-sync onboarding
 - a master-detail attention inbox for review requests, unresolved threads, and failing checks
 - cached review conversations with file locations, human or automated origin, new-activity state, and check-run detail
 - GitHub review-thread reply and resolve mutations with durable per-run checkpoints for safe retry
@@ -43,17 +43,19 @@ The application now uses the Mission Control operator-console identity across it
 - Node.js 22 or newer
 - Corepack-managed pnpm 10.14.0
 - Rust 1.97.1
+- GitHub CLI authenticated with `gh auth login`
 - macOS 13 or newer for the first supported desktop target
 
 ## Development
 
-Register a GitHub App, enable Device Flow, and grant repository permissions for metadata (read), pull requests (read/write), checks (read), commit statuses (read), and contents (read). The application does not use or ship a client secret.
-
-The public GitHub App client ID is embedded in official builds. To develop against a different GitHub App, override it at compile time:
+Mission Control uses the active account from GitHub CLI. Authenticate once before opening the app:
 
 ```sh
-export MC_GITHUB_CLIENT_ID=your_client_id
+gh auth login
+gh auth status
 ```
+
+Packaged macOS builds search the normal `PATH`, common Homebrew locations, and the login shell for `gh`. Set `MC_GH_PATH` when developing with a non-standard GitHub CLI location.
 
 ```sh
 corepack pnpm install
@@ -68,7 +70,7 @@ corepack pnpm check
 
 ## Local review workflow
 
-1. Authorize GitHub and let the first background sync populate the inbox.
+1. Connect the active GitHub CLI account and let the first background sync populate the inbox.
 2. Attach the matching local Git root in Settings. Mission Control validates the `origin` remote against the GitHub repository.
 3. Select Codex or Claude Code as the default local agent.
 4. Use **Reply and resolve** for a read-only, evidence-based response, or **Fix and reply** for an isolated interactive worktree session.
@@ -99,7 +101,7 @@ Public distribution remains a separate milestone. A broadly downloadable release
 
 ## Privacy and security
 
-Mission Control is local-first. GitHub tokens are stored in the operating system keychain. PR metadata, review threads, GitHub mutation checkpoints, and agent-run metadata are stored in the application data directory. Agent output is stored in local log files and can contain private repository context. Telemetry and remote crash uploads are not enabled.
+Mission Control is local-first. GitHub CLI owns credential storage; Mission Control reads the active token only in native core memory while making GitHub requests and does not copy it into renderer storage, SQLite, or its own credential store. PR metadata, review threads, GitHub mutation checkpoints, and agent-run metadata are stored in the application data directory. Agent output is stored in local log files and can contain private repository context. Telemetry and remote crash uploads are not enabled.
 
 See [SECURITY.md](SECURITY.md) for reporting instructions and [ARCHITECTURE.md](ARCHITECTURE.md) for trust boundaries.
 

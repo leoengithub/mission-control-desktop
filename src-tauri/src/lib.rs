@@ -22,9 +22,7 @@ use agent::{AgentAction, AgentAvailability, AgentRun, AgentRuntime};
 use attention::{AttentionItem, AttentionRepository};
 use contextual_setup::{ContextualPrompt, ContextualSetupContext, recommended_prompts};
 use database::Database;
-use github_auth::{
-    DeviceAuthorization, DeviceAuthorizationPoll, GithubAuthService, github_client_id,
-};
+use github_auth::GithubAuthService;
 use notifications::{NativeNotificationTransport, deliver_transitions};
 use review::PullRequestReviewDetail;
 use serde::{Deserialize, Serialize};
@@ -52,7 +50,7 @@ struct AppState {
     database: Arc<Database>,
     agent_runtime: AgentRuntime,
     logs_directory: PathBuf,
-    github_auth: Option<GithubAuthService>,
+    github_auth: GithubAuthService,
     github_sync: Option<GithubSyncService>,
     sync_lock: tokio::sync::Mutex<()>,
     last_sync: Mutex<Option<Instant>>,
@@ -92,7 +90,7 @@ enum NotificationPermission {
 struct FoundationStatus {
     settings_schema_version: u32,
     database_schema_version: u32,
-    github_app_configured: bool,
+    github_cli_available: bool,
     actionable_poll_seconds: u32,
     discovery_poll_seconds: u32,
 }
@@ -109,15 +107,20 @@ fn get_foundation_status(state: State<'_, AppState>) -> Result<FoundationStatus,
     Ok(FoundationStatus {
         settings_schema_version: settings::SETTINGS_SCHEMA_VERSION,
         database_schema_version: DATABASE_SCHEMA_VERSION,
-        github_app_configured: github_client_id().is_some(),
+        github_cli_available: state.github_auth.is_available(),
         actionable_poll_seconds,
         discovery_poll_seconds,
     })
 }
 
 #[tauri::command]
-fn get_activation_state(state: State<'_, AppState>) -> Result<ActivationState, String> {
-    resolve_activation_state(&state.database, github_client_id().is_some())
+async fn get_activation_state(state: State<'_, AppState>) -> Result<ActivationState, String> {
+    state
+        .github_auth
+        .reconcile(&state.database)
+        .await
+        .map_err(|error| error.to_string())?;
+    resolve_activation_state(&state.database, state.github_auth.is_available())
         .map_err(|error| error.to_string())
 }
 
@@ -192,10 +195,11 @@ fn notification_permission(permission: PermissionState) -> NotificationPermissio
 
 #[tauri::command]
 fn list_contextual_prompts(state: State<'_, AppState>) -> Result<Vec<ContextualPrompt>, String> {
-    let activation_ready = resolve_activation_state(&state.database, github_client_id().is_some())
-        .map_err(|error| error.to_string())?
-        .step
-        == activation::ActivationStep::Ready;
+    let activation_ready =
+        resolve_activation_state(&state.database, state.github_auth.is_available())
+            .map_err(|error| error.to_string())?
+            .step
+            == activation::ActivationStep::Ready;
     let unsnoozed_attention_count = AttentionRepository::new(&state.database)
         .active_pull_request_count(chrono::Utc::now())
         .map_err(|error| error.to_string())?;
@@ -699,11 +703,9 @@ fn clear_agent_attention(app: &AppHandle, state: &AppState, pull_request_id: &st
 }
 
 async fn github_access_token(state: &AppState) -> Result<String, String> {
-    let auth = state
+    state
         .github_auth
-        .as_ref()
-        .ok_or("GitHub App client ID is not configured")?;
-    auth.access_token(&state.database)
+        .access_token(&state.database)
         .await
         .map_err(|error| error.to_string())
 }
@@ -876,15 +878,6 @@ async fn run_github_sync(
     state: &AppState,
     trigger: SyncTrigger,
 ) -> Result<GithubSyncResult, String> {
-    let Some(auth) = state.github_auth.as_ref() else {
-        return finish_sync_failure(
-            app,
-            state,
-            trigger,
-            "GitHub App client ID is not configured".into(),
-            None,
-        );
-    };
     let Some(sync) = state.github_sync.as_ref() else {
         return finish_sync_failure(
             app,
@@ -894,7 +887,7 @@ async fn run_github_sync(
             None,
         );
     };
-    let access_token = match auth.access_token(&state.database).await {
+    let access_token = match state.github_auth.access_token(&state.database).await {
         Ok(token) => token,
         Err(error) => {
             return finish_sync_failure(app, state, trigger, error.to_string(), None);
@@ -1067,56 +1060,37 @@ fn background_interval(state: &AppState) -> Duration {
 }
 
 #[tauri::command]
-async fn start_github_authorization(
-    state: State<'_, AppState>,
-) -> Result<DeviceAuthorization, String> {
-    let service = state
+async fn connect_github_account(state: State<'_, AppState>) -> Result<ActivationState, String> {
+    let _guard = state.sync_lock.lock().await;
+    state
         .github_auth
-        .as_ref()
-        .ok_or("GitHub App client ID is not configured")?;
-    service.start().await.map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-async fn poll_github_authorization(
-    state: State<'_, AppState>,
-    session_id: String,
-) -> Result<DeviceAuthorizationPoll, String> {
-    let service = state
-        .github_auth
-        .as_ref()
-        .ok_or("GitHub App client ID is not configured")?;
-    service
-        .poll(&session_id, &state.database)
+        .connect(&state.database)
         .await
+        .map_err(|error| error.to_string())?;
+    resolve_activation_state(&state.database, state.github_auth.is_available())
         .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-fn cancel_github_authorization(
-    state: State<'_, AppState>,
-    session_id: String,
-) -> Result<(), String> {
-    let service = state
+async fn switch_github_account(state: State<'_, AppState>) -> Result<ActivationState, String> {
+    let _guard = state.sync_lock.lock().await;
+    state
         .github_auth
-        .as_ref()
-        .ok_or("GitHub App client ID is not configured")?;
-    service
-        .cancel(&session_id)
+        .switch_account(&state.database)
+        .await
+        .map_err(|error| error.to_string())?;
+    resolve_activation_state(&state.database, state.github_auth.is_available())
         .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 async fn disconnect_github_account(state: State<'_, AppState>) -> Result<ActivationState, String> {
     let _guard = state.sync_lock.lock().await;
-    let service = state
+    state
         .github_auth
-        .as_ref()
-        .ok_or("GitHub App client ID is not configured")?;
-    service
         .disconnect(&state.database)
         .map_err(|error| error.to_string())?;
-    resolve_activation_state(&state.database, github_client_id().is_some())
+    resolve_activation_state(&state.database, state.github_auth.is_available())
         .map_err(|error| error.to_string())
 }
 
@@ -1137,7 +1111,7 @@ pub fn run() {
                 database,
                 agent_runtime: AgentRuntime::default(),
                 logs_directory: data_dir.join("agent-runs"),
-                github_auth: GithubAuthService::new().ok(),
+                github_auth: GithubAuthService::new()?,
                 github_sync: GithubSyncService::new().ok(),
                 sync_lock: tokio::sync::Mutex::new(()),
                 last_sync: Mutex::new(None),
@@ -1302,9 +1276,8 @@ pub fn run() {
             complete_fix_session,
             cleanup_agent_worktree,
             refresh_inbox,
-            start_github_authorization,
-            poll_github_authorization,
-            cancel_github_authorization,
+            connect_github_account,
+            switch_github_account,
             disconnect_github_account
         ])
         .run(tauri::generate_context!())

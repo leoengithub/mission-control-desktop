@@ -87,8 +87,7 @@ export function App() {
         model.activation ? (
           <ActivationFlow
             activation={model.activation}
-            authorization={model.authorization}
-            authorizationPhase={model.authorizationPhase}
+            githubCliAvailable={model.foundation?.githubCliAvailable ?? false}
             busy={model.activationBusy || model.accountBusy}
             error={model.accountError ?? model.activationError}
             repositories={reviewWorkflow.repositories}
@@ -96,8 +95,7 @@ export function App() {
               reviewWorkflow.actionStates['repository-monitoring'] === 'running'
             }
             repositorySelectionError={reviewWorkflow.actionErrors['repository-monitoring'] ?? null}
-            onBeginAuthorization={() => void model.beginAuthorization()}
-            onCancelAuthorization={() => void model.cancelAuthorization()}
+            onConnectAccount={() => void model.connectAccount()}
             onSwitchAccount={() => void model.switchAccount()}
             onSynchronize={() => void model.synchronizeActivation()}
             onCompleteRepositorySelection={(repositoryIds) =>
@@ -168,7 +166,12 @@ export function App() {
 
 function BootScreen() {
   return (
-    <main className="boot-screen" id="main-content" aria-label="Opening Mission Control">
+    <main
+      className="boot-screen"
+      id="main-content"
+      aria-label="Opening Mission Control"
+      data-tauri-drag-region
+    >
       <div className="boot-screen__mark">
         <Icon name="branch" size={22} strokeWidth={2.1} />
       </div>
@@ -183,7 +186,7 @@ function BootScreen() {
 
 function FatalState({ message, onRetry }: { message: string; onRetry(): void }) {
   return (
-    <main className="fatal-state" id="main-content">
+    <main className="fatal-state" id="main-content" data-tauri-drag-region>
       <span className="fatal-state__mark">
         <Icon name="alert" size={22} />
       </span>

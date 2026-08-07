@@ -65,13 +65,13 @@ export type SettingsPatch = Partial<
 export interface FoundationStatus {
   settingsSchemaVersion: number;
   databaseSchemaVersion: number;
-  githubAppConfigured: boolean;
+  githubCliAvailable: boolean;
   actionablePollSeconds: number;
   discoveryPollSeconds: number;
 }
 
 export type ActivationStep =
-  | 'github_app_configuration_required'
+  | 'github_cli_required'
   | 'github_authorization_required'
   | 'repository_access_required'
   | 'repository_selection_required'
@@ -85,18 +85,6 @@ export interface ActivationState {
   repositorySelectionCompleted: boolean;
   initialSyncCompleted: boolean;
 }
-
-export interface DeviceAuthorization {
-  sessionId: string;
-  userCode: string;
-  verificationUri: string;
-  expiresAt: string;
-  pollIntervalSeconds: number;
-}
-
-export type DeviceAuthorizationPoll =
-  | { state: 'pending'; retryAfterSeconds: number }
-  | { state: 'authorized'; login: string; avatarUrl: string };
 
 export type AttentionReason =
   | 'review_requested'

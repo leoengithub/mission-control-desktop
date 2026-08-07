@@ -1,93 +1,57 @@
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-    time::{Duration, Instant},
-};
+use std::{env, path::PathBuf, process::Command};
 
-use chrono::{DateTime, Utc};
-use reqwest::{Client, header};
-use serde::{Deserialize, Serialize};
+use chrono::Utc;
+use reqwest::{Client, StatusCode, header};
+use serde::Deserialize;
 use thiserror::Error;
-use uuid::Uuid;
+use tokio::process::Command as AsyncCommand;
 
 use crate::database::{Database, DatabaseError};
 
-const DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
-const ACCESS_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 const CURRENT_USER_URL: &str = "https://api.github.com/user";
-const DEVICE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_code";
-const REFRESH_GRANT_TYPE: &str = "refresh_token";
-const KEYCHAIN_SERVICE: &str = "com.leoengithub.mission-control-desktop.github";
-const ACCESS_TOKEN_ACCOUNT: &str = "github.com/access-token";
-const REFRESH_TOKEN_ACCOUNT: &str = "github.com/refresh-token";
-const DEFAULT_GITHUB_CLIENT_ID: &str = "Iv23litFmh9lOiUlC8ua";
-
-pub(crate) fn github_client_id() -> Option<&'static str> {
-    let client_id = option_env!("MC_GITHUB_CLIENT_ID")
-        .unwrap_or(DEFAULT_GITHUB_CLIENT_ID)
-        .trim();
-    (!client_id.is_empty()).then_some(client_id)
-}
+const GITHUB_HOST: &str = "github.com";
+const CONNECTION_ENABLED_KEY: &str = "github_cli_connection_enabled";
+const LEGACY_KEYCHAIN_SERVICE: &str = "com.leoengithub.mission-control-desktop.github";
+const LEGACY_ACCESS_TOKEN_ACCOUNT: &str = "github.com/access-token";
+const LEGACY_REFRESH_TOKEN_ACCOUNT: &str = "github.com/refresh-token";
 
 #[derive(Debug, Error)]
 pub enum GithubAuthError {
-    #[error("GitHub App client ID is not configured")]
-    MissingClientId,
-    #[error("could not initialize GitHub client: {0}")]
-    Client(#[source] reqwest::Error),
-    #[error("GitHub authorization request failed: {0}")]
+    #[error("GitHub CLI was not found. Install gh from https://cli.github.com, then try again.")]
+    CliUnavailable,
+    #[error("GitHub CLI is not signed in. Run `gh auth login` in Terminal, then try again.")]
+    NotAuthenticated,
+    #[error("Mission Control is disconnected from GitHub CLI")]
+    Disconnected,
+    #[error("could not run GitHub CLI: {0}")]
+    Execution(#[source] std::io::Error),
+    #[error("GitHub CLI command failed: {0}")]
+    Command(String),
+    #[error("GitHub CLI returned an invalid response: {0}")]
+    InvalidResponse(#[from] serde_json::Error),
+    #[error("GitHub request failed: {0}")]
     Request(#[source] reqwest::Error),
-    #[error("GitHub authorization returned HTTP {0}")]
-    Http(reqwest::StatusCode),
-    #[error("GitHub authorization session was not found or has already completed")]
-    SessionNotFound,
-    #[error("GitHub authorization code expired; start authorization again")]
-    Expired,
-    #[error("GitHub authorization was denied")]
-    AccessDenied,
-    #[error("GitHub device flow is disabled for this GitHub App")]
-    DeviceFlowDisabled,
-    #[error("GitHub authorization failed: {0}")]
-    Protocol(String),
-    #[error("could not access the operating system credential store: {0}")]
-    CredentialStore(#[source] keyring::Error),
+    #[error("GitHub returned HTTP {0}")]
+    Http(StatusCode),
+    #[error(
+        "Only one GitHub CLI account is available. Add another with `gh auth login`, then try again."
+    )]
+    NoAlternateAccount,
+    #[error(
+        "More than two GitHub CLI accounts are available. Run `gh auth switch` in Terminal to choose one, then refresh Mission Control."
+    )]
+    AmbiguousAlternateAccount,
     #[error(transparent)]
     Database(#[from] DatabaseError),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceAuthorization {
-    pub session_id: String,
-    pub user_code: String,
-    pub verification_uri: String,
-    pub expires_at: DateTime<Utc>,
-    pub poll_interval_seconds: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "state", rename_all = "snake_case")]
-pub enum DeviceAuthorizationPoll {
-    Pending { retry_after_seconds: u64 },
-    Authorized { login: String, avatar_url: String },
-}
-
-struct PendingAuthorization {
-    device_code: String,
-    expires_at: Instant,
-    interval: Duration,
-    next_poll_at: Instant,
-}
-
 pub struct GithubAuthService {
     client: Client,
-    client_id: &'static str,
-    pending: Mutex<HashMap<String, PendingAuthorization>>,
 }
 
 impl GithubAuthService {
     pub fn new() -> Result<Self, GithubAuthError> {
-        let client_id = github_client_id().ok_or(GithubAuthError::MissingClientId)?;
+        clear_legacy_credentials();
         let client = Client::builder()
             .user_agent(concat!(
                 "mission-control-desktop/",
@@ -103,224 +67,108 @@ impl GithubAuthService {
                     header::HeaderValue::from_static("2026-03-10"),
                 ),
             ]))
-            .timeout(Duration::from_secs(30))
+            .timeout(std::time::Duration::from_secs(30))
             .build()
-            .map_err(GithubAuthError::Client)?;
-        Ok(Self {
-            client,
-            client_id,
-            pending: Mutex::new(HashMap::new()),
-        })
+            .map_err(GithubAuthError::Request)?;
+        Ok(Self { client })
     }
 
-    pub async fn start(&self) -> Result<DeviceAuthorization, GithubAuthError> {
-        let response = self
-            .client
-            .post(DEVICE_CODE_URL)
-            .form(&[("client_id", self.client_id)])
-            .send()
-            .await
-            .map_err(GithubAuthError::Request)?;
-        if !response.status().is_success() {
-            return Err(GithubAuthError::Http(response.status()));
-        }
-        let response = response
-            .json::<DeviceCodeResponse>()
-            .await
-            .map_err(GithubAuthError::Request)?;
-        let session_id = Uuid::new_v4().to_string();
-        let interval = Duration::from_secs(response.interval.max(1));
-        let now = Instant::now();
-        self.pending
-            .lock()
-            .map_err(|_| GithubAuthError::Protocol("authorization lock poisoned".into()))?
-            .insert(
-                session_id.clone(),
-                PendingAuthorization {
-                    device_code: response.device_code,
-                    expires_at: now + Duration::from_secs(response.expires_in),
-                    interval,
-                    next_poll_at: now + interval,
-                },
-            );
-        Ok(DeviceAuthorization {
-            session_id,
-            user_code: response.user_code,
-            verification_uri: response.verification_uri,
-            expires_at: Utc::now()
-                + chrono::Duration::seconds(i64::try_from(response.expires_in).unwrap_or(i64::MAX)),
-            poll_interval_seconds: interval.as_secs(),
-        })
+    pub fn is_available(&self) -> bool {
+        resolve_gh_binary().is_some()
     }
 
-    pub async fn poll(
-        &self,
-        session_id: &str,
-        database: &Database,
-    ) -> Result<DeviceAuthorizationPoll, GithubAuthError> {
-        let device_code = {
-            let mut pending = self
-                .pending
-                .lock()
-                .map_err(|_| GithubAuthError::Protocol("authorization lock poisoned".into()))?;
-            let authorization = pending
-                .get_mut(session_id)
-                .ok_or(GithubAuthError::SessionNotFound)?;
-            let now = Instant::now();
-            if now >= authorization.expires_at {
-                pending.remove(session_id);
-                return Err(GithubAuthError::Expired);
-            }
-            if now < authorization.next_poll_at {
-                return Ok(DeviceAuthorizationPoll::Pending {
-                    retry_after_seconds: duration_ceiling_seconds(
-                        authorization.next_poll_at.duration_since(now),
-                    ),
-                });
-            }
-            authorization.next_poll_at = now + authorization.interval;
-            authorization.device_code.clone()
-        };
-
-        let response = self
-            .client
-            .post(ACCESS_TOKEN_URL)
-            .form(&[
-                ("client_id", self.client_id),
-                ("device_code", device_code.as_str()),
-                ("grant_type", DEVICE_GRANT_TYPE),
-            ])
-            .send()
-            .await
-            .map_err(GithubAuthError::Request)?;
-        if !response.status().is_success() {
-            return Err(GithubAuthError::Http(response.status()));
+    pub async fn reconcile(&self, database: &Database) -> Result<(), GithubAuthError> {
+        if !connection_enabled(database)? {
+            return Ok(());
         }
-        let response = response
-            .json::<AccessTokenResponse>()
-            .await
-            .map_err(GithubAuthError::Request)?;
-
-        match response.disposition()? {
-            TokenPollDisposition::Pending => {
-                let seconds = self.poll_interval(session_id)?;
-                Ok(DeviceAuthorizationPoll::Pending {
-                    retry_after_seconds: seconds,
-                })
+        match self.access_token(database).await {
+            Ok(_) => Ok(()),
+            Err(GithubAuthError::CliUnavailable | GithubAuthError::NotAuthenticated) => {
+                clear_account_cache_if_present(database)?;
+                Ok(())
             }
-            TokenPollDisposition::SlowDown => {
-                let seconds = self.slow_down(session_id)?;
-                Ok(DeviceAuthorizationPoll::Pending {
-                    retry_after_seconds: seconds,
-                })
-            }
-            TokenPollDisposition::Authorized(token) => {
-                let user = self.current_user(&token.access_token).await?;
-                store_tokens(&token)?;
-                save_account(database, &user, &token)?;
-                self.remove_session(session_id)?;
-                Ok(DeviceAuthorizationPoll::Authorized {
-                    login: user.login,
-                    avatar_url: user.avatar_url,
-                })
-            }
+            Err(error) => Err(error),
         }
+    }
+
+    pub async fn connect(&self, database: &Database) -> Result<(), GithubAuthError> {
+        set_connection_enabled(database, true)?;
+        self.access_token(database).await.map(|_| ())
     }
 
     pub async fn access_token(&self, database: &Database) -> Result<String, GithubAuthError> {
-        let expires_at = database.with_connection(|connection| {
-            connection.query_row(
-                "SELECT access_token_expires_at FROM github_accounts \
-                 WHERE needs_reauthorization = 0 ORDER BY authorized_at DESC LIMIT 1",
-                [],
-                |row| row.get::<_, Option<String>>(0),
-            )
-        })?;
-        let should_refresh = expires_at
-            .as_deref()
-            .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
-            .is_some_and(|value| {
-                value.with_timezone(&Utc) <= Utc::now() + chrono::Duration::minutes(5)
-            });
-        if !should_refresh {
-            return read_token(ACCESS_TOKEN_ACCOUNT);
+        if !connection_enabled(database)? {
+            return Err(GithubAuthError::Disconnected);
         }
-
-        let refresh_token = read_token(REFRESH_TOKEN_ACCOUNT)?;
-        let response = self
-            .client
-            .post(ACCESS_TOKEN_URL)
-            .form(&[
-                ("client_id", self.client_id),
-                ("grant_type", REFRESH_GRANT_TYPE),
-                ("refresh_token", refresh_token.as_str()),
-            ])
-            .send()
+        let binary = resolve_gh_binary().ok_or(GithubAuthError::CliUnavailable)?;
+        let output = AsyncCommand::new(binary)
+            .args(["auth", "token", "--hostname", GITHUB_HOST])
+            .output()
             .await
-            .map_err(GithubAuthError::Request)?;
-        if !response.status().is_success() {
-            return Err(GithubAuthError::Http(response.status()));
+            .map_err(GithubAuthError::Execution)?;
+        if !output.status.success() {
+            return Err(GithubAuthError::NotAuthenticated);
         }
-        let response = response
-            .json::<AccessTokenResponse>()
-            .await
-            .map_err(GithubAuthError::Request)?;
-        let TokenPollDisposition::Authorized(token) = response.disposition()? else {
-            return Err(GithubAuthError::Protocol(
-                "refresh response did not contain a token".into(),
-            ));
-        };
-        store_tokens(&token)?;
-        update_token_expiration(database, &token)?;
-        Ok(token.access_token)
-    }
-
-    pub fn cancel(&self, session_id: &str) -> Result<(), GithubAuthError> {
-        self.remove_session(session_id)
+        let token = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        if token.is_empty() {
+            return Err(GithubAuthError::NotAuthenticated);
+        }
+        let user = self.current_user(&token).await?;
+        reconcile_account(database, &user)?;
+        Ok(token)
     }
 
     pub fn disconnect(&self, database: &Database) -> Result<(), GithubAuthError> {
-        self.pending
-            .lock()
-            .map_err(|_| GithubAuthError::Protocol("authorization lock poisoned".into()))?
-            .clear();
-        delete_token(ACCESS_TOKEN_ACCOUNT)?;
-        delete_token(REFRESH_TOKEN_ACCOUNT)?;
+        set_connection_enabled(database, false)?;
         clear_account_cache(database)?;
         Ok(())
     }
 
-    fn poll_interval(&self, session_id: &str) -> Result<u64, GithubAuthError> {
-        let pending = self
-            .pending
-            .lock()
-            .map_err(|_| GithubAuthError::Protocol("authorization lock poisoned".into()))?;
-        Ok(pending
-            .get(session_id)
-            .ok_or(GithubAuthError::SessionNotFound)?
-            .interval
-            .as_secs())
-    }
-
-    fn slow_down(&self, session_id: &str) -> Result<u64, GithubAuthError> {
-        let mut pending = self
-            .pending
-            .lock()
-            .map_err(|_| GithubAuthError::Protocol("authorization lock poisoned".into()))?;
-        let authorization = pending
-            .get_mut(session_id)
-            .ok_or(GithubAuthError::SessionNotFound)?;
-        authorization.interval += Duration::from_secs(5);
-        authorization.next_poll_at = Instant::now() + authorization.interval;
-        Ok(authorization.interval.as_secs())
-    }
-
-    fn remove_session(&self, session_id: &str) -> Result<(), GithubAuthError> {
-        self.pending
-            .lock()
-            .map_err(|_| GithubAuthError::Protocol("authorization lock poisoned".into()))?
-            .remove(session_id);
-        Ok(())
+    pub async fn switch_account(&self, database: &Database) -> Result<(), GithubAuthError> {
+        let binary = resolve_gh_binary().ok_or(GithubAuthError::CliUnavailable)?;
+        let status = AsyncCommand::new(&binary)
+            .args(["auth", "status", "--json", "hosts"])
+            .output()
+            .await
+            .map_err(GithubAuthError::Execution)?;
+        if !status.status.success() {
+            return Err(GithubAuthError::NotAuthenticated);
+        }
+        let parsed: GithubAuthStatus = serde_json::from_slice(&status.stdout)?;
+        let accounts = parsed
+            .hosts
+            .github_com
+            .into_iter()
+            .filter(|account| account.state == "success")
+            .collect::<Vec<_>>();
+        if accounts.len() < 2 {
+            return Err(GithubAuthError::NoAlternateAccount);
+        }
+        if accounts.len() > 2 {
+            return Err(GithubAuthError::AmbiguousAlternateAccount);
+        }
+        let target = accounts
+            .iter()
+            .find(|account| !account.active)
+            .ok_or(GithubAuthError::NoAlternateAccount)?;
+        let switched = AsyncCommand::new(binary)
+            .args([
+                "auth",
+                "switch",
+                "--hostname",
+                GITHUB_HOST,
+                "--user",
+                target.login.as_str(),
+            ])
+            .output()
+            .await
+            .map_err(GithubAuthError::Execution)?;
+        if !switched.status.success() {
+            return Err(GithubAuthError::Command(command_error(&switched.stderr)));
+        }
+        set_connection_enabled(database, true)?;
+        clear_account_cache(database)?;
+        self.access_token(database).await.map(|_| ())
     }
 
     async fn current_user(&self, access_token: &str) -> Result<GithubUser, GithubAuthError> {
@@ -331,6 +179,9 @@ impl GithubAuthService {
             .send()
             .await
             .map_err(GithubAuthError::Request)?;
+        if response.status() == StatusCode::UNAUTHORIZED {
+            return Err(GithubAuthError::NotAuthenticated);
+        }
         if !response.status().is_success() {
             return Err(GithubAuthError::Http(response.status()));
         }
@@ -341,38 +192,117 @@ impl GithubAuthService {
     }
 }
 
-fn duration_ceiling_seconds(duration: Duration) -> u64 {
-    duration.as_secs() + u64::from(duration.subsec_nanos() > 0)
+fn resolve_gh_binary() -> Option<PathBuf> {
+    if let Some(configured) = env::var_os("MC_GH_PATH") {
+        let path = PathBuf::from(configured);
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+    if let Some(path) = env::var_os("PATH").and_then(|value| {
+        env::split_paths(&value)
+            .map(|directory| directory.join("gh"))
+            .find(|candidate| candidate.is_file())
+    }) {
+        return Some(path);
+    }
+    for candidate in [
+        "/opt/homebrew/bin/gh",
+        "/usr/local/bin/gh",
+        "/home/linuxbrew/.linuxbrew/bin/gh",
+    ] {
+        let path = PathBuf::from(candidate);
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+    resolve_gh_from_login_shell()
 }
 
-fn store_tokens(token: &GithubToken) -> Result<(), GithubAuthError> {
-    keyring::Entry::new(KEYCHAIN_SERVICE, ACCESS_TOKEN_ACCOUNT)
-        .map_err(GithubAuthError::CredentialStore)?
-        .set_password(&token.access_token)
-        .map_err(GithubAuthError::CredentialStore)?;
-    if let Some(refresh_token) = &token.refresh_token {
-        keyring::Entry::new(KEYCHAIN_SERVICE, REFRESH_TOKEN_ACCOUNT)
-            .map_err(GithubAuthError::CredentialStore)?
-            .set_password(refresh_token)
-            .map_err(GithubAuthError::CredentialStore)?;
+fn resolve_gh_from_login_shell() -> Option<PathBuf> {
+    let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
+    let output = Command::new(shell)
+        .args(["-lc", "command -v gh"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+    path.is_file().then_some(path)
+}
+
+fn connection_enabled(database: &Database) -> Result<bool, DatabaseError> {
+    database.with_connection(|connection| {
+        let value = connection
+            .query_row(
+                "SELECT value FROM app_state WHERE key = ?1",
+                [CONNECTION_ENABLED_KEY],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(value.as_deref() != Some("false"))
+    })
+}
+
+fn set_connection_enabled(database: &Database, enabled: bool) -> Result<(), DatabaseError> {
+    let now = Utc::now().to_rfc3339();
+    database.with_connection(|connection| {
+        connection.execute(
+            "INSERT INTO app_state (key, value, updated_at) VALUES (?1, ?2, ?3) \
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            rusqlite::params![
+                CONNECTION_ENABLED_KEY,
+                if enabled { "true" } else { "false" },
+                now
+            ],
+        )?;
+        Ok(())
+    })
+}
+
+fn reconcile_account(database: &Database, user: &GithubUser) -> Result<(), DatabaseError> {
+    let existing = database.with_connection(|connection| {
+        connection
+            .query_row(
+                "SELECT login FROM github_accounts ORDER BY authorized_at DESC LIMIT 1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+    })?;
+    if existing.as_deref() != Some(user.login.as_str()) {
+        clear_account_cache(database)?;
+        save_account(database, user)?;
     }
     Ok(())
 }
 
-fn read_token(account: &str) -> Result<String, GithubAuthError> {
-    keyring::Entry::new(KEYCHAIN_SERVICE, account)
-        .map_err(GithubAuthError::CredentialStore)?
-        .get_password()
-        .map_err(GithubAuthError::CredentialStore)
+fn save_account(database: &Database, user: &GithubUser) -> Result<(), DatabaseError> {
+    let now = Utc::now().to_rfc3339();
+    database.with_connection(|connection| {
+        connection.execute("DELETE FROM github_accounts", [])?;
+        connection.execute(
+            "INSERT INTO github_accounts (
+                id, login, avatar_url, authorized_at, access_token_expires_at,
+                refresh_token_expires_at, needs_reauthorization
+             ) VALUES (?1, ?2, ?3, ?4, NULL, NULL, 0)",
+            rusqlite::params![user.id.to_string(), user.login, user.avatar_url, now],
+        )?;
+        Ok(())
+    })
 }
 
-fn delete_token(account: &str) -> Result<(), GithubAuthError> {
-    let entry =
-        keyring::Entry::new(KEYCHAIN_SERVICE, account).map_err(GithubAuthError::CredentialStore)?;
-    match entry.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(error) => Err(GithubAuthError::CredentialStore(error)),
+fn clear_account_cache_if_present(database: &Database) -> Result<(), DatabaseError> {
+    let has_account = database.with_connection(|connection| {
+        connection.query_row("SELECT EXISTS(SELECT 1 FROM github_accounts)", [], |row| {
+            row.get::<_, bool>(0)
+        })
+    })?;
+    if has_account {
+        clear_account_cache(database)?;
     }
+    Ok(())
 }
 
 fn clear_account_cache(database: &Database) -> Result<(), DatabaseError> {
@@ -412,113 +342,24 @@ fn clear_account_cache(database: &Database) -> Result<(), DatabaseError> {
     Ok(())
 }
 
-fn update_token_expiration(database: &Database, token: &GithubToken) -> Result<(), DatabaseError> {
-    let now = Utc::now();
-    let access_expires_at = token
-        .expires_in
-        .map(|seconds| (now + chrono::Duration::seconds(seconds)).to_rfc3339());
-    let refresh_expires_at = token
-        .refresh_token_expires_in
-        .map(|seconds| (now + chrono::Duration::seconds(seconds)).to_rfc3339());
-    database.with_connection(|connection| {
-        connection.execute(
-            "UPDATE github_accounts SET access_token_expires_at = ?1, \
-             refresh_token_expires_at = ?2, needs_reauthorization = 0",
-            rusqlite::params![access_expires_at, refresh_expires_at],
-        )?;
-        Ok(())
-    })
-}
-
-fn save_account(
-    database: &Database,
-    user: &GithubUser,
-    token: &GithubToken,
-) -> Result<(), DatabaseError> {
-    let now = Utc::now();
-    let access_expires_at = token
-        .expires_in
-        .map(|seconds| now + chrono::Duration::seconds(seconds));
-    let refresh_expires_at = token
-        .refresh_token_expires_in
-        .map(|seconds| now + chrono::Duration::seconds(seconds));
-    database.with_connection(|connection| {
-        let transaction = connection.unchecked_transaction()?;
-        transaction.execute("DELETE FROM github_accounts", [])?;
-        transaction.execute(
-            "INSERT INTO github_accounts (
-                id, login, avatar_url, authorized_at, access_token_expires_at,
-                refresh_token_expires_at, needs_reauthorization
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)",
-            rusqlite::params![
-                user.id.to_string(),
-                user.login,
-                user.avatar_url,
-                now.to_rfc3339(),
-                access_expires_at.map(|value| value.to_rfc3339()),
-                refresh_expires_at.map(|value| value.to_rfc3339()),
-            ],
-        )?;
-        transaction.commit()
-    })
-}
-
-#[derive(Deserialize)]
-struct DeviceCodeResponse {
-    device_code: String,
-    user_code: String,
-    verification_uri: String,
-    expires_in: u64,
-    interval: u64,
-}
-
-#[derive(Deserialize)]
-struct AccessTokenResponse {
-    access_token: Option<String>,
-    expires_in: Option<i64>,
-    refresh_token: Option<String>,
-    refresh_token_expires_in: Option<i64>,
-    error: Option<String>,
-    error_description: Option<String>,
-}
-
-impl AccessTokenResponse {
-    fn disposition(self) -> Result<TokenPollDisposition, GithubAuthError> {
-        if let Some(access_token) = self.access_token {
-            return Ok(TokenPollDisposition::Authorized(GithubToken {
-                access_token,
-                expires_in: self.expires_in,
-                refresh_token: self.refresh_token,
-                refresh_token_expires_in: self.refresh_token_expires_in,
-            }));
-        }
-        match self.error.as_deref() {
-            Some("authorization_pending") => Ok(TokenPollDisposition::Pending),
-            Some("slow_down") => Ok(TokenPollDisposition::SlowDown),
-            Some("expired_token" | "token_expired") => Err(GithubAuthError::Expired),
-            Some("access_denied") => Err(GithubAuthError::AccessDenied),
-            Some("device_flow_disabled") => Err(GithubAuthError::DeviceFlowDisabled),
-            Some(error) => Err(GithubAuthError::Protocol(
-                self.error_description.unwrap_or_else(|| error.to_owned()),
-            )),
-            None => Err(GithubAuthError::Protocol(
-                "token response contained neither a token nor an error".into(),
-            )),
+fn clear_legacy_credentials() {
+    for account in [LEGACY_ACCESS_TOKEN_ACCOUNT, LEGACY_REFRESH_TOKEN_ACCOUNT] {
+        if let Ok(entry) = keyring::Entry::new(LEGACY_KEYCHAIN_SERVICE, account) {
+            match entry.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => {}
+                Err(_) => {}
+            }
         }
     }
 }
 
-enum TokenPollDisposition {
-    Pending,
-    SlowDown,
-    Authorized(GithubToken),
-}
-
-struct GithubToken {
-    access_token: String,
-    expires_in: Option<i64>,
-    refresh_token: Option<String>,
-    refresh_token_expires_in: Option<i64>,
+fn command_error(stderr: &[u8]) -> String {
+    let message = String::from_utf8_lossy(stderr).trim().to_owned();
+    if message.is_empty() {
+        "command exited unsuccessfully".into()
+    } else {
+        message
+    }
 }
 
 #[derive(Deserialize)]
@@ -528,6 +369,26 @@ struct GithubUser {
     avatar_url: String,
 }
 
+#[derive(Deserialize)]
+struct GithubAuthStatus {
+    hosts: GithubAuthHosts,
+}
+
+#[derive(Deserialize)]
+struct GithubAuthHosts {
+    #[serde(rename = "github.com", default)]
+    github_com: Vec<GithubCliAccount>,
+}
+
+#[derive(Deserialize)]
+struct GithubCliAccount {
+    state: String,
+    active: bool,
+    login: String,
+}
+
+use rusqlite::OptionalExtension;
+
 #[cfg(test)]
 mod tests {
     use tempfile::tempdir;
@@ -535,39 +396,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_success_without_logging_token_data() {
-        let response: AccessTokenResponse =
-            serde_json::from_str(r#"{"access_token":"secret","token_type":"bearer","scope":""}"#)
-                .unwrap();
-        assert!(matches!(
-            response.disposition().unwrap(),
-            TokenPollDisposition::Authorized(_)
-        ));
+    fn github_cli_status_parses_active_and_alternate_accounts() {
+        let status: GithubAuthStatus = serde_json::from_str(
+            r#"{"hosts":{"github.com":[{"state":"success","active":true,"login":"leo"},{"state":"success","active":false,"login":"lucas"}]}}"#,
+        )
+        .unwrap();
+        assert_eq!(status.hosts.github_com.len(), 2);
+        assert_eq!(status.hosts.github_com[0].login, "leo");
+        assert!(status.hosts.github_com[0].active);
     }
 
     #[test]
-    fn distinguishes_pending_and_slow_down() {
-        for (error, expected_slow_down) in [("authorization_pending", false), ("slow_down", true)] {
-            let response: AccessTokenResponse =
-                serde_json::from_str(&format!(r#"{{"error":"{error}"}}"#)).unwrap();
-            assert_eq!(
-                matches!(
-                    response.disposition().unwrap(),
-                    TokenPollDisposition::SlowDown
-                ),
-                expected_slow_down
-            );
-        }
-    }
-
-    #[test]
-    fn rounds_subsecond_poll_delays_up() {
-        assert_eq!(duration_ceiling_seconds(Duration::from_millis(1)), 1);
-        assert_eq!(duration_ceiling_seconds(Duration::from_millis(1001)), 2);
-    }
-
-    #[test]
-    fn clearing_an_account_preserves_local_work_and_hides_cached_github_rows() {
+    fn disconnecting_preserves_github_cli_and_local_work() {
         let directory = tempdir().unwrap();
         let database = Database::open(directory.path().join("account.sqlite3")).unwrap();
         database
@@ -596,18 +436,13 @@ mod tests {
                      ) VALUES (
                         'run-1', 'pr-1', 'codex', 'completed', '/tmp/worktree',
                         '/tmp/run.log', '2026-08-04T10:00:00Z'
-                     );
-                     INSERT INTO attention_items (
-                        id, pull_request_id, reason, summary, first_detected_at, last_changed_at
-                     ) VALUES (
-                        'attention-1', 'pr-1', 'review_requested', 'Review requested',
-                        '2026-08-04T10:00:00Z', '2026-08-04T10:00:00Z'
                      );",
                 )?;
                 Ok(())
             })
             .unwrap();
 
+        set_connection_enabled(&database, false).unwrap();
         clear_account_cache(&database).unwrap();
 
         let state = database
@@ -628,13 +463,13 @@ mod tests {
                         row.get::<_, u32>(0)
                     })?,
                     connection.query_row(
-                        "SELECT cleared_at IS NOT NULL FROM attention_items WHERE id = 'attention-1'",
-                        [],
-                        |row| row.get::<_, bool>(0),
+                        "SELECT value FROM app_state WHERE key = ?1",
+                        [CONNECTION_ENABLED_KEY],
+                        |row| row.get::<_, String>(0),
                     )?,
                 ))
             })
             .unwrap();
-        assert_eq!(state, (0, false, 1, 1, true));
+        assert_eq!(state, (0, false, 1, 1, "false".into()));
     }
 }

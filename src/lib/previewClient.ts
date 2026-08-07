@@ -3,7 +3,6 @@ import type {
   AppSettings,
   AttentionItem,
   CachedPullRequest,
-  DeviceAuthorizationPoll,
   InboxSyncEvent,
   OpenPullRequestEvent,
   SettingsPatch,
@@ -223,7 +222,6 @@ export function createPreviewClient(preview: string | null): MissionControlClien
           repositorySelectionCompleted: true,
           initialSyncCompleted: true,
         };
-  let authorizationPolls = 0;
   let settings: AppSettings = {
     schemaVersion: 1,
     general: { launchAtLogin: false, closeBehavior: 'menu_bar', theme: 'system' },
@@ -297,7 +295,7 @@ export function createPreviewClient(preview: string | null): MissionControlClien
       return {
         settingsSchemaVersion: 1,
         databaseSchemaVersion: 3,
-        githubAppConfigured: true,
+        githubCliAvailable: true,
         actionablePollSeconds: 60,
         discoveryPollSeconds: 300,
       };
@@ -510,22 +508,8 @@ export function createPreviewClient(preview: string | null): MissionControlClien
       openPullRequestHandlers.add(handler);
       return () => openPullRequestHandlers.delete(handler);
     },
-    async startGithubAuthorization() {
-      await wait(260);
-      return {
-        sessionId: 'preview-session',
-        userCode: 'MC5D-92LK',
-        verificationUri: 'https://github.com/login/device',
-        expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
-        pollIntervalSeconds: 1,
-      };
-    },
-    async pollGithubAuthorization(): Promise<DeviceAuthorizationPoll> {
+    async connectGithubAccount() {
       await wait(220);
-      authorizationPolls += 1;
-      if (authorizationPolls < 2) {
-        return { state: 'pending', retryAfterSeconds: 1 };
-      }
       activation = {
         step: 'repository_access_required',
         githubLogin: 'leo',
@@ -533,15 +517,21 @@ export function createPreviewClient(preview: string | null): MissionControlClien
         repositorySelectionCompleted: false,
         initialSyncCompleted: false,
       };
-      return { state: 'authorized', login: 'leo', avatarUrl: '' };
+      return activation;
     },
-    async cancelGithubAuthorization() {
-      authorizationPolls = 0;
-      await wait(40);
+    async switchGithubAccount() {
+      await wait(220);
+      activation = {
+        step: 'repository_access_required',
+        githubLogin: activation.githubLogin === 'leo' ? 'lucasdev365' : 'leo',
+        accessibleRepositoryCount: 0,
+        repositorySelectionCompleted: false,
+        initialSyncCompleted: false,
+      };
+      return activation;
     },
     async disconnectGithubAccount() {
       await wait(180);
-      authorizationPolls = 0;
       activation = {
         step: 'github_authorization_required',
         githubLogin: null,

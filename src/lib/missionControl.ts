@@ -5,8 +5,6 @@ import type {
   AppSettings,
   AttentionItem,
   CachedPullRequest,
-  DeviceAuthorization,
-  DeviceAuthorizationPoll,
   FoundationStatus,
   GithubSyncResult,
   InboxSyncEvent,
@@ -164,16 +162,12 @@ export function onOpenPullRequest(
   return listen<OpenPullRequestEvent>(OPEN_PULL_REQUEST_EVENT, (event) => handler(event.payload));
 }
 
-export function startGithubAuthorization(): Promise<DeviceAuthorization> {
-  return invoke<DeviceAuthorization>('start_github_authorization');
+export function connectGithubAccount(): Promise<ActivationState> {
+  return invoke<ActivationState>('connect_github_account');
 }
 
-export function pollGithubAuthorization(sessionId: string): Promise<DeviceAuthorizationPoll> {
-  return invoke<DeviceAuthorizationPoll>('poll_github_authorization', { sessionId });
-}
-
-export function cancelGithubAuthorization(sessionId: string): Promise<void> {
-  return invoke<void>('cancel_github_authorization', { sessionId });
+export function switchGithubAccount(): Promise<ActivationState> {
+  return invoke<ActivationState>('switch_github_account');
 }
 
 export function disconnectGithubAccount(): Promise<ActivationState> {

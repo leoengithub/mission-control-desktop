@@ -5,7 +5,7 @@ use crate::database::{Database, DatabaseError};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivationStep {
-    GithubAppConfigurationRequired,
+    GithubCliRequired,
     GithubAuthorizationRequired,
     RepositoryAccessRequired,
     RepositorySelectionRequired,
@@ -25,7 +25,7 @@ pub struct ActivationState {
 
 pub fn resolve_activation_state(
     database: &Database,
-    github_app_configured: bool,
+    github_cli_available: bool,
 ) -> Result<ActivationState, DatabaseError> {
     database.with_connection(|connection| {
         let account = connection
@@ -67,8 +67,8 @@ pub fn resolve_activation_state(
             .optional()?
             .is_some_and(|value| value == "true");
 
-        let step = if !github_app_configured {
-            ActivationStep::GithubAppConfigurationRequired
+        let step = if !github_cli_available {
+            ActivationStep::GithubCliRequired
         } else if account.is_none() {
             ActivationStep::GithubAuthorizationRequired
         } else if repository_count == 0 {
@@ -100,15 +100,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn missing_build_configuration_precedes_account_state() {
+    fn missing_github_cli_precedes_account_state() {
         let directory = tempdir().unwrap();
         let database = Database::open(directory.path().join("activation.sqlite3")).unwrap();
         let state = resolve_activation_state(&database, false).unwrap();
-        assert_eq!(state.step, ActivationStep::GithubAppConfigurationRequired);
+        assert_eq!(state.step, ActivationStep::GithubCliRequired);
     }
 
     #[test]
-    fn configured_app_requires_authorization() {
+    fn available_github_cli_requires_authorization() {
         let directory = tempdir().unwrap();
         let database = Database::open(directory.path().join("activation.sqlite3")).unwrap();
         let state = resolve_activation_state(&database, true).unwrap();

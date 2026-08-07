@@ -1,39 +1,38 @@
 import { useMemo, useState } from 'react';
-import type { ActivationState, DeviceAuthorization, LocalRepositoryAttachment } from '../contracts';
+import type { ActivationState, LocalRepositoryAttachment } from '../contracts';
 import { Icon } from './Icon';
 import onboardingHero from '../../assets/brand/raster/onboarding-hero.png';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface ActivationFlowProps {
   activation: ActivationState;
-  authorization: DeviceAuthorization | null;
-  authorizationPhase: 'idle' | 'starting' | 'waiting' | 'authorized';
+  githubCliAvailable: boolean;
   busy: boolean;
   error: string | null;
   repositories: LocalRepositoryAttachment[];
   repositorySelectionBusy: boolean;
   repositorySelectionError: string | null;
-  onBeginAuthorization(): void;
-  onCancelAuthorization(): void;
+  onConnectAccount(): void;
   onSwitchAccount(): void;
   onSynchronize(): void;
   onCompleteRepositorySelection(repositoryIds: string[]): void;
   onOpenUrl(url: string): void;
 }
 
-const installationSettingsUrl = 'https://github.com/settings/installations';
+const githubCliUrl = 'https://cli.github.com/';
+const githubCliAuthUrl = 'https://cli.github.com/manual/gh_auth_login';
+const githubSsoUrl =
+  'https://docs.github.com/en/authentication/authenticating-with-single-sign-on/authorizing-an-app-for-single-sign-on';
 
 export function ActivationFlow({
   activation,
-  authorization,
-  authorizationPhase,
+  githubCliAvailable,
   busy,
   error,
   repositories,
   repositorySelectionBusy,
   repositorySelectionError,
-  onBeginAuthorization,
-  onCancelAuthorization,
+  onConnectAccount,
   onSwitchAccount,
   onSynchronize,
   onCompleteRepositorySelection,
@@ -45,7 +44,7 @@ export function ActivationFlow({
   const complete = activation.initialSyncCompleted;
 
   return (
-    <main className="activation" id="main-content">
+    <main className="activation" id="main-content" data-tauri-drag-region>
       <section className="activation__intro" aria-labelledby="activation-title">
         <div className="activation__eyebrow">
           <Icon name="spark" size={15} />
@@ -53,14 +52,15 @@ export function ActivationFlow({
         </div>
         <h1 id="activation-title">See what needs you.</h1>
         <p>
-          Connect GitHub and Mission Control will build a live inbox from your authored and
-          review-requested pull requests.
+          Use your GitHub CLI account and Mission Control will build a live inbox from your authored
+          and review-requested pull requests.
         </p>
         <div className="activation__promise">
           <span className="activation__promise-mark">
             <Icon name="check" size={14} strokeWidth={2.4} />
           </span>
-          Tokens stay in your system keychain. Monitoring stays on this Mac.
+          GitHub CLI manages your credentials. Mission Control does not install anything in your
+          repositories.
         </div>
         <img
           className="activation__hero"
@@ -76,7 +76,7 @@ export function ActivationFlow({
         <div className="activation-panel__header">
           <div>
             <span className="activation-panel__step">Setup</span>
-            <h2>Start with GitHub</h2>
+            <h2>Start with GitHub CLI</h2>
           </div>
           <span className="activation-panel__count">
             {[connected, repositoryAccess, repositoriesSelected, complete].filter(Boolean).length}
@@ -87,21 +87,23 @@ export function ActivationFlow({
         <ol className="setup-list">
           <SetupStep
             number={1}
-            title="Connect your account"
+            title="Connect your GitHub CLI account"
             description={
               connected
-                ? `Connected as @${activation.githubLogin}`
-                : 'Authorize with GitHub Device Flow'
+                ? `Using the active account @${activation.githubLogin}`
+                : githubCliAvailable
+                  ? 'Sign in with gh auth login, then check again'
+                  : 'Install GitHub CLI to continue'
             }
             state={connected ? 'complete' : 'current'}
           />
           <SetupStep
             number={2}
-            title="Confirm repository access"
+            title="Discover accessible repositories"
             description={
               repositoryAccess
                 ? `${activation.accessibleRepositoryCount} repositories available`
-                : 'Use the repositories already granted to the GitHub App'
+                : 'Use the repositories visible to your active GitHub CLI account'
             }
             state={repositoryAccess ? 'complete' : connected ? 'current' : 'upcoming'}
           />
@@ -128,44 +130,37 @@ export function ActivationFlow({
         </ol>
 
         <div className="activation-action">
-          {activation.step === 'github_app_configuration_required' ? (
-            <InlineError message="This build is missing its GitHub App configuration." />
-          ) : null}
-
-          {activation.step === 'github_authorization_required' && authorizationPhase === 'idle' ? (
-            <button
-              className="button button--primary button--wide"
-              type="button"
-              onClick={onBeginAuthorization}
-            >
-              <Icon name="github" size={17} />
-              Connect GitHub
-            </button>
-          ) : null}
-
-          {authorizationPhase === 'starting' ? (
-            <button className="button button--primary button--wide" type="button" disabled>
-              <span className="spinner" />
-              Starting authorization
-            </button>
-          ) : null}
-
-          {authorization && authorizationPhase === 'waiting' ? (
-            <DeviceCode
-              authorization={authorization}
-              onOpen={() => onOpenUrl(authorization.verificationUri)}
-              onCancel={onCancelAuthorization}
-            />
-          ) : null}
-
-          {authorizationPhase === 'authorized' && busy ? (
-            <div className="activation-working" role="status">
-              <span className="spinner spinner--dark" />
-              GitHub connected. Building your inbox now.
+          {activation.step === 'github_cli_required' ? (
+            <div className="activation-action__stack">
+              <button
+                className="button button--primary button--wide"
+                type="button"
+                onClick={() => onOpenUrl(githubCliUrl)}
+              >
+                Install GitHub CLI
+                <Icon name="arrow-up-right" size={15} />
+              </button>
+              <button
+                className="button button--quiet button--wide"
+                type="button"
+                onClick={onConnectAccount}
+                disabled={busy}
+              >
+                {busy ? <span className="spinner spinner--dark" /> : <Icon name="sync" size={16} />}
+                Check again
+              </button>
             </div>
           ) : null}
 
-          {activation.step === 'repository_access_required' && authorizationPhase !== 'waiting' ? (
+          {activation.step === 'github_authorization_required' ? (
+            <GithubCliSetup
+              busy={busy}
+              onCheck={onConnectAccount}
+              onOpenHelp={() => onOpenUrl(githubCliAuthUrl)}
+            />
+          ) : null}
+
+          {activation.step === 'repository_access_required' ? (
             <div className="activation-action__stack">
               <button
                 className="button button--primary button--wide"
@@ -174,15 +169,7 @@ export function ActivationFlow({
                 disabled={busy}
               >
                 {busy ? <span className="spinner" /> : <Icon name="sync" size={16} />}
-                {busy ? 'Checking access' : 'Check access and continue'}
-              </button>
-              <button
-                className="button button--quiet button--wide"
-                type="button"
-                onClick={() => onOpenUrl(installationSettingsUrl)}
-              >
-                Manage GitHub access
-                <Icon name="arrow-up-right" size={15} />
+                {busy ? 'Checking repositories' : 'Refresh repository access'}
               </button>
               <button
                 className="button button--quiet button--wide"
@@ -191,7 +178,15 @@ export function ActivationFlow({
                 disabled={busy}
               >
                 <Icon name="github" size={15} />
-                Use another GitHub account
+                Switch GitHub CLI account
+              </button>
+              <button
+                className="button button--quiet button--wide"
+                type="button"
+                onClick={() => onOpenUrl(githubSsoUrl)}
+              >
+                Organization repository missing? Check SSO
+                <Icon name="arrow-up-right" size={15} />
               </button>
             </div>
           ) : null}
@@ -214,7 +209,7 @@ export function ActivationFlow({
               busy={repositorySelectionBusy}
               error={repositorySelectionError}
               onComplete={onCompleteRepositorySelection}
-              onManageAccess={() => onOpenUrl(installationSettingsUrl)}
+              onRefresh={onSynchronize}
             />
           ) : null}
 
@@ -225,18 +220,70 @@ export function ActivationFlow({
   );
 }
 
+function GithubCliSetup({
+  busy,
+  onCheck,
+  onOpenHelp,
+}: {
+  busy: boolean;
+  onCheck(): void;
+  onOpenHelp(): void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText('gh auth login');
+    setCopied(true);
+  };
+
+  return (
+    <div className="device-code">
+      <div className="device-code__heading">
+        <span>
+          <Icon name="terminal" size={15} />
+          Sign in through GitHub CLI
+        </span>
+      </div>
+      <p>Run this once in Terminal. Return here when GitHub CLI confirms the account.</p>
+      <div className="device-code__value">
+        <code>gh auth login</code>
+        <button
+          className="icon-button"
+          type="button"
+          aria-label={copied ? 'GitHub CLI command copied' : 'Copy GitHub CLI command'}
+          onClick={() => void copy()}
+        >
+          <Icon name={copied ? 'check' : 'copy'} size={16} />
+        </button>
+      </div>
+      <button
+        className="button button--primary button--wide"
+        type="button"
+        onClick={onCheck}
+        disabled={busy}
+      >
+        {busy ? <span className="spinner" /> : <Icon name="github" size={16} />}
+        {busy ? 'Checking GitHub CLI' : 'Use active GitHub CLI account'}
+      </button>
+      <button className="button button--quiet button--wide" type="button" onClick={onOpenHelp}>
+        GitHub CLI sign-in help
+        <Icon name="arrow-up-right" size={15} />
+      </button>
+    </div>
+  );
+}
+
 function RepositorySelection({
   repositories,
   busy,
   error,
   onComplete,
-  onManageAccess,
+  onRefresh,
 }: {
   repositories: LocalRepositoryAttachment[];
   busy: boolean;
   error: string | null;
   onComplete(repositoryIds: string[]): void;
-  onManageAccess(): void;
+  onRefresh(): void;
 }) {
   const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -312,9 +359,9 @@ function RepositorySelection({
         {busy ? <span className="spinner" /> : <Icon name="check" size={16} />}
         {busy ? 'Saving repositories' : 'Continue with selected repositories'}
       </button>
-      <button className="button button--quiet button--wide" type="button" onClick={onManageAccess}>
-        Missing a repository? Manage GitHub access
-        <Icon name="arrow-up-right" size={15} />
+      <button className="button button--quiet button--wide" type="button" onClick={onRefresh}>
+        Missing a repository? Refresh GitHub CLI access
+        <Icon name="sync" size={15} />
       </button>
       {error ? <InlineError message={error} /> : null}
     </div>
@@ -345,51 +392,6 @@ function SetupStep({
         {state === 'complete' ? 'Done' : state === 'current' ? 'Current' : 'Later'}
       </span>
     </li>
-  );
-}
-
-function DeviceCode({
-  authorization,
-  onOpen,
-  onCancel,
-}: {
-  authorization: DeviceAuthorization;
-  onOpen(): void;
-  onCancel(): void;
-}) {
-  const copy = async () => {
-    await navigator.clipboard.writeText(authorization.userCode);
-  };
-
-  return (
-    <div className="device-code">
-      <div className="device-code__heading">
-        <span>
-          <Icon name="clock" size={15} />
-          Waiting for GitHub
-        </span>
-        <span className="device-code__pulse" />
-      </div>
-      <p>Enter this one-time code in the browser window.</p>
-      <div className="device-code__value">
-        <code>{authorization.userCode}</code>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Copy device code"
-          onClick={() => void copy()}
-        >
-          <Icon name="copy" size={16} />
-        </button>
-      </div>
-      <button className="button button--primary button--wide" type="button" onClick={onOpen}>
-        Open GitHub
-        <Icon name="arrow-up-right" size={15} />
-      </button>
-      <button className="button button--quiet button--wide" type="button" onClick={onCancel}>
-        Cancel authorization
-      </button>
-    </div>
   );
 }
 

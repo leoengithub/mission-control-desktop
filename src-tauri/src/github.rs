@@ -1,4 +1,7 @@
-#![allow(dead_code, reason = "transport is wired after GitHub App registration")]
+#![allow(
+    dead_code,
+    reason = "query helpers document the GitHub CLI-backed scope"
+)]
 
 use std::collections::HashSet;
 

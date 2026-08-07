@@ -4,8 +4,6 @@ import type {
   AppSettings,
   CachedPullRequest,
   ContextualPrompt,
-  DeviceAuthorization,
-  DeviceAuthorizationPoll,
   FoundationStatus,
   GithubSyncResult,
   InboxSyncEvent,
@@ -22,7 +20,7 @@ import type {
 } from '../contracts';
 import {
   attachLocalRepository,
-  cancelGithubAuthorization,
+  connectGithubAccount,
   cleanupAgentWorktree,
   completeFixSession,
   detectAgents,
@@ -43,14 +41,13 @@ import {
   onTerminalEvent,
   openThreadTerminal,
   openExternalUrl,
-  pollGithubAuthorization,
   refreshInbox,
   requestNotificationPermission,
   requestCopilotReview,
   replyAndResolve,
   readAgentRunLog,
   startFixSession,
-  startGithubAuthorization,
+  switchGithubAccount,
   setRepositoryMonitoring,
   updateSettings,
   terminalInput,
@@ -97,9 +94,8 @@ export interface MissionControlClient {
   refreshInbox(trigger?: SyncTrigger): Promise<GithubSyncResult>;
   onInboxSync(handler: (event: InboxSyncEvent) => void): Promise<() => void>;
   onOpenPullRequest(handler: (event: OpenPullRequestEvent) => void): Promise<() => void>;
-  startGithubAuthorization(): Promise<DeviceAuthorization>;
-  pollGithubAuthorization(sessionId: string): Promise<DeviceAuthorizationPoll>;
-  cancelGithubAuthorization(sessionId: string): Promise<void>;
+  connectGithubAccount(): Promise<ActivationState>;
+  switchGithubAccount(): Promise<ActivationState>;
   disconnectGithubAccount(): Promise<ActivationState>;
   openExternalUrl(url: string): Promise<void>;
 }
@@ -135,9 +131,8 @@ const nativeClient: MissionControlClient = {
   refreshInbox,
   onInboxSync,
   onOpenPullRequest,
-  startGithubAuthorization,
-  pollGithubAuthorization,
-  cancelGithubAuthorization,
+  connectGithubAccount,
+  switchGithubAccount,
   disconnectGithubAccount,
   openExternalUrl,
 };
