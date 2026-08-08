@@ -3,6 +3,7 @@ import { ActivationFlow } from './components/ActivationFlow';
 import { Icon } from './components/Icon';
 import { InboxWorkspace } from './components/InboxWorkspace';
 import { SettingsWorkspace } from './components/SettingsWorkspace';
+import { Button } from './components/ui/button';
 import { useMissionControl } from './hooks/useMissionControl';
 import { useReviewWorkflow } from './hooks/useReviewWorkflow';
 import { createMissionControlClient } from './lib/client';
@@ -71,10 +72,13 @@ export function App() {
 
   return (
     <div
-      className="app-frame"
+      className="flex h-full w-full min-w-0 bg-transparent"
       data-mission-control-foundation={model.foundation?.settingsSchemaVersion ?? 'loading'}
     >
-      <a className="skip-link" href="#main-content">
+      <a
+        className="fixed top-3 left-3 z-20 -translate-y-[150%] rounded-sm bg-action px-3 py-2 text-surface no-underline transition-transform duration-fast ease-out focus:translate-y-0"
+        href="#main-content"
+      >
         Skip to content
       </a>
       {model.isBooting ? <BootScreen /> : null}
@@ -167,34 +171,38 @@ export function App() {
 function BootScreen() {
   return (
     <main
-      className="boot-screen"
+      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-4"
       id="main-content"
       aria-label="Opening Mission Control"
       data-tauri-drag-region
     >
-      <div className="boot-screen__mark">
+      <div className="grid size-12 place-items-center rounded-lg border border-hairline bg-surface text-success-deep">
         <Icon name="branch" size={22} strokeWidth={2.1} />
       </div>
-      <div className="boot-screen__copy">
-        <strong>Mission Control</strong>
-        <span>Opening your local attention inbox</span>
+      <div className="grid gap-1 text-center">
+        <strong className="text-base">Mission Control</strong>
+        <span className="text-ink-secondary">Opening your local attention inbox</span>
       </div>
-      <span className="boot-screen__progress" />
+      <span className="h-0.5 w-28 overflow-hidden rounded-full bg-hairline after:block after:h-full after:w-[45%] after:animate-loading-line after:rounded-[inherit] after:bg-success after:content-['']" />
     </main>
   );
 }
 
 function FatalState({ message, onRetry }: { message: string; onRetry(): void }) {
   return (
-    <main className="fatal-state" id="main-content" data-tauri-drag-region>
-      <span className="fatal-state__mark">
+    <main
+      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 p-12 text-center"
+      id="main-content"
+      data-tauri-drag-region
+    >
+      <span className="grid size-12 place-items-center rounded-lg border border-hairline bg-surface text-danger-deep">
         <Icon name="alert" size={22} />
       </span>
-      <h1>Mission Control could not open</h1>
-      <p>{message}</p>
-      <button className="button button--primary" type="button" onClick={onRetry}>
+      <h1 className="mt-2 text-[1.4rem]">Mission Control could not open</h1>
+      <p className="max-w-[58ch] text-ink-secondary">{message}</p>
+      <Button type="button" onClick={onRetry}>
         Try again
-      </button>
+      </Button>
     </main>
   );
 }

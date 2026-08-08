@@ -3,6 +3,8 @@ import type { AgentRun, AgentRunStatus } from '../contracts';
 import type { MissionControlClient } from '../lib/client';
 import { formatRelativeTime } from '../lib/inbox';
 import { Icon } from './Icon';
+import { Button } from '@/components/ui/button';
+import { cva } from 'class-variance-authority';
 
 interface TerminalPanelProps {
   client: MissionControlClient;
@@ -94,36 +96,41 @@ export function TerminalPanel({
   const visibleError = actionError ?? terminalError;
 
   return (
-    <section className="terminal-panel" aria-label="Interactive terminal">
-      <header className="terminal-panel__header">
-        <div>
-          <span className={`terminal-status terminal-status--${status}`}>
+    <section
+      className="sticky bottom-0 z-4 mx-6 mb-6 overflow-hidden rounded-md border border-[oklch(31%_0.014_128)] bg-[oklch(18%_0.012_128)] text-[oklch(91%_0.01_128)] shadow-float"
+      aria-label="Interactive terminal"
+    >
+      <header className="flex items-center justify-between gap-3 border-b border-[oklch(31%_0.014_128)] bg-[oklch(22%_0.012_128)] px-3 py-[9px]">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={terminalStatusVariants({ status })}>
             <Icon name={statusIcon(status)} size={13} />
             {statusLabel(status)}
           </span>
           <strong>
             {run.agent === 'shell' ? 'Worktree terminal' : `${agentLabel(run.agent)} session`}
           </strong>
-          <span>{formatRelativeTime(run.startedAt)}</span>
+          <span className="text-[0.7rem] text-[oklch(67%_0.008_128)]">
+            {formatRelativeTime(run.startedAt)}
+          </span>
         </div>
-        <div className="terminal-panel__actions">
+        <div className="flex items-center gap-2">
           {status === 'running' ? (
-            <button className="button button--quiet" type="button" onClick={() => void stop()}>
+            <Button
+              className="border-[oklch(39%_0.012_128)] bg-[oklch(27%_0.012_128)] text-[oklch(92%_0.008_128)] hover:bg-[oklch(31%_0.014_128)] hover:text-[oklch(92%_0.008_128)]"
+              variant="outline"
+              type="button"
+              onClick={() => void stop()}
+            >
               Stop session
-            </button>
+            </Button>
           ) : null}
           {canComplete ? (
-            <button
-              className="button button--primary"
-              type="button"
-              disabled={actionBusy}
-              onClick={() => onComplete(run.id)}
-            >
+            <Button type="button" disabled={actionBusy} onClick={() => onComplete(run.id)}>
               {actionBusy ? 'Posting reply…' : 'Complete and resolve'}
-            </button>
+            </Button>
           ) : null}
           <button
-            className="icon-button"
+            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm border border-[oklch(39%_0.012_128)] bg-[oklch(27%_0.012_128)] text-[oklch(92%_0.008_128)] transition-[background,color,transform] duration-state ease-out hover:bg-[oklch(31%_0.014_128)] active:scale-[0.94]"
             type="button"
             aria-label="Close terminal"
             onClick={onClose}
@@ -132,10 +139,18 @@ export function TerminalPanel({
           </button>
         </div>
       </header>
-      <div className="terminal-panel__viewport" ref={panelRef}>
-        <pre ref={viewportRef}>{output || 'Waiting for terminal output…'}</pre>
+      <div
+        className="grid min-h-[220px] max-h-[380px] grid-rows-[minmax(0,1fr)_auto]"
+        ref={panelRef}
+      >
+        <pre
+          className="m-0 min-h-[180px] overflow-auto px-4 py-3 font-mono text-xs leading-normal whitespace-pre-wrap text-[oklch(90%_0.01_128)]"
+          ref={viewportRef}
+        >
+          {output || 'Waiting for terminal output…'}
+        </pre>
         <input
-          className="terminal-panel__input"
+          className="w-full border-0 border-t border-[oklch(31%_0.014_128)] bg-[oklch(20%_0.012_128)] px-4 py-[9px] font-mono text-xs text-[oklch(92%_0.008_128)] outline-none placeholder:text-[oklch(62%_0.008_128)]"
           type="text"
           aria-label="Terminal input"
           autoComplete="off"
@@ -152,13 +167,21 @@ export function TerminalPanel({
         />
       </div>
       {run.worktreePath ? (
-        <footer className="terminal-panel__footer">
+        <footer className="flex items-center gap-3 overflow-hidden border-t border-[oklch(31%_0.014_128)] bg-[oklch(22%_0.012_128)] px-3 py-[9px] font-mono text-[0.65rem] text-[oklch(67%_0.008_128)]">
           <Icon name="branch" size={13} />
-          <span title={run.worktreePath}>{run.worktreePath}</span>
+          <span
+            className="overflow-hidden text-ellipsis whitespace-nowrap"
+            title={run.worktreePath}
+          >
+            {run.worktreePath}
+          </span>
         </footer>
       ) : null}
       {visibleError ? (
-        <p className="terminal-panel__error" role="alert">
+        <p
+          className="m-0 flex items-start gap-1.5 px-3 pb-3 text-[0.73rem] text-[oklch(76%_0.15_29)]"
+          role="alert"
+        >
           <Icon name="alert" size={14} />
           {visibleError}
         </p>
@@ -166,6 +189,21 @@ export function TerminalPanel({
     </section>
   );
 }
+
+const terminalStatusVariants = cva(
+  'inline-flex items-center gap-[5px] text-[0.72rem] font-semibold text-ink-secondary',
+  {
+    variants: {
+      status: {
+        running: 'text-[oklch(80%_0.13_84)]',
+        completed: 'text-[oklch(77%_0.14_143)]',
+        failed: 'text-[oklch(73%_0.16_29)]',
+        interrupted: 'text-[oklch(73%_0.16_29)]',
+        stalled: 'text-[oklch(73%_0.16_29)]',
+      },
+    },
+  },
+);
 
 function terminalKey(event: React.KeyboardEvent<HTMLInputElement>): string | null {
   if (event.ctrlKey && event.key.length === 1) {

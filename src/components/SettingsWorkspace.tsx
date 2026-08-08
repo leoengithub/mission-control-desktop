@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 interface SettingsWorkspaceProps {
   settings: AppSettings | null;
@@ -63,6 +64,16 @@ const syncOptions: Array<{
   },
 ];
 
+const settingsNavLinkClass =
+  'flex min-h-9 items-center gap-[9px] rounded-sm px-3 text-[0.8rem] font-[560] text-ink-secondary no-underline transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.99]';
+const settingsSectionClass = 'scroll-mt-4 border-b border-hairline py-8 last:border-b-0';
+const settingsHeadingClass = 'flex items-start gap-3';
+const settingsIconClass =
+  'grid size-8 shrink-0 place-items-center rounded-sm border border-hairline bg-surface text-ink-secondary';
+const settingsHeadingTitleClass = 'm-0 text-base tracking-[-0.01em]';
+const settingsHeadingCopyClass = 'mt-[3px] mb-0 max-w-[62ch] text-[0.8rem] text-ink-secondary';
+const inlineErrorClass = 'm-0 flex items-start gap-1.5 text-[0.73rem] text-danger-deep';
+
 export function SettingsWorkspace({
   settings,
   notificationPermission,
@@ -98,11 +109,17 @@ export function SettingsWorkspace({
 
   if (!settings) {
     return (
-      <main className="workspace settings-workspace" id="main-content">
-        <header className="workspace-header" data-tauri-drag-region>
-          <div className="workspace-header__leading">
+      <main
+        className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
+        id="main-content"
+      >
+        <header
+          className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
+          data-tauri-drag-region
+        >
+          <div className="flex items-center gap-3">
             <button
-              className="icon-button"
+              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
               type="button"
               aria-label="Back to reviews"
               onClick={onBack}
@@ -110,14 +127,14 @@ export function SettingsWorkspace({
               <Icon name="arrow-left" size={17} />
             </button>
             <div>
-              <span className="workspace-header__context">Mission Control</span>
-              <h1>Settings</h1>
+              <span className="hidden">Mission Control</span>
+              <h1 className="m-0 text-base font-semibold tracking-[-0.015em]">Settings</h1>
             </div>
           </div>
         </header>
-        <div className="settings-loading" aria-label="Loading settings">
-          <span className="skeleton skeleton--heading" />
-          <span className="skeleton skeleton--title" />
+        <div className="mx-auto w-[min(640px,calc(100%-64px))] pt-12" aria-label="Loading settings">
+          <span className="relative mb-3 block h-[30px] w-[45%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
+          <span className="relative block h-[9px] w-[78%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
         </div>
       </main>
     );
@@ -132,11 +149,17 @@ export function SettingsWorkspace({
   };
 
   return (
-    <main className="workspace settings-workspace" id="main-content">
-      <header className="workspace-header" data-tauri-drag-region>
-        <div className="workspace-header__leading">
+    <main
+      className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
+      id="main-content"
+    >
+      <header
+        className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
+        data-tauri-drag-region
+      >
+        <div className="flex items-center gap-3">
           <button
-            className="icon-button"
+            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
             type="button"
             aria-label="Back to reviews"
             onClick={onBack}
@@ -144,11 +167,19 @@ export function SettingsWorkspace({
             <Icon name="arrow-left" size={17} />
           </button>
           <div>
-            <span className="workspace-header__context">Mission Control</span>
-            <h1>Settings</h1>
+            <span className="hidden">Mission Control</span>
+            <h1 className="m-0 text-base font-semibold tracking-[-0.015em]">Settings</h1>
           </div>
         </div>
-        <div className={`settings-save-state settings-save-state--${saveState}`} aria-live="polite">
+        <div
+          className={cn(
+            'inline-flex items-center gap-1.5 text-[0.78rem] text-ink-secondary',
+            saveState === 'saving' && '[&_svg]:animate-spin',
+            saveState === 'saved' && 'text-success-deep',
+            saveState === 'error' && 'text-danger-deep',
+          )}
+          aria-live="polite"
+        >
           <Icon
             name={saveState === 'error' ? 'alert' : saveState === 'saving' ? 'sync' : 'check'}
             size={14}
@@ -166,59 +197,83 @@ export function SettingsWorkspace({
       </header>
 
       {error ? (
-        <div className="sync-error" role="alert">
+        <div
+          className="flex min-h-9 items-center gap-2 border-b border-danger/35 bg-danger-soft px-6 py-2 text-[0.8125rem] text-danger-deep"
+          role="alert"
+        >
           <Icon name="alert" size={15} />
           <span>{error}</span>
         </div>
       ) : null}
 
-      <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Settings sections">
-          <span className="settings-nav__label">Workspace</span>
-          <a href="#sync-settings">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[220px_minmax(0,1fr)] overflow-hidden max-[1120px]:grid-cols-[190px_minmax(0,1fr)] max-[980px]:grid-cols-[minmax(0,1fr)]">
+        <nav
+          className="flex min-w-0 flex-col gap-0.5 border-r border-hairline bg-[color-mix(in_oklch,var(--info-soft)_42%,var(--surface))] px-4 py-6 max-[980px]:hidden"
+          aria-label="Settings sections"
+        >
+          <span className="px-3 pb-2 text-[0.7rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+            Workspace
+          </span>
+          <a className={settingsNavLinkClass} href="#sync-settings">
             <Icon name="sync" size={15} />
             Synchronization
           </a>
-          <a href="#account-settings">
+          <a className={settingsNavLinkClass} href="#account-settings">
             <Icon name="github" size={15} />
             GitHub account
           </a>
-          <a href="#repository-settings">
+          <a className={settingsNavLinkClass} href="#repository-settings">
             <Icon name="branch" size={15} />
             Repositories
           </a>
-          <a href="#notification-settings">
+          <a className={settingsNavLinkClass} href="#notification-settings">
             <Icon name="alert" size={15} />
             Notifications
           </a>
-          <span className="settings-nav__label settings-nav__label--spaced">Tools</span>
-          <a href="#agent-settings">
+          <span className="px-3 pt-6 pb-2 text-[0.7rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+            Tools
+          </span>
+          <a className={settingsNavLinkClass} href="#agent-settings">
             <Icon name="terminal" size={15} />
             Local agents
           </a>
-          <a href="#application-settings">
+          <a className={settingsNavLinkClass} href="#application-settings">
             <Icon name="settings" size={15} />
             Application
           </a>
         </nav>
 
-        <div className="settings-content">
-          <section className="settings-section" id="sync-settings" aria-labelledby="sync-heading">
-            <div className="settings-section__heading">
-              <span className="settings-section__icon">
+        <div className="min-h-0 w-full max-w-[980px] overflow-auto px-12 pb-12 max-[1120px]:px-8 max-[980px]:mx-auto max-[980px]:max-w-[860px] max-[980px]:px-6">
+          <section
+            className={settingsSectionClass}
+            id="sync-settings"
+            aria-labelledby="sync-heading"
+          >
+            <div className={settingsHeadingClass}>
+              <span className={settingsIconClass}>
                 <Icon name="sync" size={17} />
               </span>
               <div>
-                <h2 id="sync-heading">GitHub synchronization</h2>
-                <p>Choose how quickly background monitoring should discover changes.</p>
+                <h2 className={settingsHeadingTitleClass} id="sync-heading">
+                  GitHub synchronization
+                </h2>
+                <p className={settingsHeadingCopyClass}>
+                  Choose how quickly background monitoring should discover changes.
+                </p>
               </div>
             </div>
-            <div className="choice-grid" role="radiogroup" aria-label="Synchronization cadence">
+            <div
+              className="mt-4 grid grid-cols-3 gap-[3px] rounded-md border border-hairline bg-surface-muted p-[3px] max-[980px]:grid-cols-1"
+              role="radiogroup"
+              aria-label="Synchronization cadence"
+            >
               {syncOptions.map((option) => (
                 <button
-                  className={`choice-button${
-                    settings.sync.preset === option.value ? ' choice-button--selected' : ''
-                  }`}
+                  className={cn(
+                    'grid min-h-[66px] cursor-pointer grid-cols-[18px_minmax(0,1fr)] content-center items-center gap-x-2 gap-y-[3px] rounded-[8px] border border-transparent bg-transparent p-3 text-left transition-[border-color,background,transform] duration-state ease-out hover:border-hairline hover:bg-surface/60 active:scale-[0.99]',
+                    settings.sync.preset === option.value &&
+                      'border-hairline bg-surface shadow-[0_1px_3px_oklch(28%_0.01_128/0.1)]',
+                  )}
                   type="button"
                   role="radio"
                   aria-checked={settings.sync.preset === option.value}
@@ -226,44 +281,60 @@ export function SettingsWorkspace({
                   key={option.value}
                   onClick={() => onSave({ sync: { preset: option.value } })}
                 >
-                  <span className="choice-button__mark">
+                  <span
+                    className={cn(
+                      'grid size-[17px] place-items-center rounded-full border border-hairline-strong bg-surface text-success-deep',
+                      settings.sync.preset === option.value && 'border-success',
+                    )}
+                  >
                     {settings.sync.preset === option.value ? <Icon name="check" size={13} /> : null}
                   </span>
-                  <strong>{option.label}</strong>
-                  <span>{option.description}</span>
+                  <strong className="text-[0.8125rem]">{option.label}</strong>
+                  <span className="col-start-2 text-[0.72rem] text-ink-secondary">
+                    {option.description}
+                  </span>
                 </button>
               ))}
             </div>
           </section>
 
           <section
-            className="settings-section"
+            className={settingsSectionClass}
             id="account-settings"
             aria-labelledby="github-account-heading"
           >
-            <div className="settings-section__heading">
-              <span className="settings-section__icon">
+            <div className={settingsHeadingClass}>
+              <span className={settingsIconClass}>
                 <Icon name="github" size={17} />
               </span>
               <div>
-                <h2 id="github-account-heading">GitHub account</h2>
-                <p>
+                <h2 className={settingsHeadingTitleClass} id="github-account-heading">
+                  GitHub account
+                </h2>
+                <p className={settingsHeadingCopyClass}>
                   Mission Control follows the active GitHub CLI account and never requires a
                   repository installation.
                 </p>
               </div>
             </div>
-            <div className="github-account-card">
-              <div className="github-account-card__identity">
-                <span className="github-account-card__avatar" aria-hidden="true">
+            <div className="mt-4 flex items-center justify-between gap-4 rounded-md border border-hairline bg-surface p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-selected text-success-deep"
+                  aria-hidden="true"
+                >
                   <Icon name="github" size={18} />
                 </span>
-                <span>
-                  <strong>{githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}</strong>
-                  <small>Credentials remain managed by GitHub CLI outside Mission Control.</small>
+                <span className="grid min-w-0 gap-0.5">
+                  <strong className="text-sm">
+                    {githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}
+                  </strong>
+                  <small className="text-xs text-ink-secondary">
+                    Credentials remain managed by GitHub CLI outside Mission Control.
+                  </small>
                 </span>
               </div>
-              <div className="github-account-card__actions">
+              <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -288,35 +359,38 @@ export function SettingsWorkspace({
           </section>
 
           <section
-            className="settings-section"
+            className={settingsSectionClass}
             id="repository-settings"
             aria-labelledby="repositories-heading"
           >
-            <div className="settings-section__heading">
-              <span className="settings-section__icon">
+            <div className={settingsHeadingClass}>
+              <span className={settingsIconClass}>
                 <Icon name="branch" size={17} />
               </span>
               <div>
-                <h2 id="repositories-heading">Repositories</h2>
-                <p>
+                <h2 className={settingsHeadingTitleClass} id="repositories-heading">
+                  Repositories
+                </h2>
+                <p className={settingsHeadingCopyClass}>
                   These are repositories visible to the active GitHub CLI account
                   {githubLogin ? ` @${githubLogin}` : ''}. Choose which appear in the inbox, then
                   optionally attach local Git roots for fix sessions.
                 </p>
               </div>
             </div>
-            <div className="repository-monitor-toolbar">
-              <label className="search-field">
+            <div className="flex flex-wrap items-center gap-2 border-b border-hairline py-3">
+              <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
                 <span className="sr-only">Search accessible repositories</span>
                 <Icon name="search" size={15} />
                 <input
+                  className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
                   type="search"
                   value={repositoryQuery}
                   onChange={(event) => setRepositoryQuery(event.target.value)}
                   placeholder="Search repositories"
                 />
               </label>
-              <span>
+              <span className="text-[0.72rem] text-ink-muted [font-variant-numeric:tabular-nums]">
                 {repositories.filter((repository) => repository.monitored).length} of{' '}
                 {repositories.length} monitored
               </span>
@@ -342,11 +416,11 @@ export function SettingsWorkspace({
               </Button>
             </div>
             {actionErrors['repository-monitoring'] ? (
-              <p className="repository-setting__error" role="alert">
+              <p className={inlineErrorClass} role="alert">
                 <Icon name="alert" size={13} /> {actionErrors['repository-monitoring']}
               </p>
             ) : null}
-            <div className="repository-settings-list">
+            <div className="flex flex-col">
               {filteredRepositories.length > 0 ? (
                 filteredRepositories.map((repository) => (
                   <RepositorySetting
@@ -369,23 +443,23 @@ export function SettingsWorkspace({
                   />
                 ))
               ) : (
-                <p className="settings-empty-copy">
+                <p className="m-0 py-4 text-ink-muted">
                   {repositories.length === 0
                     ? 'Repositories appear after GitHub access is synchronized.'
                     : 'No accessible repository matches that search.'}
                 </p>
               )}
             </div>
-            <div className="settings-rows settings-rows--compact">
-              <label className="setting-row setting-row--field">
-                <span className="setting-row__copy">
-                  <strong>Worktree directory</strong>
-                  <span>
+            <div className="mt-4 flex flex-col border-t border-hairline">
+              <label className="flex min-h-14 cursor-default items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
+                <span className="grid min-w-0 flex-1 gap-[3px]">
+                  <strong className="text-sm">Worktree directory</strong>
+                  <span className="text-[0.78rem] text-ink-secondary">
                     Leave empty to use a managed sibling directory beside each repository.
                   </span>
                 </span>
                 <Input
-                  className="settings-text-input"
+                  className="min-h-9 w-[min(46%,420px)] rounded-sm border-hairline-strong bg-surface-raised px-2.5 py-0 text-ink"
                   type="text"
                   defaultValue={settings.worktrees.baseDirectory ?? ''}
                   placeholder={automaticWorktreeDirectory}
@@ -400,13 +474,15 @@ export function SettingsWorkspace({
                   }
                 />
               </label>
-              <label className="setting-row setting-row--field">
-                <span className="setting-row__copy">
-                  <strong>Cleanup policy</strong>
-                  <span>Dirty worktrees and unique commits are always preserved.</span>
+              <label className="flex min-h-14 cursor-default items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
+                <span className="grid min-w-0 flex-1 gap-[3px]">
+                  <strong className="text-sm">Cleanup policy</strong>
+                  <span className="text-[0.78rem] text-ink-secondary">
+                    Dirty worktrees and unique commits are always preserved.
+                  </span>
                 </span>
                 <select
-                  className="settings-select"
+                  className="min-h-[34px] w-[min(46%,420px)] cursor-pointer rounded-sm border border-hairline-strong bg-surface-raised py-0 pr-[30px] pl-2.5 text-ink"
                   value={settings.worktrees.cleanupPolicy}
                   disabled={saving}
                   onChange={(event) =>
@@ -428,7 +504,7 @@ export function SettingsWorkspace({
           </section>
 
           <section
-            className="settings-section"
+            className={settingsSectionClass}
             id="notification-settings"
             aria-labelledby="notifications-heading"
           >
@@ -442,14 +518,16 @@ export function SettingsWorkspace({
               onChange={onNotificationsEnabled}
             />
             {notificationPermission === 'denied' ? (
-              <p className="settings-inline-warning">
+              <p className="mt-2 mb-0 flex items-center gap-2 pl-11 text-[0.78rem] text-danger-deep">
                 <Icon name="alert" size={14} />
                 Notifications are blocked by the operating system. Re-enable them in system
                 settings.
               </p>
             ) : null}
-            <div className="settings-subsection" aria-label="Pull request notification reasons">
-              <span className="settings-subsection__label">Notify me when</span>
+            <div className="grid gap-2 pt-4 pl-11" aria-label="Pull request notification reasons">
+              <span className="mb-1 text-[0.72rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+                Notify me when
+              </span>
               <ReasonCheckbox
                 label="My review is requested"
                 checked={settings.notifications.reviewRequested}
@@ -472,25 +550,35 @@ export function SettingsWorkspace({
           </section>
 
           <section
-            className="settings-section"
+            className={settingsSectionClass}
             id="agent-settings"
             aria-labelledby="agents-heading"
           >
-            <div className="settings-section__heading">
-              <span className="settings-section__icon">
+            <div className={settingsHeadingClass}>
+              <span className={settingsIconClass}>
                 <Icon name="terminal" size={17} />
               </span>
               <div>
-                <h2 id="agents-heading">Local agents</h2>
-                <p>Select the default for review replies and isolated fix sessions.</p>
+                <h2 className={settingsHeadingTitleClass} id="agents-heading">
+                  Local agents
+                </h2>
+                <p className={settingsHeadingCopyClass}>
+                  Select the default for review replies and isolated fix sessions.
+                </p>
               </div>
             </div>
-            <div className="agent-settings-grid" role="radiogroup" aria-label="Default local agent">
+            <div
+              className="ml-11 grid w-[calc(100%-44px)] grid-cols-2 gap-3 max-[980px]:grid-cols-1"
+              role="radiogroup"
+              aria-label="Default local agent"
+            >
               {agents.map((agent) => (
                 <button
-                  className={`agent-setting${
-                    settings.agents.defaultAgent === agent.agent ? ' agent-setting--selected' : ''
-                  }`}
+                  className={cn(
+                    'grid min-h-[70px] cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-hairline bg-surface p-3 text-left hover:border-hairline-strong hover:bg-surface-raised',
+                    settings.agents.defaultAgent === agent.agent &&
+                      'border-success/45 bg-success-soft',
+                  )}
                   type="button"
                   role="radio"
                   aria-checked={settings.agents.defaultAgent === agent.agent}
@@ -500,21 +588,31 @@ export function SettingsWorkspace({
                     onSave({ agents: { ...settings.agents, defaultAgent: agent.agent } })
                   }
                 >
-                  <span className="agent-setting__mark">
+                  <span
+                    className={cn(
+                      'grid size-[26px] place-items-center rounded-full border border-hairline-strong text-ink-secondary',
+                      settings.agents.defaultAgent === agent.agent &&
+                        'border-success text-success-deep',
+                    )}
+                  >
                     <Icon name={agent.available ? 'check' : 'alert'} size={14} />
                   </span>
-                  <span>
+                  <span className="flex min-w-0 flex-col">
                     <strong>{agent.label}</strong>
-                    <small>{agent.available ? agent.version || 'Installed' : 'Not detected'}</small>
+                    <small className="text-[0.68rem] text-ink-muted">
+                      {agent.available ? agent.version || 'Installed' : 'Not detected'}
+                    </small>
                   </span>
-                  <span>
+                  <span className="text-[0.68rem] text-ink-muted">
                     {settings.agents.defaultAgent === agent.agent ? 'Default' : 'Available'}
                   </span>
                 </button>
               ))}
             </div>
-            <div className="settings-subsection" aria-label="Agent permission behavior">
-              <span className="settings-subsection__label">Interactive session permissions</span>
+            <div className="grid gap-2 pt-4 pl-11" aria-label="Agent permission behavior">
+              <span className="mb-1 text-[0.72rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+                Interactive session permissions
+              </span>
               <ReasonCheckbox
                 label="Allow Codex to bypass its approval sandbox in fix sessions"
                 checked={settings.agents.codexPermissionBypass}
@@ -537,7 +635,7 @@ export function SettingsWorkspace({
                 }
               />
               {settings.agents.codexPermissionBypass || settings.agents.claudePermissionBypass ? (
-                <p className="settings-inline-warning">
+                <p className="mt-2 mb-0 flex items-center gap-2 text-[0.78rem] text-danger-deep">
                   <Icon name="alert" size={14} />
                   Permission bypass applies only to interactive sessions and increases local risk.
                 </p>
@@ -546,20 +644,24 @@ export function SettingsWorkspace({
           </section>
 
           <section
-            className="settings-section"
+            className={settingsSectionClass}
             id="application-settings"
             aria-labelledby="general-heading"
           >
-            <div className="settings-section__heading">
-              <span className="settings-section__icon">
+            <div className={settingsHeadingClass}>
+              <span className={settingsIconClass}>
                 <Icon name="settings" size={17} />
               </span>
               <div>
-                <h2 id="general-heading">Application behavior</h2>
-                <p>Keep monitoring available without making Mission Control intrusive.</p>
+                <h2 className={settingsHeadingTitleClass} id="general-heading">
+                  Application behavior
+                </h2>
+                <p className={settingsHeadingCopyClass}>
+                  Keep monitoring available without making Mission Control intrusive.
+                </p>
               </div>
             </div>
-            <div className="settings-rows">
+            <div className="grid gap-2 pt-3 pl-11">
               <SettingToggle
                 title="Launch at login"
                 description="Start background monitoring when you sign in to this computer."
@@ -569,10 +671,12 @@ export function SettingsWorkspace({
                   onSave({ general: { ...settings.general, launchAtLogin } })
                 }
               />
-              <div className="setting-row">
-                <div className="setting-row__copy">
-                  <strong>When closing the window</strong>
-                  <span>Choose whether Mission Control keeps monitoring in the menu bar.</span>
+              <div className="flex min-h-14 items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
+                <div className="grid min-w-0 flex-1 gap-[3px]">
+                  <strong className="text-sm">When closing the window</strong>
+                  <span className="text-[0.78rem] text-ink-secondary">
+                    Choose whether Mission Control keeps monitoring in the menu bar.
+                  </span>
                 </div>
                 <CloseBehaviorControl
                   value={settings.general.closeBehavior}
@@ -623,7 +727,7 @@ function RepositorySetting({
 }) {
   return (
     <form
-      className="repository-setting"
+      className="grid grid-cols-[minmax(190px,0.65fr)_auto_minmax(220px,1fr)_auto] items-center gap-3 border-b border-hairline py-3 max-[980px]:grid-cols-[1fr_auto]"
       onSubmit={(event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
@@ -631,26 +735,27 @@ function RepositorySetting({
         if (localPath) onAttach(repository.repositoryId, localPath);
       }}
     >
-      <div className="repository-setting__identity">
+      <div className="flex min-w-0 items-center gap-3 max-[980px]:col-[1/-1]">
         <span
-          className={
-            repository.validationState === 'valid'
-              ? 'repository-setting__mark repository-setting__mark--valid'
-              : 'repository-setting__mark'
-          }
+          className={cn(
+            'grid size-6 shrink-0 place-items-center rounded-full bg-warning-soft text-warning-deep',
+            repository.validationState === 'valid' && 'bg-success-soft text-success-deep',
+          )}
         >
           <Icon name={repository.validationState === 'valid' ? 'check' : 'alert'} size={14} />
         </span>
-        <span>
-          <strong>{repository.repository}</strong>
-          <small>
+        <span className="flex min-w-0 flex-col">
+          <strong className="overflow-hidden text-ellipsis whitespace-nowrap">
+            {repository.repository}
+          </strong>
+          <small className="text-ink-muted">
             {repository.validationState === 'valid'
               ? 'Git remote verified'
               : 'Not attached to a local Git root'}
           </small>
         </span>
       </div>
-      <label className="repository-setting__monitor">
+      <label className="flex items-center gap-2 text-[0.72rem] text-ink-secondary max-[980px]:col-[1/-1]">
         <Switch
           checked={repository.monitored}
           disabled={monitoringBusy}
@@ -659,7 +764,7 @@ function RepositorySetting({
         <span>{repository.monitored ? 'Monitored' : 'Hidden'}</span>
       </label>
       <Input
-        className="settings-text-input repository-setting__input"
+        className="min-h-9 w-full rounded-sm border-hairline-strong bg-surface-raised px-2.5 py-0 text-ink max-[980px]:col-[1/-1]"
         type="text"
         name="localPath"
         defaultValue={repository.localPath ?? ''}
@@ -667,11 +772,11 @@ function RepositorySetting({
         placeholder="/Users/you/Work/repository"
         disabled={busy}
       />
-      <button className="button button--quiet" type="submit" disabled={busy}>
+      <Button variant="outline" type="submit" disabled={busy}>
         {busy ? 'Validating…' : repository.localPath ? 'Revalidate' : 'Attach'}
-      </button>
+      </Button>
       {error ? (
-        <p className="repository-setting__error" role="alert">
+        <p className={cn(inlineErrorClass, 'col-[2/-1] max-[980px]:col-[1/-1]')} role="alert">
           <Icon name="alert" size={13} /> {error}
         </p>
       ) : null}
@@ -697,19 +802,26 @@ function SettingToggle({
   onChange(checked: boolean): void;
 }) {
   return (
-    <div className="setting-row">
+    <div className="flex min-h-14 items-center gap-3 max-[980px]:items-start">
       {icon ? (
-        <span className="settings-section__icon">
+        <span className={settingsIconClass}>
           <Icon name={icon} size={17} />
         </span>
       ) : null}
-      <div className="setting-row__copy">
-        <strong id={headingId}>{title}</strong>
-        <span>{description}</span>
+      <div className="grid min-w-0 flex-1 gap-[3px]">
+        <strong className="text-sm" id={headingId}>
+          {title}
+        </strong>
+        <span className="text-[0.78rem] text-ink-secondary">{description}</span>
       </div>
-      <span className={`switch-control${checked ? ' switch-control--checked' : ''}`}>
+      <span
+        className={cn(
+          'inline-flex min-w-[78px] items-center justify-end gap-2 text-xs font-semibold text-ink-secondary',
+          checked && 'text-success-deep',
+        )}
+      >
         <Switch
-          className="switch-control__primitive"
+          className="data-checked:bg-success-deep"
           checked={checked}
           disabled={disabled}
           onCheckedChange={onChange}
@@ -732,9 +844,14 @@ function ReasonCheckbox({
   onChange(checked: boolean): void;
 }) {
   return (
-    <label className={`reason-checkbox${disabled ? ' reason-checkbox--disabled' : ''}`}>
+    <label
+      className={cn(
+        'flex w-fit cursor-pointer items-center gap-2 text-[0.8rem] text-ink-secondary has-[[data-slot=checkbox][data-checked]]:text-ink',
+        disabled && 'cursor-not-allowed opacity-50',
+      )}
+    >
       <Checkbox
-        className="reason-checkbox__control"
+        className="data-checked:border-success data-checked:bg-success-deep data-checked:text-surface-raised"
         checked={checked}
         disabled={disabled}
         onCheckedChange={onChange}
@@ -779,7 +896,7 @@ function AccountActionDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            className={switching ? 'account-dialog__primary' : undefined}
+            className={switching ? 'text-[var(--primary-foreground)]' : undefined}
             variant={switching ? 'default' : 'destructive'}
             disabled={busy}
             onClick={onConfirm}
@@ -802,13 +919,20 @@ function CloseBehaviorControl({
   onChange(value: CloseBehavior): void;
 }) {
   return (
-    <div className="segmented-control" role="radiogroup" aria-label="Close behavior">
+    <div
+      className="inline-flex rounded-sm border border-hairline bg-surface-muted p-[3px]"
+      role="radiogroup"
+      aria-label="Close behavior"
+    >
       {[
         ['menu_bar', 'Keep monitoring'],
         ['quit', 'Quit app'],
       ].map(([option, label]) => (
         <button
-          className={value === option ? 'segmented-control__active' : undefined}
+          className={cn(
+            'inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] rounded-[5px] border-0 bg-transparent px-3 text-xs text-ink-secondary',
+            value === option && 'bg-surface text-ink shadow-[0_1px_2px_oklch(24%_0.01_128/0.1)]',
+          )}
           type="button"
           role="radio"
           aria-checked={value === option}

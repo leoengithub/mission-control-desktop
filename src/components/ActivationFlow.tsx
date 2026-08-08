@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react';
 import type { ActivationState, LocalRepositoryAttachment } from '../contracts';
 import { Icon } from './Icon';
 import onboardingHero from '../../assets/brand/raster/onboarding-hero.png';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { cva } from 'class-variance-authority';
 
 interface ActivationFlowProps {
   activation: ActivationState;
@@ -44,26 +47,35 @@ export function ActivationFlow({
   const complete = activation.initialSyncCompleted;
 
   return (
-    <main className="activation" id="main-content" data-tauri-drag-region>
-      <section className="activation__intro" aria-labelledby="activation-title">
-        <div className="activation__eyebrow">
+    <main
+      className="grid min-w-0 flex-1 grid-cols-[minmax(360px,1fr)_minmax(420px,520px)] items-center gap-[clamp(48px,8vw,112px)] bg-canvas px-[clamp(48px,7vw,120px)] py-[clamp(48px,8vh,96px)] max-[1120px]:gap-12 max-[1120px]:px-12 max-[980px]:grid-cols-[minmax(300px,0.8fr)_minmax(400px,1fr)] max-[980px]:gap-8 max-[980px]:px-8 max-[980px]:py-12"
+      id="main-content"
+      data-tauri-drag-region
+    >
+      <section className="max-w-[620px]" aria-labelledby="activation-title">
+        <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.04em] text-success-deep uppercase">
           <Icon name="spark" size={15} />
           First run
         </div>
-        <h1 id="activation-title">See what needs you.</h1>
-        <p>
+        <h1
+          className="my-4 max-w-[11ch] text-[clamp(2.5rem,5vw,4.6rem)] leading-[0.98] font-semibold tracking-[-0.055em] text-balance max-[980px]:text-[2.8rem]"
+          id="activation-title"
+        >
+          See what needs you.
+        </h1>
+        <p className="m-0 max-w-[54ch] text-base leading-[1.65] text-ink-secondary">
           Use your GitHub CLI account and Mission Control will build a live inbox from your authored
           and review-requested pull requests.
         </p>
-        <div className="activation__promise">
-          <span className="activation__promise-mark">
+        <div className="mt-8 flex max-w-[52ch] items-center gap-2 text-[0.8125rem] text-ink-secondary">
+          <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-success-soft text-success-deep">
             <Icon name="check" size={14} strokeWidth={2.4} />
           </span>
           GitHub CLI manages your credentials. Mission Control does not install anything in your
           repositories.
         </div>
         <img
-          className="activation__hero"
+          className="mt-8 block max-h-[210px] w-[min(100%,520px)] rounded-lg border border-hairline object-cover object-[center_46%]"
           src={onboardingHero}
           alt=""
           aria-hidden="true"
@@ -72,19 +84,24 @@ export function ActivationFlow({
         />
       </section>
 
-      <section className="activation-panel" aria-label="Activation progress">
-        <div className="activation-panel__header">
+      <section
+        className="self-center overflow-hidden rounded-lg border border-hairline bg-surface"
+        aria-label="Activation progress"
+      >
+        <div className="flex items-start justify-between px-6 pt-6 pb-4">
           <div>
-            <span className="activation-panel__step">Setup</span>
-            <h2>Start with GitHub CLI</h2>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.04em] text-ink-secondary uppercase">
+              Setup
+            </span>
+            <h2 className="mt-[3px] text-xl tracking-[-0.02em]">Start with GitHub CLI</h2>
           </div>
-          <span className="activation-panel__count">
+          <span className="text-ink-secondary [font-variant-numeric:tabular-nums]">
             {[connected, repositoryAccess, repositoriesSelected, complete].filter(Boolean).length}
             /4
           </span>
         </div>
 
-        <ol className="setup-list">
+        <ol className="m-0 list-none p-0">
           <SetupStep
             number={1}
             title="Connect your GitHub CLI account"
@@ -129,26 +146,23 @@ export function ActivationFlow({
           />
         </ol>
 
-        <div className="activation-action">
+        <div className="border-t border-hairline bg-surface-muted p-6">
           {activation.step === 'github_cli_required' ? (
-            <div className="activation-action__stack">
-              <button
-                className="button button--primary button--wide"
-                type="button"
-                onClick={() => onOpenUrl(githubCliUrl)}
-              >
+            <div className="grid gap-2">
+              <Button className="w-full" type="button" onClick={() => onOpenUrl(githubCliUrl)}>
                 Install GitHub CLI
                 <Icon name="arrow-up-right" size={15} />
-              </button>
-              <button
-                className="button button--quiet button--wide"
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
                 type="button"
                 onClick={onConnectAccount}
                 disabled={busy}
               >
-                {busy ? <span className="spinner spinner--dark" /> : <Icon name="sync" size={16} />}
+                {busy ? <Spinner dark /> : <Icon name="sync" size={16} />}
                 Check again
-              </button>
+              </Button>
             </div>
           ) : null}
 
@@ -161,46 +175,38 @@ export function ActivationFlow({
           ) : null}
 
           {activation.step === 'repository_access_required' ? (
-            <div className="activation-action__stack">
-              <button
-                className="button button--primary button--wide"
-                type="button"
-                onClick={onSynchronize}
-                disabled={busy}
-              >
-                {busy ? <span className="spinner" /> : <Icon name="sync" size={16} />}
+            <div className="grid gap-2">
+              <Button className="w-full" type="button" onClick={onSynchronize} disabled={busy}>
+                {busy ? <Spinner /> : <Icon name="sync" size={16} />}
                 {busy ? 'Checking repositories' : 'Refresh repository access'}
-              </button>
-              <button
-                className="button button--quiet button--wide"
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
                 type="button"
                 onClick={onSwitchAccount}
                 disabled={busy}
               >
                 <Icon name="github" size={15} />
                 Switch GitHub CLI account
-              </button>
-              <button
-                className="button button--quiet button--wide"
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
                 type="button"
                 onClick={() => onOpenUrl(githubSsoUrl)}
               >
                 Organization repository missing? Check SSO
                 <Icon name="arrow-up-right" size={15} />
-              </button>
+              </Button>
             </div>
           ) : null}
 
           {activation.step === 'initial_sync_required' ? (
-            <button
-              className="button button--primary button--wide"
-              type="button"
-              onClick={onSynchronize}
-              disabled={busy}
-            >
-              {busy ? <span className="spinner" /> : <Icon name="sync" size={16} />}
+            <Button className="w-full" type="button" onClick={onSynchronize} disabled={busy}>
+              {busy ? <Spinner /> : <Icon name="sync" size={16} />}
               {busy ? 'Scanning pull requests' : 'Build attention inbox'}
-            </button>
+            </Button>
           ) : null}
 
           {activation.step === 'repository_selection_required' ? (
@@ -236,18 +242,22 @@ function GithubCliSetup({
   };
 
   return (
-    <div className="device-code">
-      <div className="device-code__heading">
-        <span>
+    <div className="grid gap-3">
+      <div className="flex items-center justify-between text-[0.8125rem] font-semibold text-warning-deep">
+        <span className="inline-flex items-center gap-1.5">
           <Icon name="terminal" size={15} />
           Sign in through GitHub CLI
         </span>
       </div>
-      <p>Run this once in Terminal. Return here when GitHub CLI confirms the account.</p>
-      <div className="device-code__value">
-        <code>gh auth login</code>
+      <p className="m-0 text-[0.8125rem] text-ink-secondary">
+        Run this once in Terminal. Return here when GitHub CLI confirms the account.
+      </p>
+      <div className="flex items-center justify-between rounded-md border border-hairline-strong bg-surface py-2 pr-2 pl-4">
+        <code className="font-mono text-[1.1rem] font-bold tracking-[0.12em] [font-variant-ligatures:none]">
+          gh auth login
+        </code>
         <button
-          className="icon-button"
+          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
           type="button"
           aria-label={copied ? 'GitHub CLI command copied' : 'Copy GitHub CLI command'}
           onClick={() => void copy()}
@@ -255,19 +265,14 @@ function GithubCliSetup({
           <Icon name={copied ? 'check' : 'copy'} size={16} />
         </button>
       </div>
-      <button
-        className="button button--primary button--wide"
-        type="button"
-        onClick={onCheck}
-        disabled={busy}
-      >
-        {busy ? <span className="spinner" /> : <Icon name="github" size={16} />}
+      <Button className="w-full" type="button" onClick={onCheck} disabled={busy}>
+        {busy ? <Spinner /> : <Icon name="github" size={16} />}
         {busy ? 'Checking GitHub CLI' : 'Use active GitHub CLI account'}
-      </button>
-      <button className="button button--quiet button--wide" type="button" onClick={onOpenHelp}>
+      </Button>
+      <Button className="w-full" variant="outline" type="button" onClick={onOpenHelp}>
         GitHub CLI sign-in help
         <Icon name="arrow-up-right" size={15} />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -306,63 +311,79 @@ function RepositorySelection({
   };
 
   return (
-    <div className="repository-picker">
-      <div className="repository-picker__header">
-        <label className="search-field">
+    <div className="grid gap-3">
+      <div className="flex items-center gap-3">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
           <span className="sr-only">Search accessible repositories</span>
           <Icon name="search" size={15} />
           <input
+            className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search repositories"
           />
         </label>
-        <span>{selectedIds.length} selected</span>
+        <span className="shrink-0 text-[0.72rem] text-ink-muted [font-variant-numeric:tabular-nums]">
+          {selectedIds.length} selected
+        </span>
       </div>
-      <div className="repository-picker__list" aria-label="Accessible repositories">
+      <div
+        className="max-h-[210px] overflow-auto rounded-md border border-hairline bg-surface"
+        aria-label="Accessible repositories"
+      >
         {filteredRepositories.map((repository) => (
-          <label className="repository-picker__row" key={repository.repositoryId}>
+          <label
+            className="flex min-h-10 cursor-pointer items-center gap-3 border-b border-hairline px-3 last:border-b-0 hover:bg-surface-muted"
+            key={repository.repositoryId}
+          >
             <Checkbox
               checked={selected.has(repository.repositoryId)}
               disabled={busy}
               onCheckedChange={(checked) => toggle(repository.repositoryId, checked === true)}
             />
-            <span>{repository.repository}</span>
+            <span className="overflow-hidden text-[0.8rem] font-[560] text-ellipsis whitespace-nowrap">
+              {repository.repository}
+            </span>
           </label>
         ))}
         {filteredRepositories.length === 0 ? (
-          <p className="repository-picker__empty">
+          <p className="m-0 p-4 text-[0.78rem] text-ink-muted">
             {repositories.length === 0
               ? 'Loading accessible repositories…'
               : 'No accessible repository matches that search.'}
           </p>
         ) : null}
       </div>
-      <div className="repository-picker__bulk">
+      <div className="flex gap-3">
         <button
+          className="cursor-pointer border-0 border-b border-current bg-transparent p-0 text-[0.72rem] font-semibold text-ink-secondary"
           type="button"
           onClick={() => setSelectedIds(repositories.map(({ repositoryId }) => repositoryId))}
         >
           Select all
         </button>
-        <button type="button" onClick={() => setSelectedIds([])}>
+        <button
+          className="cursor-pointer border-0 border-b border-current bg-transparent p-0 text-[0.72rem] font-semibold text-ink-secondary"
+          type="button"
+          onClick={() => setSelectedIds([])}
+        >
           Clear
         </button>
       </div>
-      <button
-        className="button button--primary button--wide"
+      <Button
+        className="w-full"
         type="button"
         disabled={busy || selectedIds.length === 0}
         onClick={() => onComplete(selectedIds)}
       >
-        {busy ? <span className="spinner" /> : <Icon name="check" size={16} />}
+        {busy ? <Spinner /> : <Icon name="check" size={16} />}
         {busy ? 'Saving repositories' : 'Continue with selected repositories'}
-      </button>
-      <button className="button button--quiet button--wide" type="button" onClick={onRefresh}>
+      </Button>
+      <Button className="w-full" variant="outline" type="button" onClick={onRefresh}>
         Missing a repository? Refresh GitHub CLI access
         <Icon name="sync" size={15} />
-      </button>
+      </Button>
       {error ? <InlineError message={error} /> : null}
     </div>
   );
@@ -380,15 +401,24 @@ function SetupStep({
   state: 'complete' | 'current' | 'upcoming';
 }) {
   return (
-    <li className={`setup-step setup-step--${state}`}>
-      <span className="setup-step__mark" aria-hidden="true">
+    <li className={setupStepVariants({ state })}>
+      <span className={setupStepMarkVariants({ state })} aria-hidden="true">
         {state === 'complete' ? <Icon name="check" size={14} strokeWidth={2.5} /> : number}
       </span>
-      <span className="setup-step__copy">
-        <strong>{title}</strong>
-        <span>{description}</span>
+      <span className="grid min-w-0 gap-0.5">
+        <strong className="text-sm font-semibold">{title}</strong>
+        <span className="text-[0.78rem] leading-[1.35] text-ink-secondary">{description}</span>
       </span>
-      <span className="setup-step__state">
+      <span
+        className={cn(
+          'text-xs',
+          state === 'current'
+            ? 'text-warning-deep'
+            : state === 'complete'
+              ? 'text-success-deep'
+              : 'text-ink-muted',
+        )}
+      >
         {state === 'complete' ? 'Done' : state === 'current' ? 'Current' : 'Later'}
       </span>
     </li>
@@ -397,9 +427,43 @@ function SetupStep({
 
 function InlineError({ message }: { message: string }) {
   return (
-    <div className="inline-error" role="alert">
+    <div
+      className="mt-3 flex items-start gap-2 rounded-sm border border-danger/35 bg-danger-soft p-3 text-[0.8125rem] text-danger-deep"
+      role="alert"
+    >
       <Icon name="alert" size={16} />
       <span>{message}</span>
     </div>
+  );
+}
+
+const setupStepVariants = cva(
+  'grid min-h-[68px] grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 border-t border-hairline px-6 py-3',
+  {
+    variants: { state: { complete: '', current: '', upcoming: 'text-ink-muted' } },
+  },
+);
+
+const setupStepMarkVariants = cva(
+  'grid size-6 place-items-center rounded-full border border-hairline-strong text-xs text-ink-secondary [font-variant-numeric:tabular-nums]',
+  {
+    variants: {
+      state: {
+        complete: 'border-success bg-success text-surface',
+        current: 'border-warning bg-warning-soft text-warning-deep',
+        upcoming: '',
+      },
+    },
+  },
+);
+
+function Spinner({ dark = false }: { dark?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'size-3.5 animate-spin rounded-full border-2',
+        dark ? 'border-hairline-strong border-t-ink' : 'border-surface/35 border-t-surface',
+      )}
+    />
   );
 }

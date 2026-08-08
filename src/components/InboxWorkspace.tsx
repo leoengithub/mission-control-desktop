@@ -12,6 +12,9 @@ import { Icon } from './Icon';
 import emptyAttention from '../../assets/brand/raster/empty-attention.png';
 import { ReviewDetail } from './ReviewDetail';
 import { ReasonPill, StatusPill } from './StatusMark';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { cva } from 'class-variance-authority';
 
 interface InboxWorkspaceProps {
   githubLogin: string | null;
@@ -74,40 +77,35 @@ export function InboxWorkspace({
     filteredEntries[0] ??
     null;
   const syncTime = lastCompletedSync ?? latestSyncTime(pullRequests);
+  const syncLabel = refreshing
+    ? 'Checking GitHub'
+    : syncTime
+      ? `Updated ${formatRelativeTime(syncTime)}`
+      : 'Waiting for first sync';
+  const compactSyncLabel = refreshing
+    ? 'Checking'
+    : syncTime
+      ? formatRelativeTime(syncTime)
+      : 'Waiting';
 
   return (
-    <main className="workspace" id="main-content">
-      <header className="workspace-header" data-tauri-drag-region>
-        <div>
-          <span className="workspace-header__context">Pull request review</span>
-          <h1>Mission Control</h1>
-        </div>
-        <div className="sync-summary" aria-live="polite">
-          <span className={`sync-summary__dot${refreshing ? ' sync-summary__dot--active' : ''}`} />
-          <span>
-            {refreshing
-              ? 'Checking GitHub'
-              : syncTime
-                ? `Updated ${formatRelativeTime(syncTime)}`
-                : 'Waiting for first sync'}
-          </span>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Refresh inbox"
-            onClick={onRefresh}
-            disabled={refreshing}
-          >
-            <Icon name="refresh" size={15} />
-          </button>
-        </div>
-      </header>
-
+    <main
+      className="flex min-w-0 flex-1 flex-col bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
+      id="main-content"
+    >
       {refreshError ? (
-        <div className="sync-error" role="alert">
+        <div
+          className="flex min-h-9 items-center gap-2 border-b border-danger/35 bg-danger-soft py-2 pr-6 pl-[88px] text-[0.8125rem] text-danger-deep"
+          role="alert"
+          data-tauri-drag-region
+        >
           <Icon name="alert" size={15} />
           <span>GitHub refresh failed. Cached pull requests remain available.</span>
-          <button type="button" onClick={onRefresh}>
+          <button
+            className="ml-auto cursor-pointer border-0 border-b border-current bg-transparent p-0 font-semibold text-inherit"
+            type="button"
+            onClick={onRefresh}
+          >
             Retry
           </button>
         </div>
@@ -121,21 +119,57 @@ export function InboxWorkspace({
         />
       ) : null}
 
-      <div className="workspace-grid">
-        <aside className="inbox-pane" aria-label="Pull requests">
-          <div className="inbox-scroll">
-            <div className="inbox-toolbar">
-              <label className="search-field">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(330px,370px)_minmax(0,1fr)] max-[1120px]:grid-cols-[340px_minmax(0,1fr)] max-[980px]:grid-cols-[320px_minmax(0,1fr)]">
+        <aside
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-hairline bg-surface"
+          aria-label="Pull requests"
+        >
+          <header
+            className="flex min-h-14 shrink-0 basis-14 items-center justify-between gap-2 border-b border-hairline bg-surface pr-2.5 pl-[88px]"
+            data-tauri-drag-region
+          >
+            <h1 className="m-0 overflow-hidden text-[0.88rem] font-semibold tracking-[-0.015em] text-ellipsis whitespace-nowrap">
+              Mission Control
+            </h1>
+            <div
+              className="flex shrink-0 items-center gap-[5px] text-[0.68rem] text-ink-secondary"
+              aria-live="polite"
+            >
+              <span
+                className={cn(
+                  'size-[7px] rounded-full border-2 border-success',
+                  refreshing && 'animate-spin border-warning border-t-transparent',
+                )}
+              />
+              <span className="sr-only">{syncLabel}</span>
+              <span aria-hidden="true">{compactSyncLabel}</span>
+              <button
+                className="grid size-[30px] shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
+                type="button"
+                aria-label="Refresh inbox"
+                onClick={onRefresh}
+                disabled={refreshing}
+              >
+                <Icon name="refresh" size={15} />
+              </button>
+            </div>
+          </header>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <div className="sticky top-0 z-[2] flex items-center gap-3 border-b border-hairline bg-surface p-3 px-4">
+              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
                 <span className="sr-only">Search pull requests</span>
                 <Icon name="search" size={16} />
                 <input
+                  className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search pull requests"
                 />
               </label>
-              <span className="inbox-toolbar__count">{entries.length} open</span>
+              <span className="shrink-0 text-xs text-ink-muted [font-variant-numeric:tabular-nums]">
+                {entries.length} open
+              </span>
             </div>
 
             {!loaded ? <InboxSkeleton /> : null}
@@ -145,11 +179,17 @@ export function InboxWorkspace({
             ) : null}
 
             {loaded && entries.length > 0 && filteredEntries.length === 0 ? (
-              <div className="no-results">
+              <div className="flex min-h-[360px] flex-col items-center justify-center gap-1 p-8 text-center text-ink-muted">
                 <Icon name="search" size={19} />
-                <strong>No matching pull requests</strong>
-                <span>Try a repository, author, title, or number.</span>
-                <button type="button" onClick={() => setQuery('')}>
+                <strong className="mt-2">No matching pull requests</strong>
+                <span className="max-w-[34ch] text-[0.8125rem] text-ink-secondary">
+                  Try a repository, author, title, or number.
+                </span>
+                <button
+                  className="mt-3 cursor-pointer border-0 border-b border-current bg-transparent p-0 font-semibold text-ink-secondary"
+                  type="button"
+                  onClick={() => setQuery('')}
+                >
                   Clear search
                 </button>
               </div>
@@ -181,17 +221,26 @@ export function InboxWorkspace({
               </InboxGroup>
             ) : null}
           </div>
-          <footer className="inbox-account">
-            <button className="inbox-account__identity" type="button" onClick={onOpenSettings}>
-              <span className="inbox-account__avatar" aria-hidden="true">
+          <footer className="flex min-h-[62px] items-center gap-2 border-t border-hairline p-2 px-3">
+            <button
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent px-2 py-1.5 text-left hover:bg-surface-muted"
+              type="button"
+              onClick={onOpenSettings}
+            >
+              <span
+                className="grid size-[30px] shrink-0 place-items-center rounded-full border border-hairline-strong bg-surface-raised text-ink-secondary"
+                aria-hidden="true"
+              >
                 <Icon name="github" size={16} />
               </span>
-              <span className="inbox-account__copy">
-                <strong>{githubLogin ? `@${githubLogin}` : 'GitHub account'}</strong>
+              <span className="grid min-w-0 gap-0.5">
+                <strong className="overflow-hidden text-[0.78rem] text-ellipsis whitespace-nowrap">
+                  {githubLogin ? `@${githubLogin}` : 'GitHub account'}
+                </strong>
               </span>
             </button>
             <button
-              className="icon-button inbox-account__settings"
+              className="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
               type="button"
               aria-label="Open settings"
               onClick={onOpenSettings}
@@ -201,7 +250,10 @@ export function InboxWorkspace({
           </footer>
         </aside>
 
-        <section className="detail-pane" aria-label="Pull request details">
+        <section
+          className="min-h-0 min-w-0 overflow-auto bg-[linear-gradient(145deg,oklch(99%_0.006_245/0.76),transparent_46%),var(--canvas)]"
+          aria-label="Pull request details"
+        >
           {selectedEntry ? (
             <ReviewDetail
               key={selectedEntry.pullRequest.id}
@@ -230,24 +282,32 @@ function ContextualSetupBanner({
 }) {
   const notificationPrompt = prompt === 'enable_notifications';
   return (
-    <aside className="contextual-banner" aria-label="Recommended setup">
-      <span className="contextual-banner__mark">
+    <aside
+      className="flex min-h-[54px] items-center gap-3 border-b border-warning/55 bg-warning-soft py-2.5 pr-6 pl-[88px]"
+      aria-label="Recommended setup"
+      data-tauri-drag-region
+    >
+      <span className="grid size-[30px] shrink-0 place-items-center rounded-full border border-warning/50 bg-surface text-warning-deep">
         <Icon name={notificationPrompt ? 'alert' : 'sync'} size={16} />
       </span>
-      <div className="contextual-banner__copy">
-        <strong>
+      <div className="grid min-w-0 flex-1 gap-0.5">
+        <strong className="text-[0.8125rem]">
           {notificationPrompt ? 'Know when attention escalates' : 'Monitor from login'}
         </strong>
-        <span>
+        <span className="text-xs text-ink-secondary max-[980px]:hidden">
           {notificationPrompt
             ? 'Enable native alerts for new review requests, unresolved threads, and failing required checks.'
             : 'Launch Mission Control when you sign in so background monitoring starts automatically.'}
         </span>
       </div>
-      <button className="button button--quiet" type="button" onClick={onEnable}>
+      <Button className="shrink-0" variant="outline" type="button" onClick={onEnable}>
         {notificationPrompt ? 'Enable notifications' : 'Enable launch at login'}
-      </button>
-      <button className="contextual-banner__dismiss" type="button" onClick={onDismiss}>
+      </Button>
+      <button
+        className="cursor-pointer border-0 border-b border-current bg-transparent px-0 py-1 text-xs font-semibold text-ink-secondary"
+        type="button"
+        onClick={onDismiss}
+      >
         Not now
       </button>
     </aside>
@@ -266,15 +326,17 @@ function InboxGroup({
   children: React.ReactNode;
 }) {
   return (
-    <section className="inbox-group" aria-label={`${title}, ${count}`}>
-      <div className={`inbox-group__heading inbox-group__heading--${tone}`}>
-        <span className="inbox-group__mark">
+    <section className="px-3 pt-2 last:pb-3" aria-label={`${title}, ${count}`}>
+      <div className={inboxGroupHeadingVariants({ tone })}>
+        <span className="grid place-items-center">
           <Icon name={tone === 'warning' ? 'clock' : 'branch'} size={14} />
         </span>
-        <strong>{title}</strong>
-        <span>{count}</span>
+        <strong className="text-[0.8125rem] text-inherit">{title}</strong>
+        <span className="min-w-5 rounded-full bg-white/55 px-1.5 py-0.5 text-center text-xs [font-variant-numeric:tabular-nums]">
+          {count}
+        </span>
       </div>
-      <div className="inbox-group__rows">{children}</div>
+      <div className="grid gap-px pt-1">{children}</div>
     </section>
   );
 }
@@ -291,21 +353,29 @@ function PullRequestRow({
   const { pullRequest, primaryReason } = entry;
   return (
     <button
-      className={`pr-row${selected ? ' pr-row--selected' : ''}`}
+      className={cn(
+        'grid min-h-[58px] w-full cursor-pointer grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md border-0 bg-transparent px-3 py-[7px] text-left transition-[background,transform] duration-state ease-out hover:bg-surface-muted active:scale-[0.995]',
+        selected && 'bg-surface-selected hover:bg-surface-selected',
+      )}
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
     >
-      <span className="pr-row__avatar" aria-hidden="true">
+      <span
+        className="grid size-[26px] place-items-center rounded-full border border-hairline bg-surface-raised text-[0.72rem] font-bold text-ink-secondary"
+        aria-hidden="true"
+      >
         {pullRequest.authorLogin.slice(0, 1).toLocaleUpperCase()}
       </span>
-      <span className="pr-row__copy">
-        <span className="pr-row__title">{pullRequest.title}</span>
-        <span className="pr-row__meta">
+      <span className="grid min-w-0 gap-[3px]">
+        <span className="overflow-hidden text-[0.8125rem] font-semibold text-ellipsis whitespace-nowrap">
+          {pullRequest.title}
+        </span>
+        <span className="overflow-hidden text-[0.72rem] text-ellipsis whitespace-nowrap text-ink-muted">
           {pullRequest.repository} #{pullRequest.number}
         </span>
       </span>
-      <span className="pr-row__state">
+      <span className="grid justify-items-end gap-1">
         {primaryReason ? (
           <ReasonPill reason={primaryReason} compact />
         ) : pullRequest.draft ? (
@@ -313,7 +383,9 @@ function PullRequestRow({
         ) : (
           <StatusPill tone="success" label="Clear" compact />
         )}
-        <span className="pr-row__time">{formatRelativeTime(pullRequest.updatedAt)}</span>
+        <span className="text-[0.72rem] text-ink-muted">
+          {formatRelativeTime(pullRequest.updatedAt)}
+        </span>
       </span>
     </button>
   );
@@ -321,14 +393,17 @@ function PullRequestRow({
 
 function InboxSkeleton() {
   return (
-    <div className="inbox-skeleton" aria-label="Loading cached pull requests">
-      <div className="skeleton skeleton--heading" />
+    <div className="p-4" aria-label="Loading cached pull requests">
+      <div className="relative mb-3 block h-[30px] w-[45%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
       {[0, 1, 2, 3, 4].map((item) => (
-        <div className="skeleton-row" key={item}>
-          <span className="skeleton skeleton--avatar" />
-          <span className="skeleton-row__copy">
-            <span className="skeleton skeleton--title" />
-            <span className="skeleton skeleton--meta" />
+        <div
+          className="flex h-[62px] items-center gap-3 border-b-2 border-surface bg-surface-muted p-3"
+          key={item}
+        >
+          <span className="relative size-7 shrink-0 overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
+          <span className="grid w-full gap-2">
+            <span className="relative h-[9px] w-[78%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
+            <span className="relative h-[7px] w-[42%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
           </span>
         </div>
       ))}
@@ -338,9 +413,9 @@ function InboxSkeleton() {
 
 function EmptyInbox({ onRefresh, refreshing }: { onRefresh(): void; refreshing: boolean }) {
   return (
-    <div className="empty-inbox">
+    <div className="flex min-h-[360px] flex-col items-center justify-center gap-2 p-8 text-center">
       <img
-        className="empty-inbox__art"
+        className="aspect-video w-[min(100%,250px)] rounded-md border border-hairline object-cover"
         src={emptyAttention}
         alt=""
         aria-hidden="true"
@@ -348,28 +423,43 @@ function EmptyInbox({ onRefresh, refreshing }: { onRefresh(): void; refreshing: 
         loading="lazy"
       />
       <strong>Your inbox is clear</strong>
-      <span>
+      <span className="max-w-[34ch] text-[0.8125rem] text-ink-secondary">
         Authored and review-requested pull requests will appear here when GitHub finds them.
       </span>
-      <button
-        className="button button--quiet"
+      <Button
+        className="mt-3"
+        variant="outline"
         type="button"
         onClick={onRefresh}
         disabled={refreshing}
       >
         <Icon name="refresh" size={15} />
         {refreshing ? 'Checking GitHub' : 'Check GitHub now'}
-      </button>
+      </Button>
     </div>
   );
 }
 
 function DetailPlaceholder() {
   return (
-    <div className="detail-placeholder">
+    <div className="flex min-h-full flex-col items-center justify-center gap-2 text-center text-ink-muted">
       <Icon name="inbox" size={24} />
-      <h2>Select a pull request</h2>
-      <p>Its attention reasons and current GitHub state will appear here.</p>
+      <h2 className="mt-2 text-base text-ink">Select a pull request</h2>
+      <p className="m-0 max-w-[34ch] text-[0.8125rem] text-ink-secondary">
+        Its attention reasons and current GitHub state will appear here.
+      </p>
     </div>
   );
 }
+
+const inboxGroupHeadingVariants = cva(
+  'grid min-h-[34px] grid-cols-[20px_1fr_auto] items-center gap-2 rounded-md px-3 text-ink-secondary',
+  {
+    variants: {
+      tone: {
+        warning: 'bg-warning-soft text-warning-deep',
+        neutral: 'bg-surface-muted',
+      },
+    },
+  },
+);

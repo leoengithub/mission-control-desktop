@@ -14,6 +14,8 @@ import {
 import { Icon } from './Icon';
 import { ReasonPill, StatusPill } from './StatusMark';
 import { TerminalPanel } from './TerminalPanel';
+import { cn } from '@/lib/utils';
+import { cva } from 'class-variance-authority';
 
 type DetailTab = 'threads' | 'checks' | 'runs';
 
@@ -36,10 +38,10 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
   const copilotKey = `copilot:${pullRequest.id}`;
 
   return (
-    <article className="pr-detail pr-detail--review">
-      <header className="pr-detail__header">
-        <div className="pr-detail__identity">
-          <div className="pr-detail__overline">
+    <article className="min-h-full bg-transparent">
+      <header className="flex items-start justify-between gap-4 border-b border-hairline bg-surface px-[clamp(24px,3vw,44px)] pt-5 pb-[18px] max-[1120px]:flex-col max-[980px]:px-6">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-[0.78rem] text-ink-secondary">
             {entry.primaryReason ? (
               <ReasonPill reason={entry.primaryReason} />
             ) : (
@@ -50,9 +52,11 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
               {pullRequest.repository} #{pullRequest.number}
             </span>
           </div>
-          <h2>{pullRequest.title}</h2>
-          <div className="pr-detail__metadata">
-            <span>
+          <h2 className="my-[9px] mt-2.5 max-w-[38ch] text-[1.35rem] leading-[1.2] font-[670] tracking-[-0.025em] text-balance">
+            {pullRequest.title}
+          </h2>
+          <div className="flex flex-wrap gap-3 text-[0.74rem] text-ink-secondary">
+            <span className="inline-flex items-center gap-[5px]">
               <Icon name="branch" size={14} />
               {pullRequest.headRef} → {pullRequest.baseRef}
             </span>
@@ -60,7 +64,7 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
             <span>Updated {formatRelativeTime(pullRequest.updatedAt)}</span>
           </div>
         </div>
-        <div className="pr-detail__header-actions">
+        <div className="flex items-center gap-2 max-[980px]:flex-col max-[980px]:items-stretch">
           <Button
             variant="outline"
             size="lg"
@@ -80,22 +84,35 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
       </header>
 
       {workflow.detailError ? (
-        <div className="detail-inline-error" role="alert">
+        <div
+          className="flex items-center gap-2 border-b border-danger/30 bg-danger-soft px-8 py-2.5 text-[0.78rem] text-danger-deep"
+          role="alert"
+        >
           <Icon name="alert" size={15} />
           <span>{workflow.detailError}</span>
-          <button type="button" onClick={() => void workflow.reload()}>
+          <button
+            className="ml-auto cursor-pointer border-0 bg-transparent font-bold text-inherit"
+            type="button"
+            onClick={() => void workflow.reload()}
+          >
             Retry
           </button>
         </div>
       ) : null}
       {workflow.actionErrors[copilotKey] ? (
-        <div className="detail-inline-error" role="alert">
+        <div
+          className="flex items-center gap-2 border-b border-danger/30 bg-danger-soft px-8 py-2.5 text-[0.78rem] text-danger-deep"
+          role="alert"
+        >
           <Icon name="alert" size={15} />
           <span>{workflow.actionErrors[copilotKey]}</span>
         </div>
       ) : null}
 
-      <nav className="detail-tabs" aria-label="Pull request detail sections">
+      <nav
+        className="flex items-center gap-1 border-b border-hairline px-[clamp(24px,3vw,44px)]"
+        aria-label="Pull request detail sections"
+      >
         <DetailTabButton
           active={tab === 'threads'}
           label="Review threads"
@@ -115,13 +132,16 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
           count={workflow.runs.length}
           onClick={() => setTab('runs')}
         />
-        <label className="agent-select">
-          <span>Local agent</span>
+        <label className="ml-auto flex items-center gap-2 pl-3 text-xs font-semibold text-ink-secondary max-[980px]:justify-between">
+          <span className="max-[1120px]:hidden">Local agent</span>
           <Select
             value={workflow.selectedAgent}
             onValueChange={(value) => workflow.setSelectedAgent(value as AgentKind)}
           >
-            <SelectTrigger className="agent-select__trigger" aria-label="Local agent">
+            <SelectTrigger
+              className="min-w-[164px] border-hairline-strong bg-surface-raised"
+              aria-label="Local agent"
+            >
               <SelectValue placeholder="No local agent available">
                 {workflow.agents.find((agent) => agent.agent === workflow.selectedAgent)?.label}
               </SelectValue>
@@ -137,7 +157,10 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
         </label>
       </nav>
 
-      <div className="review-content" aria-busy={workflow.detailLoading}>
+      <div
+        className="min-h-[260px] px-[clamp(24px,3vw,44px)] pt-5 pb-8"
+        aria-busy={workflow.detailLoading}
+      >
         {workflow.detailLoading && !detail ? <DetailSkeleton /> : null}
         {!workflow.detailLoading && tab === 'threads' ? (
           <ThreadsView
@@ -185,14 +208,18 @@ function DetailTabButton({
   return (
     <button
       type="button"
-      className={active ? 'detail-tab detail-tab--active' : 'detail-tab'}
+      className={cn(
+        "relative flex min-h-11 cursor-pointer items-center gap-2 border-0 bg-transparent px-3 font-semibold text-ink-secondary after:absolute after:right-3 after:bottom-[-1px] after:left-3 after:h-0.5 after:bg-transparent after:content-[''] hover:text-ink",
+        active && 'text-ink after:bg-ink',
+      )}
       onClick={onClick}
     >
       <span>{label}</span>
       <span
-        className={
-          alertCount > 0 ? 'detail-tab__count detail-tab__count--alert' : 'detail-tab__count'
-        }
+        className={cn(
+          'min-w-[21px] rounded-full bg-surface-muted px-1.5 py-0.5 text-center text-[0.65rem] text-ink-secondary',
+          alertCount > 0 && 'bg-danger-soft text-danger-deep',
+        )}
       >
         {alertCount > 0 ? `${alertCount} failing` : count}
       </span>
@@ -215,17 +242,17 @@ function ThreadsView({
     return <ReviewClearState attentionCount={attentionCount} />;
   }
   return (
-    <div className="thread-groups">
+    <div className="flex flex-col gap-6">
       {active.length > 0 ? (
-        <section className="thread-group" aria-label="Open review threads">
+        <section className="flex flex-col gap-3" aria-label="Open review threads">
           {active.map((thread) => (
             <ThreadCard thread={thread} workflow={workflow} key={thread.id} />
           ))}
         </section>
       ) : null}
       {resolved.length > 0 ? (
-        <details className="resolved-threads">
-          <summary>
+        <details className="text-ink-secondary [&[open]>summary]:mb-3 [&>article+article]:mt-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-[0.78rem] font-semibold">
             <Icon name="check" size={14} />
             {resolved.length} resolved or outdated thread{resolved.length === 1 ? '' : 's'}
           </summary>
@@ -250,48 +277,71 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
     : 'General review thread';
   return (
     <article
-      className={
-        thread.resolved || thread.outdated ? 'thread-card thread-card--muted' : 'thread-card'
-      }
+      className={cn(
+        'overflow-hidden rounded-xl border border-hairline bg-surface-raised transition-[border-color,box-shadow] duration-state ease-out hover:border-hairline-strong',
+        (thread.resolved || thread.outdated) && 'bg-surface opacity-[0.78]',
+      )}
     >
-      <header className="thread-card__header">
-        <div>
-          <span className="thread-card__state">
+      <header className="flex items-center justify-between gap-3 border-b border-hairline bg-[color-mix(in_oklch,var(--surface-muted)_52%,var(--surface))] px-4 py-[9px]">
+        <div className="flex items-center gap-3">
+          <span
+            className={cn(
+              'inline-flex items-center gap-[5px] text-[0.72rem] font-semibold text-warning-deep',
+              (thread.resolved || thread.outdated) && 'text-success-deep',
+            )}
+          >
             <Icon name={thread.resolved ? 'check' : thread.outdated ? 'x' : 'clock'} size={13} />
             {thread.resolved ? 'Resolved' : thread.outdated ? 'Outdated' : 'Needs reply'}
           </span>
           {thread.hasNewActivity && !thread.resolved ? (
-            <span className="thread-card__new">
+            <span className="inline-flex items-center gap-[5px] text-[0.72rem] font-semibold text-info-deep">
               <Icon name="spark" size={12} /> New activity
             </span>
           ) : null}
         </div>
-        <code title={location}>{location}</code>
+        <code
+          className="overflow-hidden font-mono text-[0.7rem] text-ellipsis whitespace-nowrap text-ink-secondary"
+          title={location}
+        >
+          {location}
+        </code>
       </header>
-      <div className="thread-card__comments">
+      <div className="flex flex-col">
         {thread.comments.map((comment) => (
-          <section className="review-comment" key={comment.id}>
-            <header>
-              <span className="review-comment__avatar" aria-hidden="true">
+          <section
+            className="border-t border-hairline px-4 py-3.5 first:border-t-0"
+            key={comment.id}
+          >
+            <header className="mb-3 flex items-center gap-2">
+              <span
+                className="grid size-[22px] place-items-center rounded-full bg-surface-muted text-[0.65rem] font-bold text-ink-secondary"
+                aria-hidden="true"
+              >
                 {comment.authorLogin.slice(0, 1).toUpperCase()}
               </span>
               <strong>@{comment.authorLogin}</strong>
-              <span className="review-comment__kind">
+              <span className="inline-flex items-center gap-[5px] border-l border-hairline pl-2 text-[0.72rem] font-semibold text-ink-secondary">
                 <Icon name={comment.isBot ? 'spark' : 'github'} size={12} />
                 {comment.isBot ? 'Automated review' : 'Human review'}
               </span>
-              <time>{formatRelativeTime(comment.updatedAt)}</time>
+              <time className="ml-auto text-[0.7rem] text-ink-muted">
+                {formatRelativeTime(comment.updatedAt)}
+              </time>
             </header>
             {comment.diffHunk ? (
-              <pre className="review-comment__diff">{comment.diffHunk}</pre>
+              <pre className="mb-3 overflow-hidden border-l-2 border-hairline-strong bg-surface-muted px-3 py-2 font-mono text-[0.68rem] text-ellipsis whitespace-nowrap text-ink-secondary">
+                {comment.diffHunk}
+              </pre>
             ) : null}
-            <p>{comment.body}</p>
+            <p className="m-0 text-[0.83rem] leading-[1.55] whitespace-pre-wrap text-ink-secondary">
+              {comment.body}
+            </p>
           </section>
         ))}
       </div>
       {!thread.resolved && !thread.outdated ? (
-        <footer className="thread-card__actions">
-          <div>
+        <footer className="flex items-center justify-between gap-2 border-t border-hairline px-4 py-2.5 max-[980px]:flex-col max-[980px]:items-stretch">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               disabled={busy}
@@ -305,7 +355,7 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
             </Button>
           </div>
           <Button
-            className="thread-card__terminal"
+            className="ml-auto"
             variant="outline"
             disabled={busy}
             onClick={() => void workflow.openTerminal(thread.id)}
@@ -315,7 +365,10 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
         </footer>
       ) : null}
       {workflow.actionErrors[key] ? (
-        <p className="thread-card__error" role="alert">
+        <p
+          className="m-0 flex items-start gap-1.5 px-4 pb-3 text-[0.73rem] text-danger-deep"
+          role="alert"
+        >
           <Icon name="alert" size={13} /> {workflow.actionErrors[key]}
         </p>
       ) : null}
@@ -341,19 +394,22 @@ function ChecksView({ checks }: { checks: CheckRun[] }) {
   );
   if (checks.length === 0) {
     return (
-      <div className="review-empty-state">
+      <div className="flex min-h-[230px] flex-col items-center justify-center gap-2 text-center text-ink-muted [&>svg]:text-success-deep">
         <Icon name="check" size={20} />
-        <strong>No check runs were reported</strong>
-        <span>
+        <strong className="text-[0.92rem] text-ink">No check runs were reported</strong>
+        <span className="max-w-[460px] text-[0.78rem]">
           Mission Control will display required and optional checks after GitHub reports them.
         </span>
       </div>
     );
   }
   return (
-    <div className="check-groups">
-      <div className="check-summary" aria-label={`${checks.length} check runs`}>
-        <div className="check-summary__legend">
+    <div className="flex flex-col gap-6">
+      <div
+        className="grid gap-3 border-b border-hairline pb-4"
+        aria-label={`${checks.length} check runs`}
+      >
+        <div className="flex flex-wrap items-center gap-4">
           <CheckSummaryItem tone="danger" count={totals.danger} label="Failing" />
           <CheckSummaryItem tone="warning" count={totals.warning} label="Pending" />
           <CheckSummaryItem tone="success" count={totals.success} label="Successful" />
@@ -361,11 +417,14 @@ function ChecksView({ checks }: { checks: CheckRun[] }) {
             <CheckSummaryItem tone="neutral" count={totals.neutral} label="Other" />
           ) : null}
         </div>
-        <div className="check-summary__bar" aria-hidden="true">
+        <div
+          className="flex h-[7px] w-full gap-0.5 overflow-hidden rounded-full bg-surface-muted"
+          aria-hidden="true"
+        >
           {(['danger', 'warning', 'success', 'neutral'] as const).map((tone) =>
             totals[tone] > 0 ? (
               <span
-                className={`check-summary__segment check-summary__segment--${tone}`}
+                className={checkSummarySegmentVariants({ tone })}
                 style={{ flexGrow: totals[tone] }}
                 key={tone}
               />
@@ -374,11 +433,16 @@ function ChecksView({ checks }: { checks: CheckRun[] }) {
         </div>
       </div>
       {grouped.map((group) => (
-        <section className="check-group" key={group.tone}>
-          <h3>{checkGroupLabel(group.tone, group.checks.length)}</h3>
+        <section className="flex flex-col gap-3" key={group.tone}>
+          <h3 className="m-0 text-[0.88rem] text-ink">
+            {checkGroupLabel(group.tone, group.checks.length)}
+          </h3>
           {group.checks.map((check) => (
-            <article className="check-row" key={check.id}>
-              <span className={`check-row__mark check-row__mark--${group.tone}`}>
+            <article
+              className="grid grid-cols-[24px_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-hairline py-3"
+              key={check.id}
+            >
+              <span className={checkMarkVariants({ tone: group.tone })}>
                 <Icon
                   name={
                     group.tone === 'success' ? 'check' : group.tone === 'danger' ? 'x' : 'clock'
@@ -386,12 +450,14 @@ function ChecksView({ checks }: { checks: CheckRun[] }) {
                   size={13}
                 />
               </span>
-              <div>
+              <div className="flex min-w-0 flex-col gap-0.5">
                 <strong>{check.name}</strong>
-                <span>{checkStatusLabel(check)}</span>
+                <span className="text-[0.72rem] text-ink-muted">{checkStatusLabel(check)}</span>
               </div>
               {check.required ? <StatusPill tone="neutral" label="Required" compact /> : null}
-              <time>{formatRelativeTime(check.updatedAt)}</time>
+              <time className="text-[0.72rem] whitespace-nowrap text-ink-muted">
+                {formatRelativeTime(check.updatedAt)}
+              </time>
             </article>
           ))}
         </section>
@@ -410,7 +476,7 @@ function CheckSummaryItem({
   label: string;
 }) {
   return (
-    <span className={`check-summary__item check-summary__item--${tone}`}>
+    <span className={checkSummaryItemVariants({ tone })}>
       <Icon name={tone === 'success' ? 'check' : tone === 'danger' ? 'x' : 'clock'} size={13} />
       <strong>{count}</strong> {label}
     </span>
@@ -420,20 +486,23 @@ function CheckSummaryItem({
 function RunsView({ runs, workflow }: { runs: AgentRun[]; workflow: ReviewWorkflowModel }) {
   if (runs.length === 0) {
     return (
-      <div className="review-empty-state">
+      <div className="flex min-h-[230px] flex-col items-center justify-center gap-2 text-center text-ink-muted [&>svg]:text-success-deep">
         <Icon name="terminal" size={20} />
-        <strong>No agent runs yet</strong>
-        <span>
+        <strong className="text-[0.92rem] text-ink">No agent runs yet</strong>
+        <span className="max-w-[460px] text-[0.78rem]">
           Start from an open thread to keep the run, worktree, and GitHub checkpoints together.
         </span>
       </div>
     );
   }
   return (
-    <div className="run-list">
+    <div className="flex flex-col">
       {runs.map((run) => (
-        <article className="run-row" key={run.id}>
-          <span className={`run-row__mark run-row__mark--${run.status}`}>
+        <article
+          className="grid grid-cols-[28px_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-hairline py-3 max-[980px]:grid-cols-[28px_minmax(0,1fr)_auto] max-[980px]:[&>[data-slot=button]]:col-[2/-1] max-[980px]:[&>[data-slot=button]]:justify-self-start"
+          key={run.id}
+        >
+          <span className={runMarkVariants({ status: run.status })}>
             <Icon
               name={
                 run.status === 'completed' ? 'check' : run.status === 'running' ? 'sync' : 'alert'
@@ -441,14 +510,25 @@ function RunsView({ runs, workflow }: { runs: AgentRun[]; workflow: ReviewWorkfl
               size={14}
             />
           </span>
-          <div>
+          <div className="flex min-w-0 flex-col gap-0.5">
             <strong>{runActionLabel(run.action)}</strong>
-            <span>{run.summary ?? `${agentLabel(run.agent)} session`}</span>
-            {run.worktreePath ? <code title={run.worktreePath}>{run.worktreePath}</code> : null}
+            <span className="text-[0.72rem] text-ink-muted">
+              {run.summary ?? `${agentLabel(run.agent)} session`}
+            </span>
+            {run.worktreePath ? (
+              <code
+                className="max-w-[520px] overflow-hidden font-mono text-[0.65rem] text-ellipsis whitespace-nowrap text-ink-muted"
+                title={run.worktreePath}
+              >
+                {run.worktreePath}
+              </code>
+            ) : null}
           </div>
-          <div className="run-row__meta">
-            <span>{statusLabel(run.status)}</span>
-            <time>{formatRelativeTime(run.startedAt)}</time>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-[0.72rem] text-ink-muted">{statusLabel(run.status)}</span>
+            <time className="text-[0.72rem] text-ink-muted">
+              {formatRelativeTime(run.startedAt)}
+            </time>
           </div>
           {run.logPath ? (
             <Button variant="outline" onClick={() => workflow.setActiveRun(run)}>
@@ -463,12 +543,12 @@ function RunsView({ runs, workflow }: { runs: AgentRun[]; workflow: ReviewWorkfl
 
 function ReviewClearState({ attentionCount }: { attentionCount: number }) {
   return (
-    <div className="review-empty-state">
+    <div className="flex min-h-[230px] flex-col items-center justify-center gap-2 text-center text-ink-muted [&>svg]:text-success-deep">
       <Icon name="check" size={20} />
-      <strong>
+      <strong className="text-[0.92rem] text-ink">
         {attentionCount > 0 ? 'No cached review threads' : 'All review threads are clear'}
       </strong>
-      <span>
+      <span className="max-w-[460px] text-[0.78rem]">
         {attentionCount > 0
           ? 'Refresh GitHub to reconcile the detailed thread cache.'
           : 'Mission Control is monitoring this pull request for new comments and review activity.'}
@@ -479,13 +559,67 @@ function ReviewClearState({ attentionCount }: { attentionCount: number }) {
 
 function DetailSkeleton() {
   return (
-    <div className="detail-skeleton" aria-label="Loading review details">
-      <span className="skeleton skeleton--heading" />
-      <span className="skeleton skeleton--title" />
-      <span className="skeleton skeleton--title" />
+    <div className="flex flex-col gap-4 pt-3" aria-label="Loading review details">
+      <span className="relative h-[30px] w-[45%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
+      <span className="relative h-[9px] w-[78%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
+      <span className="relative h-[9px] w-[78%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
     </div>
   );
 }
+
+const checkSummaryItemVariants = cva(
+  'inline-flex items-center gap-[5px] text-xs text-ink-secondary [&>strong]:text-inherit [&>strong]:[font-variant-numeric:tabular-nums]',
+  {
+    variants: {
+      tone: {
+        danger: 'text-danger-deep',
+        warning: 'text-warning-deep',
+        success: 'text-success-deep',
+        neutral: '',
+      },
+    },
+  },
+);
+
+const checkSummarySegmentVariants = cva('min-w-1', {
+  variants: {
+    tone: {
+      danger: 'bg-danger',
+      warning: 'bg-warning',
+      success: 'bg-success',
+      neutral: 'bg-ink-muted',
+    },
+  },
+});
+
+const checkMarkVariants = cva(
+  'grid size-[22px] place-items-center rounded-full border border-hairline bg-surface-muted',
+  {
+    variants: {
+      tone: {
+        danger: 'border-danger/35 bg-danger-soft text-danger-deep',
+        warning: 'border-warning/40 bg-warning-soft text-warning-deep',
+        success: 'border-success/35 bg-success-soft text-success-deep',
+        neutral: '',
+      },
+    },
+  },
+);
+
+const runMarkVariants = cva(
+  'grid size-[22px] place-items-center rounded-full border border-hairline bg-surface-muted',
+  {
+    variants: {
+      status: {
+        running: 'border-warning/40 bg-warning-soft text-warning-deep',
+        completed: 'border-success/35 bg-success-soft text-success-deep',
+        failed: 'border-danger/35 bg-danger-soft text-danger-deep',
+        interrupted: 'border-danger/35 bg-danger-soft text-danger-deep',
+        stalled: 'border-danger/35 bg-danger-soft text-danger-deep',
+      },
+    },
+  },
+);
 
 function checkTone(check: CheckRun): 'danger' | 'warning' | 'success' | 'neutral' {
   const conclusion = check.conclusion?.toUpperCase();
