@@ -118,6 +118,15 @@ export interface CachedPullRequest {
   baseRef: string;
   draft: boolean;
   reviewRequested: boolean;
+  mergeStateStatus:
+    | 'BLOCKED'
+    | 'BEHIND'
+    | 'CLEAN'
+    | 'DIRTY'
+    | 'HAS_HOOKS'
+    | 'UNKNOWN'
+    | 'UNSTABLE';
+  reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null;
   updatedAt: string;
   lastSyncedAt: string;
 }

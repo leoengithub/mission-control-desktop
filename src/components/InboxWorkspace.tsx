@@ -5,13 +5,13 @@ import type { MissionControlClient } from '../lib/client';
 import {
   buildInboxEntries,
   formatRelativeTime,
+  inboxDisposition,
   latestSyncTime,
   type PullRequestInboxEntry,
 } from '../lib/inbox';
 import { Icon } from './Icon';
 import emptyAttention from '../../assets/brand/raster/empty-attention.png';
 import { ReviewDetail } from './ReviewDetail';
-import { ReasonPill, StatusPill } from './StatusMark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
@@ -36,6 +36,15 @@ interface InboxWorkspaceProps {
   onOpenSettings(): void;
 }
 
+type InboxQuickFilter = 'needs_me' | 'ready' | 'drafts' | 'all';
+
+const quickFilters: Array<{ id: InboxQuickFilter; label: string }> = [
+  { id: 'needs_me', label: 'Needs me' },
+  { id: 'ready', label: 'Ready' },
+  { id: 'drafts', label: 'Drafts' },
+  { id: 'all', label: 'All' },
+];
+
 export function InboxWorkspace({
   githubLogin,
   pullRequests,
@@ -56,11 +65,12 @@ export function InboxWorkspace({
   onOpenSettings,
 }: InboxWorkspaceProps) {
   const [query, setQuery] = useState('');
+  const [quickFilter, setQuickFilter] = useState<InboxQuickFilter>('needs_me');
   const entries = useMemo(
     () => buildInboxEntries(pullRequests, attentionItems),
     [attentionItems, pullRequests],
   );
-  const filteredEntries = useMemo(() => {
+  const searchedEntries = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     if (!normalized) return entries;
     return entries.filter(({ pullRequest }) =>
@@ -70,8 +80,19 @@ export function InboxWorkspace({
         .includes(normalized),
     );
   }, [entries, query]);
-  const attentionEntries = filteredEntries.filter((entry) => entry.attention.length > 0);
-  const openEntries = filteredEntries.filter((entry) => entry.attention.length === 0);
+  const filterCounts = useMemo(
+    () => ({
+      needs_me: entries.filter((entry) => entry.attention.length > 0).length,
+      ready: entries.filter((entry) => inboxDisposition(entry).kind === 'ready').length,
+      drafts: entries.filter((entry) => entry.pullRequest.draft).length,
+      all: entries.length,
+    }),
+    [entries],
+  );
+  const filteredEntries = useMemo(
+    () => searchedEntries.filter((entry) => matchesQuickFilter(entry, quickFilter)),
+    [quickFilter, searchedEntries],
+  );
   const selectedEntry =
     filteredEntries.find((entry) => entry.pullRequest.id === selectedPullRequestId) ??
     filteredEntries[0] ??
@@ -125,7 +146,7 @@ export function InboxWorkspace({
           aria-label="Pull requests"
         >
           <header
-            className="flex min-h-14 shrink-0 basis-14 items-center justify-between gap-2 border-b border-hairline bg-surface pr-2.5 pl-[88px]"
+            className="flex min-h-11 shrink-0 basis-11 items-center justify-between gap-2 border-b border-hairline bg-surface pr-2.5 pl-4"
             data-tauri-drag-region
           >
             <h1 className="m-0 overflow-hidden text-[0.88rem] font-semibold tracking-[-0.015em] text-ellipsis whitespace-nowrap">
@@ -155,8 +176,8 @@ export function InboxWorkspace({
             </div>
           </header>
           <div className="min-h-0 flex-1 overflow-auto">
-            <div className="sticky top-0 z-[2] flex items-center gap-3 border-b border-hairline bg-surface p-3 px-4">
-              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
+            <div className="sticky top-0 z-[2] grid gap-2 border-b border-hairline bg-surface px-4 py-3">
+              <label className="flex min-w-0 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
                 <span className="sr-only">Search pull requests</span>
                 <Icon name="search" size={16} />
                 <input
@@ -167,9 +188,34 @@ export function InboxWorkspace({
                   placeholder="Search pull requests"
                 />
               </label>
-              <span className="shrink-0 text-xs text-ink-muted [font-variant-numeric:tabular-nums]">
-                {entries.length} open
-              </span>
+              <div
+                className="grid grid-cols-[1.25fr_repeat(3,1fr)] gap-1 rounded-md bg-surface-muted p-1"
+                role="group"
+                aria-label="Quick filters"
+              >
+                {quickFilters.map((filter) => {
+                  const active = quickFilter === filter.id;
+                  return (
+                    <button
+                      className={cn(
+                        'flex min-w-0 cursor-pointer items-center justify-center gap-0.5 rounded-sm border-0 bg-transparent px-1 py-1.5 text-[0.68rem] font-semibold text-ink-secondary transition-[background,color,box-shadow] duration-state ease-out hover:text-ink',
+                        active && 'bg-surface-raised text-ink shadow-[0_1px_2px_oklch(20%_0.02_250/0.08)]',
+                      )}
+                      key={filter.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setQuickFilter(filter.id)}
+                    >
+                      <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                        {filter.label}
+                      </span>
+                      <span className="shrink-0 text-[0.64rem] text-ink-muted [font-variant-numeric:tabular-nums]">
+                        {filterCounts[filter.id]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {!loaded ? <InboxSkeleton /> : null}
@@ -180,24 +226,31 @@ export function InboxWorkspace({
 
             {loaded && entries.length > 0 && filteredEntries.length === 0 ? (
               <div className="flex min-h-[360px] flex-col items-center justify-center gap-1 p-8 text-center text-ink-muted">
-                <Icon name="search" size={19} />
-                <strong className="mt-2">No matching pull requests</strong>
+                <Icon name={query ? 'search' : 'inbox'} size={19} />
+                <strong className="mt-2">
+                  {query ? 'No matching pull requests' : 'Nothing in this filter'}
+                </strong>
                 <span className="max-w-[34ch] text-[0.8125rem] text-ink-secondary">
-                  Try a repository, author, title, or number.
+                  {query
+                    ? 'Try an author, title, number, or repository.'
+                    : 'Choose All to see every pull request in the review desk.'}
                 </span>
                 <button
                   className="mt-3 cursor-pointer border-0 border-b border-current bg-transparent p-0 font-semibold text-ink-secondary"
                   type="button"
-                  onClick={() => setQuery('')}
+                  onClick={() => {
+                    setQuery('');
+                    setQuickFilter('all');
+                  }}
                 >
-                  Clear search
+                  {query ? 'Clear search and filters' : 'Show all'}
                 </button>
               </div>
             ) : null}
 
-            {attentionEntries.length > 0 ? (
-              <InboxGroup title="Needs attention" count={attentionEntries.length} tone="warning">
-                {attentionEntries.map((entry) => (
+            {loaded && filteredEntries.length > 0 ? (
+              <div className="grid gap-px p-2">
+                {filteredEntries.map((entry) => (
                   <PullRequestRow
                     key={entry.pullRequest.id}
                     entry={entry}
@@ -205,20 +258,7 @@ export function InboxWorkspace({
                     onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
                   />
                 ))}
-              </InboxGroup>
-            ) : null}
-
-            {openEntries.length > 0 ? (
-              <InboxGroup title="Other open" count={openEntries.length} tone="neutral">
-                {openEntries.map((entry) => (
-                  <PullRequestRow
-                    key={entry.pullRequest.id}
-                    entry={entry}
-                    selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
-                    onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
-                  />
-                ))}
-              </InboxGroup>
+              </div>
             ) : null}
           </div>
           <footer className="flex min-h-[62px] items-center gap-2 border-t border-hairline p-2 px-3">
@@ -314,33 +354,6 @@ function ContextualSetupBanner({
   );
 }
 
-function InboxGroup({
-  title,
-  count,
-  tone,
-  children,
-}: {
-  title: string;
-  count: number;
-  tone: 'warning' | 'neutral';
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="px-3 pt-2 last:pb-3" aria-label={`${title}, ${count}`}>
-      <div className={inboxGroupHeadingVariants({ tone })}>
-        <span className="grid place-items-center">
-          <Icon name={tone === 'warning' ? 'clock' : 'branch'} size={14} />
-        </span>
-        <strong className="text-[0.8125rem] text-inherit">{title}</strong>
-        <span className="min-w-5 rounded-full bg-white/55 px-1.5 py-0.5 text-center text-xs [font-variant-numeric:tabular-nums]">
-          {count}
-        </span>
-      </div>
-      <div className="grid gap-px pt-1">{children}</div>
-    </section>
-  );
-}
-
 function PullRequestRow({
   entry,
   selected,
@@ -350,42 +363,37 @@ function PullRequestRow({
   selected: boolean;
   onSelect(): void;
 }) {
-  const { pullRequest, primaryReason } = entry;
+  const { pullRequest } = entry;
+  const disposition = inboxDisposition(entry);
   return (
     <button
       className={cn(
-        'grid min-h-[58px] w-full cursor-pointer grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md border-0 bg-transparent px-3 py-[7px] text-left transition-[background,transform] duration-state ease-out hover:bg-surface-muted active:scale-[0.995]',
+        'grid min-h-[62px] w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 rounded-md border-0 bg-transparent px-2.5 py-2 text-left transition-[background,transform] duration-state ease-out hover:bg-surface-muted active:scale-[0.995]',
         selected && 'bg-surface-selected hover:bg-surface-selected',
       )}
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
+      aria-label={`#${pullRequest.number} ${pullRequest.title}, ${disposition.label}`}
     >
-      <span
-        className="grid size-[26px] place-items-center rounded-full border border-hairline bg-surface-raised text-[0.72rem] font-bold text-ink-secondary"
-        aria-hidden="true"
-      >
-        {pullRequest.authorLogin.slice(0, 1).toLocaleUpperCase()}
+      <span className={dispositionMarkVariants({ tone: disposition.tone })} aria-hidden="true">
+        <Icon name="pull-request" size={16} strokeWidth={2} />
       </span>
       <span className="grid min-w-0 gap-[3px]">
-        <span className="overflow-hidden text-[0.8125rem] font-semibold text-ellipsis whitespace-nowrap">
-          {pullRequest.title}
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="shrink-0 text-[0.76rem] font-medium text-ink-muted [font-variant-numeric:tabular-nums]">
+            #{pullRequest.number}
+          </span>
+          <span className="overflow-hidden text-[0.8125rem] font-semibold text-ellipsis whitespace-nowrap">
+            {pullRequest.title}
+          </span>
         </span>
         <span className="overflow-hidden text-[0.72rem] text-ellipsis whitespace-nowrap text-ink-muted">
-          {pullRequest.repository} #{pullRequest.number}
+          @{pullRequest.authorLogin} · {formatRelativeTime(pullRequest.updatedAt)}
         </span>
       </span>
-      <span className="grid justify-items-end gap-1">
-        {primaryReason ? (
-          <ReasonPill reason={primaryReason} compact />
-        ) : pullRequest.draft ? (
-          <StatusPill tone="neutral" label="Draft" compact />
-        ) : (
-          <StatusPill tone="success" label="Clear" compact />
-        )}
-        <span className="text-[0.72rem] text-ink-muted">
-          {formatRelativeTime(pullRequest.updatedAt)}
-        </span>
+      <span className={dispositionLabelVariants({ tone: disposition.tone })}>
+        {disposition.label}
       </span>
     </button>
   );
@@ -452,13 +460,38 @@ function DetailPlaceholder() {
   );
 }
 
-const inboxGroupHeadingVariants = cva(
-  'grid min-h-[34px] grid-cols-[20px_1fr_auto] items-center gap-2 rounded-md px-3 text-ink-secondary',
+function matchesQuickFilter(
+  entry: PullRequestInboxEntry,
+  filter: InboxQuickFilter,
+): boolean {
+  if (filter === 'needs_me') return entry.attention.length > 0;
+  if (filter === 'ready') return inboxDisposition(entry).kind === 'ready';
+  if (filter === 'drafts') return entry.pullRequest.draft;
+  return true;
+}
+
+const dispositionMarkVariants = cva('grid size-6 shrink-0 place-items-center', {
+  variants: {
+    tone: {
+      success: 'text-success-deep',
+      warning: 'text-warning-deep',
+      danger: 'text-danger',
+      info: 'text-info-deep',
+      neutral: 'text-ink-muted',
+    },
+  },
+});
+
+const dispositionLabelVariants = cva(
+  'inline-flex min-h-5 shrink-0 items-center whitespace-nowrap rounded-full border px-2 text-[0.64rem] font-semibold leading-none',
   {
     variants: {
       tone: {
-        warning: 'bg-warning-soft text-warning-deep',
-        neutral: 'bg-surface-muted',
+        success: 'border-success/40 bg-success-soft text-success-deep',
+        warning: 'border-warning/40 bg-warning-soft text-warning-deep',
+        danger: 'border-danger/35 bg-danger-soft text-danger-deep',
+        info: 'border-info/35 bg-info-soft text-info-deep',
+        neutral: 'border-hairline-strong bg-surface-muted text-ink-secondary',
       },
     },
   },

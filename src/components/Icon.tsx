@@ -7,6 +7,7 @@ import {
   Clock3,
   Copy,
   GitBranch,
+  GitPullRequest,
   Inbox,
   RefreshCw,
   Search,
@@ -29,6 +30,7 @@ export type IconName =
   | 'copy'
   | 'github'
   | 'inbox'
+  | 'pull-request'
   | 'refresh'
   | 'search'
   | 'settings'
@@ -48,6 +50,7 @@ const icons: Record<IconName, LucideIcon> = {
   copy: Copy,
   github: CircleUserRound,
   inbox: Inbox,
+  'pull-request': GitPullRequest,
   refresh: RefreshCw,
   search: Search,
   settings: Settings,

@@ -7,6 +7,8 @@ const INITIAL_MIGRATION: &str = include_str!("../migrations/0001_initial.sql");
 const REVIEW_WORKFLOWS_MIGRATION: &str = include_str!("../migrations/0002_review_workflows.sql");
 const REPOSITORY_MONITORING_MIGRATION: &str =
     include_str!("../migrations/0003_repository_monitoring.sql");
+const PULL_REQUEST_READINESS_MIGRATION: &str =
+    include_str!("../migrations/0004_pull_request_readiness.sql");
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
@@ -47,6 +49,10 @@ impl Database {
         }
         if version == 2 {
             connection.execute_batch(REPOSITORY_MONITORING_MIGRATION)?;
+            version = 3;
+        }
+        if version == 3 {
+            connection.execute_batch(PULL_REQUEST_READINESS_MIGRATION)?;
         }
         Ok(Self {
             connection: Mutex::new(connection),
@@ -86,7 +92,7 @@ mod tests {
                 connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
             })
             .unwrap();
-        assert_eq!(version, 3);
+        assert_eq!(version, 4);
         let columns = database
             .with_connection(|connection| {
                 let mut statement = connection.prepare("PRAGMA table_info(agent_runs)")?;
@@ -113,6 +119,24 @@ mod tests {
             repository_columns
                 .iter()
                 .any(|column| column == "accessible")
+        );
+        let pull_request_columns = database
+            .with_connection(|connection| {
+                let mut statement = connection.prepare("PRAGMA table_info(pull_requests)")?;
+                statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .unwrap();
+        assert!(
+            pull_request_columns
+                .iter()
+                .any(|column| column == "merge_state_status")
+        );
+        assert!(
+            pull_request_columns
+                .iter()
+                .any(|column| column == "review_decision")
         );
     }
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { AttentionItem, CachedPullRequest } from '../contracts';
-import { buildInboxEntries, formatRelativeTime, latestSyncTime } from './inbox';
+import {
+  buildInboxEntries,
+  formatRelativeTime,
+  inboxDisposition,
+  latestSyncTime,
+} from './inbox';
 
 const pullRequest = (id: string, minutesAgo: number): CachedPullRequest => ({
   id,
@@ -14,6 +19,8 @@ const pullRequest = (id: string, minutesAgo: number): CachedPullRequest => ({
   baseRef: 'main',
   draft: false,
   reviewRequested: false,
+  mergeStateStatus: 'UNKNOWN',
+  reviewDecision: null,
   updatedAt: new Date(Date.UTC(2026, 7, 3, 12, -minutesAgo)).toISOString(),
   lastSyncedAt: new Date(Date.UTC(2026, 7, 3, 12, -minutesAgo)).toISOString(),
 });
@@ -38,6 +45,34 @@ describe('buildInboxEntries', () => {
 
     expect(entries.map((entry) => entry.pullRequest.id)).toEqual(['pr-2', 'pr-1']);
     expect(entries[0]?.primaryReason).toBe('required_checks_failing');
+  });
+
+  it('lets personal attention override merge readiness', () => {
+    const readyPullRequest = {
+      ...pullRequest('pr-3', 2),
+      mergeStateStatus: 'CLEAN' as const,
+      reviewDecision: 'APPROVED' as const,
+    };
+    const [entry] = buildInboxEntries(
+      [readyPullRequest],
+      [attention('pr-3', 'unresolved_thread')],
+    );
+
+    expect(entry && inboxDisposition(entry)).toMatchObject({
+      kind: 'thread',
+      label: '1 thread',
+    });
+  });
+
+  it('uses GitHub clean state for the ready disposition', () => {
+    const readyPullRequest = {
+      ...pullRequest('pr-4', 2),
+      mergeStateStatus: 'CLEAN' as const,
+      reviewDecision: 'APPROVED' as const,
+    };
+    const [entry] = buildInboxEntries([readyPullRequest], []);
+
+    expect(entry && inboxDisposition(entry)).toMatchObject({ kind: 'ready', label: 'Ready' });
   });
 });
 

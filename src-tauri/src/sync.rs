@@ -23,7 +23,8 @@ query PullRequestInbox($query: String!, $after: String) {
   search(query: $query, type: ISSUE, first: 50, after: $after) {
     nodes {
       ... on PullRequest {
-        id number title url isDraft state updatedAt headRefName headRefOid baseRefName
+        id number title url isDraft state mergeStateStatus reviewDecision
+        updatedAt headRefName headRefOid baseRefName
         author { login }
         repository {
           id nameWithOwner isPrivate
@@ -120,6 +121,8 @@ pub struct CachedPullRequest {
     pub base_ref: String,
     pub draft: bool,
     pub review_requested: bool,
+    pub merge_state_status: String,
+    pub review_decision: Option<String>,
     pub updated_at: String,
     pub last_synced_at: String,
 }
@@ -505,7 +508,8 @@ pub fn list_cached_pull_requests(
     database.with_connection(|connection| {
         let mut statement = connection.prepare(
             "SELECT p.id, r.full_name, p.number, p.title, p.url, p.author_login, p.head_ref, \
-             p.head_sha, p.base_ref, p.draft, p.review_requested, p.updated_at, p.last_synced_at \
+             p.head_sha, p.base_ref, p.draft, p.review_requested, p.merge_state_status, \
+             p.review_decision, p.updated_at, p.last_synced_at \
              FROM pull_requests p JOIN repositories r ON r.id = p.repository_id \
              WHERE p.in_scope = 1 AND p.state = 'OPEN' AND r.accessible = 1 \
              AND r.monitored = 1 ORDER BY p.updated_at DESC",
@@ -524,8 +528,10 @@ pub fn list_cached_pull_requests(
                     base_ref: row.get(8)?,
                     draft: row.get(9)?,
                     review_requested: row.get(10)?,
-                    updated_at: row.get(11)?,
-                    last_synced_at: row.get(12)?,
+                    merge_state_status: row.get(11)?,
+                    review_decision: row.get(12)?,
+                    updated_at: row.get(13)?,
+                    last_synced_at: row.get(14)?,
                 })
             })?
             .collect()
@@ -633,17 +639,20 @@ fn persist_discovery(
             )?;
             transaction.execute(
                 "INSERT INTO pull_requests (id, repository_id, number, title, url, author_login, \
-                 head_ref, head_sha, base_ref, draft, review_requested, in_scope, state, updated_at, last_synced_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 1, ?12, ?13, ?14) \
+                 head_ref, head_sha, base_ref, draft, review_requested, merge_state_status, \
+                 review_decision, in_scope, state, updated_at, last_synced_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 1, ?14, ?15, ?16) \
                  ON CONFLICT(id) DO UPDATE SET repository_id=excluded.repository_id, number=excluded.number, \
                  title=excluded.title, url=excluded.url, author_login=excluded.author_login, \
                  head_ref=excluded.head_ref, head_sha=excluded.head_sha, base_ref=excluded.base_ref, \
-                 draft=excluded.draft, review_requested=excluded.review_requested, in_scope=1, \
+                 draft=excluded.draft, review_requested=excluded.review_requested, \
+                 merge_state_status=excluded.merge_state_status, review_decision=excluded.review_decision, in_scope=1, \
                  state=excluded.state, updated_at=excluded.updated_at, last_synced_at=excluded.last_synced_at",
                 rusqlite::params![pull_request.id, repository.id, pull_request.number, pull_request.title,
                     pull_request.url, pull_request.author.as_ref().map_or("ghost", |author| author.login.as_str()),
                     pull_request.head_ref_name, pull_request.head_ref_oid, pull_request.base_ref_name,
-                    pull_request.is_draft, requested_ids.contains(&pull_request.id), pull_request.state,
+                    pull_request.is_draft, requested_ids.contains(&pull_request.id),
+                    pull_request.merge_state_status, pull_request.review_decision, pull_request.state,
                     pull_request.updated_at, synced_at],
             )?;
         }
@@ -838,6 +847,8 @@ struct SearchPullRequest {
     url: String,
     is_draft: bool,
     state: String,
+    merge_state_status: String,
+    review_decision: Option<String>,
     updated_at: String,
     head_ref_name: String,
     head_ref_oid: String,

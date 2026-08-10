@@ -14,6 +14,20 @@ export interface PullRequestInboxEntry {
   primaryReason: AttentionReason | null;
 }
 
+export type InboxDispositionKind =
+  | 'draft'
+  | 'review'
+  | 'thread'
+  | 'blocked'
+  | 'waiting'
+  | 'ready';
+
+export interface InboxDisposition {
+  kind: InboxDispositionKind;
+  label: string;
+  tone: StatusTone;
+}
+
 const reasonPriority: AttentionReason[] = [
   'agent_failed',
   'agent_stalled',
@@ -93,6 +107,66 @@ export function buildInboxEntries(
       if (left.attention.length === 0 && right.attention.length > 0) return 1;
       return Date.parse(right.pullRequest.updatedAt) - Date.parse(left.pullRequest.updatedAt);
     });
+}
+
+export function inboxDisposition(entry: PullRequestInboxEntry): InboxDisposition {
+  const { pullRequest, primaryReason } = entry;
+
+  if (pullRequest.draft) {
+    return {
+      kind: 'draft',
+      label: 'Draft',
+      tone: 'neutral',
+    };
+  }
+
+  if (primaryReason === 'required_checks_failing') {
+    return { kind: 'blocked', label: 'Checks', tone: 'danger' };
+  }
+  if (primaryReason === 'unresolved_thread') {
+    const threadCount = entry.attention.filter((item) => item.reason === 'unresolved_thread').length;
+    return {
+      kind: 'thread',
+      label: `${threadCount} ${threadCount === 1 ? 'thread' : 'threads'}`,
+      tone: 'warning',
+    };
+  }
+  if (primaryReason === 'review_requested') {
+    return { kind: 'review', label: 'Review', tone: 'warning' };
+  }
+  if (primaryReason === 'agent_failed' || primaryReason === 'agent_stalled') {
+    return { kind: 'blocked', label: 'Agent blocked', tone: 'danger' };
+  }
+  if (primaryReason === 'agent_interrupted' || primaryReason === 'agent_waiting_for_user') {
+    return { kind: 'waiting', label: 'Waiting', tone: 'info' };
+  }
+
+  if (
+    pullRequest.mergeStateStatus === 'CLEAN' &&
+    pullRequest.reviewDecision !== 'CHANGES_REQUESTED' &&
+    pullRequest.reviewDecision !== 'REVIEW_REQUIRED'
+  ) {
+    return { kind: 'ready', label: 'Ready', tone: 'success' };
+  }
+
+  if (pullRequest.mergeStateStatus === 'DIRTY') {
+    return { kind: 'blocked', label: 'Conflicts', tone: 'danger' };
+  }
+  if (pullRequest.mergeStateStatus === 'UNSTABLE') {
+    return { kind: 'blocked', label: 'Checks', tone: 'danger' };
+  }
+  if (pullRequest.reviewDecision === 'CHANGES_REQUESTED') {
+    return { kind: 'blocked', label: 'Changes', tone: 'danger' };
+  }
+  if (pullRequest.mergeStateStatus === 'BEHIND') {
+    return { kind: 'waiting', label: 'Behind', tone: 'warning' };
+  }
+
+  return {
+    kind: 'waiting',
+    label: pullRequest.mergeStateStatus === 'UNKNOWN' ? 'Checking' : 'Waiting',
+    tone: 'neutral',
+  };
 }
 
 export function formatRelativeTime(value: string, now = Date.now()): string {

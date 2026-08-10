@@ -39,7 +39,7 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
 
   return (
     <article className="min-h-full bg-transparent">
-      <header className="flex items-start justify-between gap-4 border-b border-hairline bg-surface px-[clamp(24px,3vw,44px)] pt-5 pb-[18px] max-[1120px]:flex-col max-[980px]:px-6">
+      <header className="flex items-start justify-between gap-4 border-b border-hairline bg-surface px-6 pt-5 pb-[18px] max-[1120px]:flex-col max-[980px]:px-5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-[0.78rem] text-ink-secondary">
             {entry.primaryReason ? (
@@ -85,7 +85,7 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
 
       {workflow.detailError ? (
         <div
-          className="flex items-center gap-2 border-b border-danger/30 bg-danger-soft px-8 py-2.5 text-[0.78rem] text-danger-deep"
+          className="flex items-center gap-2 border-b border-danger/30 bg-danger-soft px-6 py-2.5 text-[0.78rem] text-danger-deep max-[980px]:px-5"
           role="alert"
         >
           <Icon name="alert" size={15} />
@@ -101,7 +101,7 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
       ) : null}
       {workflow.actionErrors[copilotKey] ? (
         <div
-          className="flex items-center gap-2 border-b border-danger/30 bg-danger-soft px-8 py-2.5 text-[0.78rem] text-danger-deep"
+          className="flex items-center gap-2 border-b border-danger/30 bg-danger-soft px-6 py-2.5 text-[0.78rem] text-danger-deep max-[980px]:px-5"
           role="alert"
         >
           <Icon name="alert" size={15} />
@@ -110,7 +110,7 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
       ) : null}
 
       <nav
-        className="flex items-center gap-1 border-b border-hairline px-[clamp(24px,3vw,44px)]"
+        className="flex items-center gap-1 border-b border-hairline px-6 max-[980px]:px-5"
         aria-label="Pull request detail sections"
       >
         <DetailTabButton
@@ -158,7 +158,7 @@ export function ReviewDetail({ client, entry, workflow, onOpen }: ReviewDetailPr
       </nav>
 
       <div
-        className="min-h-[260px] px-[clamp(24px,3vw,44px)] pt-5 pb-8"
+        className="min-h-[260px] px-6 pt-5 pb-8 max-[980px]:px-5"
         aria-busy={workflow.detailLoading}
       >
         {workflow.detailLoading && !detail ? <DetailSkeleton /> : null}
