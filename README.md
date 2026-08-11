@@ -32,7 +32,7 @@ The repository contains the first complete local review workflow:
 - contextual notification and launch-at-login recommendations after activation
 - cache freshness, manual refresh, focus refresh, empty, loading, and failure states
 - a documented OKLCH visual system with accessible icon-and-label status treatments
-- tagged GitHub release builds for macOS, Windows, and Linux
+- automatic versioned GitHub prereleases for Apple Silicon macOS
 
 The renderer includes deterministic browser previews for design and interaction work outside the native shell. Run `corepack pnpm dev`, then use `?preview=onboarding` or `?preview=empty` to inspect those states. The default preview renders review threads, check runs, agent actions, a terminal session, contextual setup, and the settings workspace.
 
@@ -95,7 +95,9 @@ ditto 'src-tauri/target/release/bundle/macos/Mission Control.app' \
   "$HOME/Applications/Mission Control.app"
 ```
 
-The **Build macOS dogfood app** GitHub Actions workflow provides the same account-free path remotely. Run it manually, download the macOS arm64 DMG from the workflow artifacts, and drag Mission Control into Applications. The bundle is ad-hoc signed rather than notarized, so macOS may require confirming the first launch in **System Settings → Privacy & Security**.
+After CI succeeds for a push to `main`, the **Release macOS beta** GitHub Actions workflow publishes a new prerelease using the next automatic `v0.1.<run-number>` version. Download the Apple Silicon DMG directly from the repository's **Releases** page and drag Mission Control into Applications. The workflow can also be run manually when a replacement build is needed for the current commit.
+
+The bundle is ad-hoc signed rather than notarized, so macOS may require confirming the first launch in **System Settings → Privacy & Security**. Workflow artifacts are still retained as a fallback, but the GitHub Release asset is the stable download location.
 
 Public distribution remains a separate milestone. A broadly downloadable release will require a Developer ID Application certificate and Apple notarization credentials; Windows, Linux, and automatic updates are intentionally outside the current dogfood workflow.
 

@@ -1,23 +1,27 @@
-name: Build macOS dogfood app
+name: Release macOS beta
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
 
 permissions:
-  contents: read
-
-concurrency:
-  group: macos-dogfood-${{ github.ref }}
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  build-macos-arm64:
+  release-macos-arm64:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the verified commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: pnpm/action-setup@v4
         with:
           version: 10.14.0
@@ -32,11 +36,42 @@ jobs:
         with:
           workspaces: src-tauri
       - run: pnpm install --frozen-lockfile
-      - uses: tauri-apps/tauri-action@v1
+      - name: Assign the automatic release version
+        env:
+          RELEASE_VERSION: 0.1.${{ github.run_number }}
+        run: |
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            const path = 'src-tauri/tauri.conf.json';
+            const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+            config.version = process.env.RELEASE_VERSION;
+            fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
+          "
+      - name: Build and publish the macOS prerelease
+        id: release
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: '-'
         with:
+          tagName: v__VERSION__
+          releaseName: Mission Control v__VERSION__
+          releaseBody: |
+            Automatic Apple Silicon macOS beta built from `${{ github.event.workflow_run.head_sha || github.sha }}`.
+
+            This build is ad-hoc signed and is not notarized. macOS may require approval in System Settings → Privacy & Security on first launch.
+          releaseDraft: false
+          prerelease: true
+          generateReleaseNotes: true
           args: --target aarch64-apple-darwin --bundles dmg
+          releaseAssetNamePattern: Mission-Control_[version]_macOS_[arch][ext]
           uploadWorkflowArtifacts: true
           workflowArtifactNamePattern: Mission-Control_[version]_macOS_[arch]_[bundle]
+          uploadUpdaterJson: false
+          uploadUpdaterSignatures: false
+      - name: Add the release link to the workflow summary
+        env:
+          RELEASE_URL: ${{ steps.release.outputs.releaseHtmlUrl }}
+        run: |
+          echo "### Mission Control macOS beta" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download this release]($RELEASE_URL)" >> "$GITHUB_STEP_SUMMARY"
