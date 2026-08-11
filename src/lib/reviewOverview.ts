@@ -139,10 +139,7 @@ function reviewSignal(entry: PullRequestInboxEntry): OverviewSignal {
 
 function mergeSignal(entry: PullRequestInboxEntry): OverviewSignal {
   const status = entry.pullRequest.mergeStateStatus;
-  const presentation: Record<
-    typeof status,
-    Pick<OverviewSignal, 'value' | 'detail' | 'tone'>
-  > = {
+  const presentation: Record<typeof status, Pick<OverviewSignal, 'value' | 'detail' | 'tone'>> = {
     CLEAN: {
       value: 'Ready',
       detail: 'GitHub reports that the pull request can merge cleanly.',

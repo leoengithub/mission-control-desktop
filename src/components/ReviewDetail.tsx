@@ -18,11 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from './Icon';
 import { ReasonPill, StatusPill } from './StatusMark';
 import { TerminalPanel } from './TerminalPanel';
@@ -43,41 +39,40 @@ export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetai
   const openThreads =
     detail?.threads.filter((thread) => !thread.resolved && !thread.outdated) ?? [];
   const failedChecks = detail?.checks.filter((check) => checkTone(check) === 'danger').length ?? 0;
-  const copilotKey = `copilot:${pullRequest.id}`;
   const overviewSignals = buildOverviewSignals(entry, detail?.checks ?? [], openThreads.length);
 
   return (
     <article className="min-h-full bg-transparent">
-      <header className="flex items-start justify-between gap-4 border-b border-hairline bg-surface px-5 py-4 max-[1120px]:flex-col max-[980px]:px-4">
+      <header className="flex items-start justify-between gap-5 border-b border-hairline bg-surface px-5 py-3.5 max-[980px]:px-4">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-secondary">
             {entry.primaryReason ? (
               <ReasonPill reason={entry.primaryReason} />
             ) : (
               <StatusPill tone="success" label="No active escalation" />
             )}
             {pullRequest.draft ? <StatusPill tone="neutral" label="Draft" /> : null}
-            <span>
+            <span className="inline-flex h-[26px] items-center gap-1.5 rounded-md bg-surface-muted px-2.5 font-mono text-ink-secondary">
+              <Icon name="branch" size={13} />
+              {pullRequest.headRef} → {pullRequest.baseRef}
+            </span>
+            <span className="inline-flex h-[26px] items-center rounded-md bg-surface-muted px-2.5 font-mono text-ink-secondary">
               {pullRequest.repository} #{pullRequest.number}
             </span>
           </div>
-          <h2 className="my-2 max-w-[44ch] text-[1.35rem] leading-[1.2] font-[670] tracking-[-0.025em] text-balance">
+          <h2 className="mt-2 mb-1.5 max-w-[48ch] text-[1.35rem] leading-[1.2] font-[670] tracking-[-0.025em] text-balance">
             {pullRequest.title}
           </h2>
-          <div className="flex flex-wrap gap-3 text-xs text-ink-secondary">
-            <span className="inline-flex items-center gap-[5px]">
-              <Icon name="branch" size={14} />
-              {pullRequest.headRef} → {pullRequest.baseRef}
-            </span>
+          <div className="flex flex-wrap gap-3 text-xs text-ink-muted">
             <span>Authored by @{pullRequest.authorLogin}</span>
             <span>Updated {formatRelativeTime(pullRequest.updatedAt)}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 max-[980px]:items-stretch">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
-            className="text-ink-secondary"
+            className="h-8 px-2.5 text-ink-secondary hover:bg-surface-muted hover:text-ink"
             variant="ghost"
-            size="lg"
+            size="sm"
             onClick={() => onOpenUrl(pullRequest.url)}
           >
             Open on GitHub
@@ -102,23 +97,13 @@ export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetai
           </button>
         </div>
       ) : null}
-      {workflow.actionErrors[copilotKey] ? (
-        <div
-          className="flex items-center gap-2 border-b border-danger/30 bg-danger-soft px-5 py-2.5 text-xs text-danger-deep max-[980px]:px-4"
-          role="alert"
-        >
-          <Icon name="alert" size={15} />
-          <span>{workflow.actionErrors[copilotKey]}</span>
-        </div>
-      ) : null}
-
       <Tabs
         className="gap-0"
         value={tab}
         onValueChange={(value) => setTab(value as ReviewDetailTab)}
       >
         <TabsList
-          className="h-12 w-full justify-start gap-1 rounded-none border-b border-hairline bg-transparent px-4 py-0"
+          className="h-11 w-full justify-start gap-1 rounded-none border-b border-hairline bg-surface px-5 py-0 max-[980px]:px-4"
           variant="line"
           aria-label="Pull request detail sections"
         >
@@ -137,11 +122,8 @@ export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetai
           <OverviewView
             entry={entry}
             signals={overviewSignals}
-            threads={detail?.threads ?? []}
             detailLoading={workflow.detailLoading && !detail}
-            copilotBusy={workflow.actionStates[copilotKey] === 'running'}
             onChangeTab={setTab}
-            onRequestCopilot={() => void workflow.requestCopilotReview()}
           />
         </TabsContent>
         <TabsContent value="threads" className="m-0 px-5 py-5 max-[980px]:px-4">
@@ -192,7 +174,7 @@ function DetailTabTrigger({
   alertCount?: number;
 }) {
   return (
-    <TabsTrigger className="h-full flex-none px-3 text-xs font-semibold" value={value}>
+    <TabsTrigger className="h-full flex-none px-2.5 text-xs font-semibold" value={value}>
       <span>{label}</span>
       {count !== undefined ? (
         <span
@@ -239,33 +221,17 @@ function LocalAgentSelect({ workflow }: { workflow: ReviewWorkflowModel }) {
 function OverviewView({
   entry,
   signals,
-  threads,
   detailLoading,
-  copilotBusy,
   onChangeTab,
-  onRequestCopilot,
 }: {
   entry: PullRequestInboxEntry;
   signals: OverviewSignal[];
-  threads: ReviewThread[];
   detailLoading: boolean;
-  copilotBusy: boolean;
   onChangeTab(tab: ReviewDetailTab): void;
-  onRequestCopilot(): void;
 }) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const { pullRequest } = entry;
   const canExpandDescription = pullRequest.bodyText.length > 360;
-  const automatedComments = threads.flatMap((thread) =>
-    thread.comments
-      .filter((comment) => comment.isBot)
-      .map((comment) => ({
-        ...comment,
-        location: thread.path
-          ? `${thread.path}${thread.line ? `:${thread.line}` : ''}`
-          : 'General review comment',
-      })),
-  );
 
   return (
     <div className="px-5 pb-8 max-[980px]:px-4">
@@ -309,61 +275,7 @@ function OverviewView({
         </dl>
       </section>
 
-      <section className="border-b border-hairline py-5" aria-labelledby="automated-review-title">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <span className="text-xs font-semibold tracking-[0.04em] text-ink-muted uppercase">
-              Review activity
-            </span>
-            <h3 className="mt-1.5 mb-0 text-base font-semibold" id="automated-review-title">
-              Automated review comments
-            </h3>
-          </div>
-          <Button variant="outline" disabled={copilotBusy} onClick={onRequestCopilot}>
-            <Icon name="spark" />
-            {copilotBusy ? 'Requesting…' : 'Request Copilot review'}
-          </Button>
-        </div>
-        {detailLoading ? (
-          <DetailSkeleton />
-        ) : automatedComments.length > 0 ? (
-          <div className="overflow-hidden rounded-md border border-hairline bg-surface-raised">
-            {automatedComments.slice(0, 3).map((comment) => (
-              <article
-                className="grid gap-2 border-t border-hairline px-4 py-3.5 first:border-t-0"
-                key={comment.id}
-              >
-                <header className="flex min-w-0 items-center gap-2 text-xs text-ink-muted">
-                  <Icon name="spark" size={13} />
-                  <strong className="text-ink-secondary">@{comment.authorLogin}</strong>
-                  <code
-                    className="ml-auto max-w-[48%] overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap"
-                    title={comment.location}
-                  >
-                    {comment.location}
-                  </code>
-                  <time>{formatRelativeTime(comment.updatedAt)}</time>
-                </header>
-                <p className="m-0 line-clamp-3 text-sm leading-6 text-ink-secondary">
-                  {comment.body}
-                </p>
-              </article>
-            ))}
-            <footer className="flex justify-end border-t border-hairline px-4 py-2.5">
-              <Button variant="ghost" size="sm" onClick={() => onChangeTab('threads')}>
-                View in review threads <Icon name="arrow-right" size={13} />
-              </Button>
-            </footer>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 border-t border-hairline py-4 text-sm text-ink-muted">
-            <Icon name="info" size={15} />
-            No automated review comments are cached for this pull request.
-          </div>
-        )}
-      </section>
-
-      <section className="border-b border-hairline py-5" aria-labelledby="readiness-title">
+      <section className="py-5" aria-labelledby="readiness-title">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <span className="text-xs font-semibold tracking-[0.04em] text-ink-muted uppercase">
@@ -399,7 +311,6 @@ function OverviewView({
           </div>
         )}
       </section>
-
     </div>
   );
 }
@@ -499,7 +410,7 @@ function ThreadsView({
     return <ReviewClearState attentionCount={attentionCount} />;
   }
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {active.length > 0 ? (
         <div className="flex justify-end">
           <LocalAgentSelect workflow={workflow} />
@@ -507,7 +418,7 @@ function ThreadsView({
       ) : null}
       {active.length > 0 ? (
         <section
-          className="overflow-hidden rounded-md border border-hairline bg-surface-raised [&>article+article]:border-t [&>article+article]:border-hairline"
+          className="border-y border-hairline [&>article+article]:border-t [&>article+article]:border-hairline"
           aria-label="Open review threads"
         >
           {active.map((thread) => (
@@ -516,7 +427,7 @@ function ThreadsView({
         </section>
       ) : null}
       {resolved.length > 0 ? (
-        <details className="text-ink-secondary [&[open]>summary]:mb-3 [&[open]>div]:overflow-hidden [&[open]>div]:rounded-md [&[open]>div]:border [&[open]>div]:border-hairline [&[open]>div>article+article]:border-t [&[open]>div>article+article]:border-hairline">
+        <details className="text-ink-secondary [&[open]>summary]:mb-3 [&[open]>div]:border-y [&[open]>div]:border-hairline [&[open]>div>article+article]:border-t [&[open]>div>article+article]:border-hairline">
           <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold">
             <Icon name="check" size={14} />
             {resolved.length} resolved or outdated thread{resolved.length === 1 ? '' : 's'}
@@ -545,11 +456,11 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
   return (
     <article
       className={cn(
-        'overflow-hidden bg-surface-raised',
-        (thread.resolved || thread.outdated) && 'bg-surface opacity-[0.78]',
+        'overflow-hidden bg-transparent',
+        (thread.resolved || thread.outdated) && 'opacity-[0.78]',
       )}
     >
-      <header className="flex items-center justify-between gap-3 border-b border-hairline bg-surface-muted/50 px-4 py-2.5">
+      <header className="flex items-center justify-between gap-3 border-b border-hairline px-1 py-2.5">
         <div className="flex items-center gap-3">
           <span
             className={cn(
@@ -576,7 +487,7 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
       <div className="flex flex-col">
         {thread.comments.map((comment) => (
           <section
-            className="border-t border-hairline px-4 py-3.5 first:border-t-0"
+            className="border-t border-hairline px-1 py-3.5 first:border-t-0"
             key={comment.id}
           >
             <header className="mb-3 flex items-center gap-2">
@@ -596,7 +507,7 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
               </time>
             </header>
             {comment.diffHunk ? (
-              <pre className="mb-3 overflow-hidden border-l-2 border-hairline-strong bg-surface-muted px-3 py-2 font-mono text-xs text-ellipsis whitespace-nowrap text-ink-secondary">
+              <pre className="mb-3 overflow-hidden rounded-md border border-hairline bg-surface-muted px-3 py-2 font-mono text-xs text-ellipsis whitespace-nowrap text-ink-secondary">
                 {comment.diffHunk}
               </pre>
             ) : null}
@@ -607,7 +518,7 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
         ))}
       </div>
       {!thread.resolved && !thread.outdated ? (
-        <footer className="flex items-center justify-between gap-2 border-t border-hairline px-4 py-2.5 max-[980px]:flex-col max-[980px]:items-stretch">
+        <footer className="flex items-center justify-between gap-2 border-t border-hairline px-1 py-2.5 max-[980px]:flex-col max-[980px]:items-stretch">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -632,10 +543,7 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
         </footer>
       ) : null}
       {workflow.actionErrors[key] ? (
-        <p
-          className="m-0 flex items-start gap-1.5 px-4 pb-3 text-xs text-danger-deep"
-          role="alert"
-        >
+        <p className="m-0 flex items-start gap-1.5 px-1 pb-3 text-xs text-danger-deep" role="alert">
           <Icon name="alert" size={13} /> {workflow.actionErrors[key]}
         </p>
       ) : null}
@@ -643,13 +551,7 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
   );
 }
 
-function ChecksView({
-  checks,
-  onOpenUrl,
-}: {
-  checks: CheckRun[];
-  onOpenUrl(url: string): void;
-}) {
+function ChecksView({ checks, onOpenUrl }: { checks: CheckRun[]; onOpenUrl(url: string): void }) {
   const grouped = useMemo(() => {
     const order = ['danger', 'warning', 'success', 'neutral'] as const;
     return order
@@ -677,7 +579,7 @@ function ChecksView({
     );
   }
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div
         className="grid gap-3 border-b border-hairline pb-4"
         aria-label={`${checks.length} check runs`}
@@ -705,19 +607,14 @@ function ChecksView({
           )}
         </div>
       </div>
-      <div className="overflow-hidden rounded-md border border-hairline bg-surface-raised">
+      <div className="border-y border-hairline">
         {grouped.map((group) => (
           <section className="border-t border-hairline first:border-t-0" key={group.tone}>
-            <h3 className="m-0 border-b border-hairline bg-surface-muted/50 px-4 py-2.5 text-sm text-ink">
+            <h3 className="m-0 border-b border-hairline px-1 py-2.5 text-sm font-semibold text-ink">
               {checkGroupLabel(group.tone, group.checks.length)}
             </h3>
             {group.checks.map((check) => (
-              <CheckRow
-                check={check}
-                tone={group.tone}
-                onOpenUrl={onOpenUrl}
-                key={check.id}
-              />
+              <CheckRow check={check} tone={group.tone} onOpenUrl={onOpenUrl} key={check.id} />
             ))}
           </section>
         ))}
@@ -737,17 +634,14 @@ function CheckRow({
 }) {
   const detailsUrl = check.detailsUrl;
   const rowClassName = cn(
-    'grid w-full grid-cols-[24px_minmax(0,1fr)_auto_auto_16px] items-center gap-3 border-0 border-t border-hairline bg-transparent px-4 py-3 text-left first:border-t-0',
+    'grid w-full grid-cols-[24px_minmax(0,1fr)_auto_auto_16px] items-center gap-3 border-0 border-t border-hairline bg-transparent px-1 py-3 text-left first:border-t-0',
     detailsUrl &&
       'transition-colors hover:bg-surface-muted focus-visible:relative focus-visible:z-[1]',
   );
   const content = (
     <>
       <span className={checkMarkVariants({ tone })}>
-        <Icon
-          name={tone === 'success' ? 'check' : tone === 'danger' ? 'x' : 'clock'}
-          size={13}
-        />
+        <Icon name={tone === 'success' ? 'check' : tone === 'danger' ? 'x' : 'clock'} size={13} />
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
         <strong className="overflow-hidden text-sm text-ellipsis whitespace-nowrap">
@@ -759,11 +653,7 @@ function CheckRow({
       <time className="text-xs whitespace-nowrap text-ink-muted">
         {formatRelativeTime(check.updatedAt)}
       </time>
-      {detailsUrl ? (
-        <Icon className="text-ink-muted" name="arrow-up-right" size={14} />
-      ) : (
-        <span />
-      )}
+      {detailsUrl ? <Icon className="text-ink-muted" name="arrow-up-right" size={14} /> : <span />}
     </>
   );
   const row = detailsUrl ? (
@@ -830,7 +720,7 @@ function RunsView({ runs, workflow }: { runs: AgentRun[]; workflow: ReviewWorkfl
     );
   }
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col border-t border-hairline">
       {runs.map((run) => (
         <article
           className="grid grid-cols-[28px_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-hairline py-3 max-[980px]:grid-cols-[28px_minmax(0,1fr)_auto] max-[980px]:[&>[data-slot=button]]:col-[2/-1] max-[980px]:[&>[data-slot=button]]:justify-self-start"
@@ -860,9 +750,7 @@ function RunsView({ runs, workflow }: { runs: AgentRun[]; workflow: ReviewWorkfl
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <span className="text-xs text-ink-muted">{statusLabel(run.status)}</span>
-            <time className="text-xs text-ink-muted">
-              {formatRelativeTime(run.startedAt)}
-            </time>
+            <time className="text-xs text-ink-muted">{formatRelativeTime(run.startedAt)}</time>
           </div>
           {run.logPath ? (
             <Button variant="outline" onClick={() => workflow.setActiveRun(run)}>

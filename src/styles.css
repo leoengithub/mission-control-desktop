@@ -56,6 +56,9 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 120ms;
   --duration-state: 190ms;
+  --shadow-panel:
+    inset 0 0 2px oklch(28% 0.02 82 / 0.035), 0 1px 2px oklch(28% 0.02 82 / 0.05),
+    0 10px 28px oklch(28% 0.02 82 / 0.08);
   --shadow-float: 0 14px 40px oklch(28% 0.02 128 / 0.12);
   --animate-loading-line: loading-line 900ms var(--ease-out) infinite alternate;
   --animate-shimmer: shimmer 1.35s ease-in-out infinite;
@@ -68,18 +71,18 @@
   text-rendering: optimizeLegibility;
   font-kerning: normal;
 
-  --canvas: oklch(97.7% 0.008 225);
-  --surface: oklch(99.2% 0.005 128);
-  --surface-raised: oklch(99.7% 0.004 128);
-  --surface-muted: oklch(96.1% 0.009 128);
-  --surface-selected: oklch(94.8% 0.024 139);
-  --ink: oklch(23% 0.012 128);
-  --ink-secondary: oklch(48% 0.01 128);
-  --ink-muted: oklch(52% 0.01 128);
-  --hairline: oklch(89.5% 0.008 128);
-  --hairline-strong: oklch(84% 0.009 128);
-  --action: oklch(21% 0.014 128);
-  --action-hover: oklch(28% 0.016 128);
+  --canvas: oklch(97.8% 0.01 82);
+  --surface: oklch(99.2% 0.006 82);
+  --surface-raised: oklch(99.7% 0.004 82);
+  --surface-muted: oklch(96.4% 0.01 82);
+  --surface-selected: oklch(95.8% 0.026 78);
+  --ink: oklch(23% 0.012 82);
+  --ink-secondary: oklch(48% 0.01 82);
+  --ink-muted: oklch(52% 0.01 82);
+  --hairline: oklch(89.5% 0.008 82);
+  --hairline-strong: oklch(84% 0.009 82);
+  --action: oklch(21% 0.014 82);
+  --action-hover: oklch(28% 0.016 82);
   --success: oklch(54% 0.16 143);
   --success-deep: oklch(40% 0.13 143);
   --success-soft: oklch(94% 0.035 143);
@@ -131,9 +134,7 @@ body,
 
 body {
   overflow: hidden;
-  background:
-    radial-gradient(circle at 72% -20%, oklch(91% 0.04 245), transparent 38%),
-    radial-gradient(circle at 24% 110%, oklch(94% 0.035 74), transparent 34%), var(--canvas);
+  background: var(--canvas);
   color: var(--ink);
   font-size: 0.875rem;
   line-height: 1.45;

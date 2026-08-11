@@ -14,13 +14,7 @@ export interface PullRequestInboxEntry {
   primaryReason: AttentionReason | null;
 }
 
-export type InboxDispositionKind =
-  | 'draft'
-  | 'review'
-  | 'thread'
-  | 'blocked'
-  | 'waiting'
-  | 'ready';
+export type InboxDispositionKind = 'draft' | 'review' | 'thread' | 'blocked' | 'waiting' | 'ready';
 
 export interface InboxDisposition {
   kind: InboxDispositionKind;
@@ -124,7 +118,9 @@ export function inboxDisposition(entry: PullRequestInboxEntry): InboxDisposition
     return { kind: 'blocked', label: 'Checks', tone: 'danger' };
   }
   if (primaryReason === 'unresolved_thread') {
-    const threadCount = entry.attention.filter((item) => item.reason === 'unresolved_thread').length;
+    const threadCount = entry.attention.filter(
+      (item) => item.reason === 'unresolved_thread',
+    ).length;
     return {
       kind: 'thread',
       label: `${threadCount} ${threadCount === 1 ? 'thread' : 'threads'}`,

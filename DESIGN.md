@@ -2,18 +2,18 @@
 name: Mission Control Desktop
 description: A calm native attention inbox for pull request review work.
 colors:
-  canvas: 'oklch(97.7% 0.008 225)'
-  surface: 'oklch(99.2% 0.005 128)'
-  surface-raised: 'oklch(99.7% 0.004 128)'
-  surface-muted: 'oklch(96.1% 0.009 128)'
-  surface-selected: 'oklch(94.8% 0.024 139)'
-  ink: 'oklch(23% 0.012 128)'
-  ink-secondary: 'oklch(48% 0.01 128)'
-  ink-muted: 'oklch(52% 0.01 128)'
-  hairline: 'oklch(89.5% 0.008 128)'
-  hairline-strong: 'oklch(84% 0.009 128)'
-  action: 'oklch(21% 0.014 128)'
-  action-hover: 'oklch(28% 0.016 128)'
+  canvas: 'oklch(97.8% 0.010 82)'
+  surface: 'oklch(99.2% 0.006 82)'
+  surface-raised: 'oklch(99.7% 0.004 82)'
+  surface-muted: 'oklch(96.4% 0.010 82)'
+  surface-selected: 'oklch(95.8% 0.026 78)'
+  ink: 'oklch(23% 0.012 82)'
+  ink-secondary: 'oklch(48% 0.010 82)'
+  ink-muted: 'oklch(52% 0.010 82)'
+  hairline: 'oklch(89.5% 0.008 82)'
+  hairline-strong: 'oklch(84% 0.009 82)'
+  action: 'oklch(21% 0.014 82)'
+  action-hover: 'oklch(28% 0.016 82)'
   success: 'oklch(54% 0.16 143)'
   success-deep: 'oklch(40% 0.13 143)'
   success-soft: 'oklch(94% 0.035 143)'
@@ -137,11 +137,11 @@ Motion is responsive but restrained: 120ms for direct press feedback and 190ms f
 - Compact rows paired with a spacious, readable pull request surface
 - Near-white tonal layers separated by 1px hairlines instead of card shadows
 - Status treatment that always combines color, icon, label, count, or shape
-- Cached-data provenance and synchronization state kept visible at all times
+- Synchronization freshness remains visible in the inventory header without adding detail-page chrome
 
 ## Colors
 
-The palette is a cool botanical neutral field with low-chroma green surfaces and deliberate amber, red, and blue signals. The OKLCH values in frontmatter are canonical; Stitch may warn because its validator expects sRGB hex.
+The palette is a warm paper-neutral field with soft cream surfaces and deliberate green, amber, red, and blue signals. The OKLCH values in frontmatter are canonical; Stitch may warn because its validator expects sRGB hex.
 
 ### Primary
 
@@ -159,11 +159,11 @@ The palette is a cool botanical neutral field with low-chroma green surfaces and
 
 ### Neutral
 
-- **Canvas Mist** (`colors.canvas`): The application field. It is intentionally tinted and never pure white.
-- **Working Surface** (`colors.surface`): Headers, list panes, and primary reading boundaries.
+- **Canvas Paper** (`colors.canvas`): The application field. It is intentionally warm and never pure white.
+- **Working Surface** (`colors.surface`): The floating review sheet and controls that need separation from the canvas.
 - **Raised Paper** (`colors.surface-raised`): Inputs and small controls that need one tonal step of separation.
 - **Quiet Fill** (`colors.surface-muted`): Hover, neutral grouping, skeletons, and secondary action surfaces.
-- **Selected Sage** (`colors.surface-selected`): Active pull request rows and active navigation destinations.
+- **Selected Cream** (`colors.surface-selected`): Active pull request rows and active navigation destinations.
 - **Graphite Ink** (`colors.ink`): Primary text. `ink-secondary` carries metadata; `ink-muted` is reserved for nonessential timestamps and provenance.
 - **Hairline Fog** (`colors.hairline`): Pane dividers and surface boundaries. `hairline-strong` is for control outlines.
 
@@ -201,15 +201,16 @@ The palette is a cool botanical neutral field with low-chroma green surfaces and
 
 ## Elevation
 
-The application is flat by default. Depth comes from tonal surfaces, 1px hairlines, persistent pane geometry, and selected fills. The only shadow token is an ambient floating shadow for transient overlays, menus, dragged elements, or future terminal popovers; it is forbidden on ordinary content containers.
+The application is flat by default. Depth comes from tonal surfaces, 1px hairlines, persistent pane geometry, and selected fills. The review detail is the one persistent elevated surface: a white paper sheet floating over the warm canvas. Stronger depth remains reserved for transient overlays.
 
 ### Shadow Vocabulary
 
-- **Floating Ambient** (`0 14px 40px oklch(28% 0.02 128 / 0.12)`): Transient surfaces that physically overlap the workspace. Never use on the inbox, detail surface, onboarding panel, or status chips.
+- **Review Sheet** (`inset 0 0 2px oklch(28% 0.02 82 / 0.035), 0 1px 2px oklch(28% 0.02 82 / 0.05), 0 10px 28px oklch(28% 0.02 82 / 0.08)`): The pull-request detail surface only. An 8px canvas gutter on the top, right, and bottom reveals its near-white border and barely visible inset edge. The left edge meets the inventory directly and sits one layer above it, so the soft shadow creates overlap instead of an empty channel.
+- **Floating Ambient** (`0 14px 40px oklch(28% 0.02 128 / 0.12)`): Transient surfaces that physically overlap the workspace. Never use on the inbox, onboarding panel, or status chips.
 
 ### Named Rules
 
-**The Structural Depth Rule.** If spacing, alignment, a tonal change, and a 1px hairline explain hierarchy, a shadow is forbidden.
+**The Structural Depth Rule.** The review sheet may use its dedicated shadow to establish the master-detail plane. Everywhere else, if spacing, alignment, a tonal change, and a 1px hairline explain hierarchy, a shadow is forbidden.
 
 **The No Nested Cards Rule.** A bordered panel may contain rows and sections, not smaller decorative cards. Separate content with rhythm and hairlines.
 
@@ -233,8 +234,8 @@ Components are refined and restrained: compact dimensions, modest curvature, imm
 ### Cards / Containers
 
 - **Corner Style:** Medium containers use 11px; the single onboarding panel uses 16px.
-- **Background:** Working Surface over Canvas Mist. Selection uses Selected Sage.
-- **Shadow Strategy:** Flat by default; follow the Structural Depth Rule.
+- **Background:** Working Surface over Canvas Paper. Selection uses Selected Cream.
+- **Shadow Strategy:** The right review sheet uses Review Sheet elevation; its internal content remains flat. Follow the Structural Depth Rule everywhere else.
 - **Border:** One Hairline Fog stroke. Strong Hairline is reserved for controls.
 - **Internal Padding:** 16px for toolbars, 24px for panels, and 28–56px responsive gutters for the detail surface.
 
@@ -246,16 +247,16 @@ Components are refined and restrained: compact dimensions, modest curvature, imm
 
 ### Navigation
 
-- **Style:** Reviews are the default workspace. The pull-request inventory footer combines GitHub identity, written monitoring state, and a 34px settings target.
+- **Style:** Reviews are the default workspace. The pull-request inventory sits directly on Canvas Paper; its footer combines GitHub identity and a 34px settings target.
 - **Behavior:** Settings replace the workspace and provide an explicit Back to reviews action. Navigation never animates the workspace layout.
 - **Settings:** A 190–220px tinted section rail sits inside the settings workspace at wide desktop sizes and collapses below the minimum comfortable split width.
 
 ### Attention Inbox
 
-- **Row:** A 66px minimum-height button with avatar, title/repository metadata, icon-plus-label reason, and relative time.
-- **Selection:** Selected Sage fill plus `aria-pressed`; selection updates the adjacent detail without navigation.
-- **Grouping:** Needs Attention uses Amber soft fill and a clock icon. Other Open uses Quiet Fill and a branch icon. Each heading includes a written label and count.
-- **Detail:** Lead with the reason, repository identity, pull request title, SHA/author/freshness metadata, and one explicit GitHub action. Attention rows show icon, label, explanation, source, and timestamp.
+- **Row:** A 56–60px continuous-list button with a semantic pull-request icon, number, title, author, relative time, factual diff totals, and a compact written status.
+- **Selection:** Selected Cream fills the entire row and pairs with `aria-pressed`; selection updates the adjacent detail without navigation.
+- **Filtering:** Keep the flat inventory continuous. Search and the Needs me, Ready, Drafts, and All quick filters replace persistent status group headers.
+- **Detail:** Lead with factual status, branch, repository identity, pull request title, author/freshness metadata, and a quiet GitHub escape action. Evidence remains organized as Review threads, Checks, Agent runs, then Overview.
 
 ### Activation Panel
 
@@ -271,7 +272,7 @@ Components are refined and restrained: compact dimensions, modest curvature, imm
 - **Do** preserve the 320–390px inventory pane, its account footer, and the adjacent detail surface when context switching would otherwise be required.
 - **Do** keep pull request rows compact and make selection visible through fill, type weight, position, and `aria-pressed`.
 - **Do** pair every semantic color with an icon, written label, count, shape, or pattern.
-- **Do** show cache provenance and synchronization time; trust depends on knowing how fresh the state is.
+- **Do** show synchronization freshness in the inventory header; do not duplicate cache provenance in every detail view.
 - **Do** use 120ms press feedback and 190ms ease-out state transitions, with reduced-motion overrides.
 - **Do** preserve readable onboarding copy at the 960px minimum desktop width.
 

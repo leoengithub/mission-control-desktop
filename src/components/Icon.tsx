@@ -76,11 +76,6 @@ interface IconProps {
 export function Icon({ name, size = 16, strokeWidth = 1.8, className }: IconProps) {
   const LucideIcon = icons[name];
   return (
-    <LucideIcon
-      aria-hidden="true"
-      className={className}
-      size={size}
-      strokeWidth={strokeWidth}
-    />
+    <LucideIcon aria-hidden="true" className={className} size={size} strokeWidth={strokeWidth} />
   );
 }

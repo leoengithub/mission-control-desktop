@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AttentionItem, CachedPullRequest } from '../contracts';
-import {
-  buildInboxEntries,
-  formatRelativeTime,
-  inboxDisposition,
-  latestSyncTime,
-} from './inbox';
+import { buildInboxEntries, formatRelativeTime, inboxDisposition, latestSyncTime } from './inbox';
 
 const pullRequest = (id: string, minutesAgo: number): CachedPullRequest => ({
   id,
@@ -57,10 +52,7 @@ describe('buildInboxEntries', () => {
       mergeStateStatus: 'CLEAN' as const,
       reviewDecision: 'APPROVED' as const,
     };
-    const [entry] = buildInboxEntries(
-      [readyPullRequest],
-      [attention('pr-3', 'unresolved_thread')],
-    );
+    const [entry] = buildInboxEntries([readyPullRequest], [attention('pr-3', 'unresolved_thread')]);
 
     expect(entry && inboxDisposition(entry)).toMatchObject({
       kind: 'thread',

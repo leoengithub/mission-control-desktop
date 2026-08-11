@@ -141,12 +141,9 @@ export function InboxWorkspace({
       ) : null}
 
       <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(330px,370px)_minmax(0,1fr)] max-[1120px]:grid-cols-[340px_minmax(0,1fr)] max-[980px]:grid-cols-[320px_minmax(0,1fr)]">
-        <aside
-          className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-hairline bg-surface"
-          aria-label="Pull requests"
-        >
+        <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Pull requests">
           <header
-            className="flex min-h-11 shrink-0 basis-11 items-center justify-between gap-2 border-b border-hairline bg-surface pr-2.5 pl-4"
+            className="flex min-h-11 shrink-0 basis-11 items-center justify-between gap-2 border-b border-hairline pr-2.5 pl-4"
             data-tauri-drag-region
           >
             <h1 className="m-0 overflow-hidden text-[0.88rem] font-semibold tracking-[-0.015em] text-ellipsis whitespace-nowrap">
@@ -176,7 +173,7 @@ export function InboxWorkspace({
             </div>
           </header>
           <div className="min-h-0 flex-1 overflow-auto">
-            <div className="sticky top-0 z-[2] grid gap-2 border-b border-hairline bg-surface px-4 py-3">
+            <div className="sticky top-0 z-[2] grid gap-2 border-b border-hairline bg-canvas px-4 py-3">
               <label className="flex min-w-0 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
                 <span className="sr-only">Search pull requests</span>
                 <Icon name="search" size={16} />
@@ -198,8 +195,8 @@ export function InboxWorkspace({
                   return (
                     <button
                       className={cn(
-                        'flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-sm border-0 bg-transparent px-1 py-1.5 text-xs font-semibold text-ink-secondary transition-[background,color,box-shadow] duration-state ease-out hover:text-ink',
-                        active && 'bg-surface-raised text-ink shadow-[0_1px_2px_oklch(20%_0.02_250/0.08)]',
+                        'flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-sm border border-transparent bg-transparent px-1 py-1.5 text-xs font-semibold text-ink-secondary transition-[background,color,border-color] duration-state ease-out hover:text-ink',
+                        active && 'border border-hairline bg-surface-raised text-ink',
                       )}
                       key={filter.id}
                       type="button"
@@ -289,7 +286,7 @@ export function InboxWorkspace({
         </aside>
 
         <section
-          className="min-h-0 min-w-0 overflow-auto bg-[linear-gradient(145deg,oklch(99%_0.006_245/0.76),transparent_46%),var(--canvas)]"
+          className="relative z-[1] my-2 mr-2 min-h-0 min-w-0 overflow-auto rounded-lg border border-surface-raised bg-surface shadow-panel"
           aria-label="Pull request details"
         >
           {selectedEntry ? (
@@ -366,29 +363,40 @@ function PullRequestRow({
   return (
     <button
       className={cn(
-        'grid min-h-16 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-2.5 border-0 border-b border-hairline bg-transparent px-4 py-2.5 text-left transition-[background,transform] duration-state ease-out last:border-b-0 hover:bg-surface-muted active:scale-[0.995]',
+        'grid min-h-[60px] w-full cursor-pointer grid-cols-[20px_minmax(0,1fr)] items-center gap-2.5 border-0 border-b border-hairline bg-transparent px-3.5 py-2 text-left transition-[background,transform] duration-state ease-out last:border-b-0 hover:bg-surface-muted active:scale-[0.995]',
         selected && 'bg-surface-selected hover:bg-surface-selected',
       )}
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      aria-label={`#${pullRequest.number} ${pullRequest.title}, ${disposition.label}`}
+      aria-label={`#${pullRequest.number} ${pullRequest.title}, ${pullRequest.additions} additions, ${pullRequest.deletions} deletions, ${disposition.label}`}
     >
       <span className={dispositionMarkVariants({ tone: disposition.tone })} aria-hidden="true">
         <Icon name="pull-request" size={16} strokeWidth={2} />
       </span>
-      <span className="grid min-w-0 gap-1">
-        <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="shrink-0 text-xs font-medium text-ink-muted [font-variant-numeric:tabular-nums]">
+      <span className="grid min-w-0 gap-1.5">
+        <span className="flex min-w-0 items-baseline gap-1.5 leading-tight">
+          <span className="shrink-0 text-xs font-semibold text-ink-muted [font-variant-numeric:tabular-nums]">
             #{pullRequest.number}
           </span>
-          <span className="overflow-hidden text-[0.8125rem] font-semibold text-ellipsis whitespace-nowrap">
+          <span className="overflow-hidden text-[0.8125rem] font-semibold tracking-[-0.008em] text-ellipsis whitespace-nowrap text-ink">
             {pullRequest.title}
           </span>
         </span>
-        <span className="flex min-w-0 items-center gap-2 text-xs text-ink-muted">
-          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+        <span className="flex min-w-0 items-center gap-1.5 text-xs leading-none text-ink-muted">
+          <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
             @{pullRequest.authorLogin} · {formatRelativeTime(pullRequest.updatedAt)}
+          </span>
+          <span
+            className="flex shrink-0 items-center gap-1.5 font-semibold [font-variant-numeric:tabular-nums]"
+            aria-hidden="true"
+          >
+            <span className="text-success-deep" aria-hidden="true">
+              +{pullRequest.additions}
+            </span>
+            <span className="text-danger-deep" aria-hidden="true">
+              −{pullRequest.deletions}
+            </span>
           </span>
           <span className={dispositionLabelVariants({ tone: disposition.tone })}>
             {disposition.label}
@@ -460,17 +468,14 @@ function DetailPlaceholder() {
   );
 }
 
-function matchesQuickFilter(
-  entry: PullRequestInboxEntry,
-  filter: InboxQuickFilter,
-): boolean {
+function matchesQuickFilter(entry: PullRequestInboxEntry, filter: InboxQuickFilter): boolean {
   if (filter === 'needs_me') return entry.attention.length > 0;
   if (filter === 'ready') return inboxDisposition(entry).kind === 'ready';
   if (filter === 'drafts') return entry.pullRequest.draft;
   return true;
 }
 
-const dispositionMarkVariants = cva('grid size-6 shrink-0 place-items-center', {
+const dispositionMarkVariants = cva('grid size-5 shrink-0 place-items-center', {
   variants: {
     tone: {
       success: 'text-success-deep',
@@ -483,7 +488,7 @@ const dispositionMarkVariants = cva('grid size-6 shrink-0 place-items-center', {
 });
 
 const dispositionLabelVariants = cva(
-  'ml-auto inline-flex min-h-5 shrink-0 items-center whitespace-nowrap rounded-full border px-2 text-xs font-semibold leading-none',
+  'inline-flex min-h-[18px] shrink-0 items-center whitespace-nowrap rounded-full border px-1.5 text-xs font-semibold leading-none',
   {
     variants: {
       tone: {
