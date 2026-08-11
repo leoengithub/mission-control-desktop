@@ -21,6 +21,10 @@ const pullRequest = (id: string, minutesAgo: number): CachedPullRequest => ({
   reviewRequested: false,
   mergeStateStatus: 'UNKNOWN',
   reviewDecision: null,
+  bodyText: 'A factual pull request description.',
+  changedFiles: 3,
+  additions: 24,
+  deletions: 7,
   updatedAt: new Date(Date.UTC(2026, 7, 3, 12, -minutesAgo)).toISOString(),
   lastSyncedAt: new Date(Date.UTC(2026, 7, 3, 12, -minutesAgo)).toISOString(),
 });

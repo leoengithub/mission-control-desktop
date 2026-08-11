@@ -153,7 +153,7 @@ export function InboxWorkspace({
               Mission Control
             </h1>
             <div
-              className="flex shrink-0 items-center gap-[5px] text-[0.68rem] text-ink-secondary"
+              className="flex shrink-0 items-center gap-1.5 text-xs text-ink-secondary"
               aria-live="polite"
             >
               <span
@@ -198,7 +198,7 @@ export function InboxWorkspace({
                   return (
                     <button
                       className={cn(
-                        'flex min-w-0 cursor-pointer items-center justify-center gap-0.5 rounded-sm border-0 bg-transparent px-1 py-1.5 text-[0.68rem] font-semibold text-ink-secondary transition-[background,color,box-shadow] duration-state ease-out hover:text-ink',
+                        'flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-sm border-0 bg-transparent px-1 py-1.5 text-xs font-semibold text-ink-secondary transition-[background,color,box-shadow] duration-state ease-out hover:text-ink',
                         active && 'bg-surface-raised text-ink shadow-[0_1px_2px_oklch(20%_0.02_250/0.08)]',
                       )}
                       key={filter.id}
@@ -206,10 +206,8 @@ export function InboxWorkspace({
                       aria-pressed={active}
                       onClick={() => setQuickFilter(filter.id)}
                     >
-                      <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                        {filter.label}
-                      </span>
-                      <span className="shrink-0 text-[0.64rem] text-ink-muted [font-variant-numeric:tabular-nums]">
+                      <span className="whitespace-nowrap">{filter.label}</span>
+                      <span className="shrink-0 text-xs text-ink-muted [font-variant-numeric:tabular-nums]">
                         {filterCounts[filter.id]}
                       </span>
                     </button>
@@ -249,7 +247,7 @@ export function InboxWorkspace({
             ) : null}
 
             {loaded && filteredEntries.length > 0 ? (
-              <div className="grid gap-px p-2">
+              <div className="flex flex-col">
                 {filteredEntries.map((entry) => (
                   <PullRequestRow
                     key={entry.pullRequest.id}
@@ -300,7 +298,7 @@ export function InboxWorkspace({
               client={client}
               entry={selectedEntry}
               workflow={reviewWorkflow}
-              onOpen={() => onOpenUrl(selectedEntry.pullRequest.url)}
+              onOpenUrl={onOpenUrl}
             />
           ) : (
             <DetailPlaceholder />
@@ -368,7 +366,7 @@ function PullRequestRow({
   return (
     <button
       className={cn(
-        'grid min-h-[62px] w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 rounded-md border-0 bg-transparent px-2.5 py-2 text-left transition-[background,transform] duration-state ease-out hover:bg-surface-muted active:scale-[0.995]',
+        'grid min-h-16 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-2.5 border-0 border-b border-hairline bg-transparent px-4 py-2.5 text-left transition-[background,transform] duration-state ease-out last:border-b-0 hover:bg-surface-muted active:scale-[0.995]',
         selected && 'bg-surface-selected hover:bg-surface-selected',
       )}
       type="button"
@@ -379,21 +377,23 @@ function PullRequestRow({
       <span className={dispositionMarkVariants({ tone: disposition.tone })} aria-hidden="true">
         <Icon name="pull-request" size={16} strokeWidth={2} />
       </span>
-      <span className="grid min-w-0 gap-[3px]">
+      <span className="grid min-w-0 gap-1">
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="shrink-0 text-[0.76rem] font-medium text-ink-muted [font-variant-numeric:tabular-nums]">
+          <span className="shrink-0 text-xs font-medium text-ink-muted [font-variant-numeric:tabular-nums]">
             #{pullRequest.number}
           </span>
           <span className="overflow-hidden text-[0.8125rem] font-semibold text-ellipsis whitespace-nowrap">
             {pullRequest.title}
           </span>
         </span>
-        <span className="overflow-hidden text-[0.72rem] text-ellipsis whitespace-nowrap text-ink-muted">
-          @{pullRequest.authorLogin} · {formatRelativeTime(pullRequest.updatedAt)}
+        <span className="flex min-w-0 items-center gap-2 text-xs text-ink-muted">
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            @{pullRequest.authorLogin} · {formatRelativeTime(pullRequest.updatedAt)}
+          </span>
+          <span className={dispositionLabelVariants({ tone: disposition.tone })}>
+            {disposition.label}
+          </span>
         </span>
-      </span>
-      <span className={dispositionLabelVariants({ tone: disposition.tone })}>
-        {disposition.label}
       </span>
     </button>
   );
@@ -483,7 +483,7 @@ const dispositionMarkVariants = cva('grid size-6 shrink-0 place-items-center', {
 });
 
 const dispositionLabelVariants = cva(
-  'inline-flex min-h-5 shrink-0 items-center whitespace-nowrap rounded-full border px-2 text-[0.64rem] font-semibold leading-none',
+  'ml-auto inline-flex min-h-5 shrink-0 items-center whitespace-nowrap rounded-full border px-2 text-xs font-semibold leading-none',
   {
     variants: {
       tone: {

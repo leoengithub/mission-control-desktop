@@ -127,6 +127,10 @@ export interface CachedPullRequest {
     | 'UNKNOWN'
     | 'UNSTABLE';
   reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null;
+  bodyText: string;
+  changedFiles: number;
+  additions: number;
+  deletions: number;
   updatedAt: string;
   lastSyncedAt: string;
 }

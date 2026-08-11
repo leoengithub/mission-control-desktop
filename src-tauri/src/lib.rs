@@ -41,7 +41,7 @@ use tauri_plugin_autostart::ManagerExt as AutostartManagerExt;
 use tauri_plugin_notification::{NotificationExt, PermissionState};
 use workspace::LocalRepositoryAttachment;
 
-const DATABASE_SCHEMA_VERSION: u32 = 3;
+const DATABASE_SCHEMA_VERSION: u32 = 5;
 const INBOX_SYNC_EVENT: &str = "mission-control://inbox-sync";
 const MAIN_TRAY_ID: &str = "main-tray";
 

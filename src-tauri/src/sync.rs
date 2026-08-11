@@ -24,6 +24,7 @@ query PullRequestInbox($query: String!, $after: String) {
     nodes {
       ... on PullRequest {
         id number title url isDraft state mergeStateStatus reviewDecision
+        bodyText changedFiles additions deletions
         updatedAt headRefName headRefOid baseRefName
         author { login }
         repository {
@@ -123,6 +124,10 @@ pub struct CachedPullRequest {
     pub review_requested: bool,
     pub merge_state_status: String,
     pub review_decision: Option<String>,
+    pub body_text: String,
+    pub changed_files: i64,
+    pub additions: i64,
+    pub deletions: i64,
     pub updated_at: String,
     pub last_synced_at: String,
 }
@@ -509,7 +514,8 @@ pub fn list_cached_pull_requests(
         let mut statement = connection.prepare(
             "SELECT p.id, r.full_name, p.number, p.title, p.url, p.author_login, p.head_ref, \
              p.head_sha, p.base_ref, p.draft, p.review_requested, p.merge_state_status, \
-             p.review_decision, p.updated_at, p.last_synced_at \
+             p.review_decision, p.body_text, p.changed_files, p.additions, p.deletions, \
+             p.updated_at, p.last_synced_at \
              FROM pull_requests p JOIN repositories r ON r.id = p.repository_id \
              WHERE p.in_scope = 1 AND p.state = 'OPEN' AND r.accessible = 1 \
              AND r.monitored = 1 ORDER BY p.updated_at DESC",
@@ -530,8 +536,12 @@ pub fn list_cached_pull_requests(
                     review_requested: row.get(10)?,
                     merge_state_status: row.get(11)?,
                     review_decision: row.get(12)?,
-                    updated_at: row.get(13)?,
-                    last_synced_at: row.get(14)?,
+                    body_text: row.get(13)?,
+                    changed_files: row.get(14)?,
+                    additions: row.get(15)?,
+                    deletions: row.get(16)?,
+                    updated_at: row.get(17)?,
+                    last_synced_at: row.get(18)?,
                 })
             })?
             .collect()
@@ -640,19 +650,24 @@ fn persist_discovery(
             transaction.execute(
                 "INSERT INTO pull_requests (id, repository_id, number, title, url, author_login, \
                  head_ref, head_sha, base_ref, draft, review_requested, merge_state_status, \
-                 review_decision, in_scope, state, updated_at, last_synced_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 1, ?14, ?15, ?16) \
+                 review_decision, body_text, changed_files, additions, deletions, in_scope, state, \
+                 updated_at, last_synced_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, 1, ?18, ?19, ?20) \
                  ON CONFLICT(id) DO UPDATE SET repository_id=excluded.repository_id, number=excluded.number, \
                  title=excluded.title, url=excluded.url, author_login=excluded.author_login, \
                  head_ref=excluded.head_ref, head_sha=excluded.head_sha, base_ref=excluded.base_ref, \
                  draft=excluded.draft, review_requested=excluded.review_requested, \
-                 merge_state_status=excluded.merge_state_status, review_decision=excluded.review_decision, in_scope=1, \
+                 merge_state_status=excluded.merge_state_status, review_decision=excluded.review_decision, \
+                 body_text=excluded.body_text, changed_files=excluded.changed_files, \
+                 additions=excluded.additions, deletions=excluded.deletions, in_scope=1, \
                  state=excluded.state, updated_at=excluded.updated_at, last_synced_at=excluded.last_synced_at",
                 rusqlite::params![pull_request.id, repository.id, pull_request.number, pull_request.title,
                     pull_request.url, pull_request.author.as_ref().map_or("ghost", |author| author.login.as_str()),
                     pull_request.head_ref_name, pull_request.head_ref_oid, pull_request.base_ref_name,
                     pull_request.is_draft, requested_ids.contains(&pull_request.id),
-                    pull_request.merge_state_status, pull_request.review_decision, pull_request.state,
+                    pull_request.merge_state_status, pull_request.review_decision,
+                    pull_request.body_text, pull_request.changed_files, pull_request.additions,
+                    pull_request.deletions, pull_request.state,
                     pull_request.updated_at, synced_at],
             )?;
         }
@@ -849,6 +864,10 @@ struct SearchPullRequest {
     state: String,
     merge_state_status: String,
     review_decision: Option<String>,
+    body_text: String,
+    changed_files: i64,
+    additions: i64,
+    deletions: i64,
     updated_at: String,
     head_ref_name: String,
     head_ref_oid: String,
@@ -1183,7 +1202,119 @@ fn format_required_checks_summary(names: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::tempdir;
+
     use super::*;
+
+    #[test]
+    fn search_pull_request_deserializes_factual_overview_fields() {
+        let pull_request: SearchPullRequest = serde_json::from_value(json!({
+            "id": "pr-1",
+            "number": 1,
+            "title": "Review factual overview",
+            "url": "https://github.com/owner/repo/pull/1",
+            "isDraft": false,
+            "state": "OPEN",
+            "mergeStateStatus": "CLEAN",
+            "reviewDecision": "APPROVED",
+            "bodyText": "Explain the change.",
+            "changedFiles": 4,
+            "additions": 42,
+            "deletions": 7,
+            "updatedAt": "2026-08-11T08:00:00Z",
+            "headRefName": "feature/overview",
+            "headRefOid": "abcdef0",
+            "baseRefName": "main",
+            "author": { "login": "owner" },
+            "repository": {
+                "id": "repo-1",
+                "nameWithOwner": "owner/repo",
+                "isPrivate": false,
+                "defaultBranchRef": { "name": "main" }
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(pull_request.body_text, "Explain the change.");
+        assert_eq!(pull_request.changed_files, 4);
+        assert_eq!(pull_request.additions, 42);
+        assert_eq!(pull_request.deletions, 7);
+    }
+
+    #[test]
+    fn cached_pull_request_serializes_factual_overview_fields() {
+        let value = serde_json::to_value(CachedPullRequest {
+            id: "pr-1".into(),
+            repository: "owner/repo".into(),
+            number: 1,
+            title: "Review factual overview".into(),
+            url: "https://github.com/owner/repo/pull/1".into(),
+            author_login: "owner".into(),
+            head_ref: "feature/overview".into(),
+            head_sha: "abcdef0".into(),
+            base_ref: "main".into(),
+            draft: false,
+            review_requested: false,
+            merge_state_status: "CLEAN".into(),
+            review_decision: Some("APPROVED".into()),
+            body_text: "Explain the change.".into(),
+            changed_files: 4,
+            additions: 42,
+            deletions: 7,
+            updated_at: "2026-08-11T08:00:00Z".into(),
+            last_synced_at: "2026-08-11T08:01:00Z".into(),
+        })
+        .unwrap();
+
+        assert_eq!(value["bodyText"], "Explain the change.");
+        assert_eq!(value["changedFiles"], 4);
+        assert_eq!(value["additions"], 42);
+        assert_eq!(value["deletions"], 7);
+    }
+
+    #[test]
+    fn discovery_persists_and_reads_factual_overview_fields() {
+        let directory = tempdir().unwrap();
+        let database = Database::open(directory.path().join("sync.sqlite3")).unwrap();
+        let pull_request = SearchPullRequest {
+            id: "pr-1".into(),
+            number: 1,
+            title: "Review factual overview".into(),
+            url: "https://github.com/owner/repo/pull/1".into(),
+            is_draft: false,
+            state: "OPEN".into(),
+            merge_state_status: "CLEAN".into(),
+            review_decision: Some("APPROVED".into()),
+            body_text: "Explain the change.".into(),
+            changed_files: 4,
+            additions: 42,
+            deletions: 7,
+            updated_at: "2026-08-11T08:00:00Z".into(),
+            head_ref_name: "feature/overview".into(),
+            head_ref_oid: "abcdef0".into(),
+            base_ref_name: "main".into(),
+            author: Some(Actor {
+                login: "owner".into(),
+            }),
+            repository: SearchRepository {
+                id: "repo-1".into(),
+                name_with_owner: "owner/repo".into(),
+                is_private: false,
+                default_branch_ref: Some(BranchRef {
+                    name: "main".into(),
+                }),
+            },
+        };
+
+        persist_discovery(&database, &[pull_request], &HashSet::new()).unwrap();
+        let cached = list_cached_pull_requests(&database).unwrap();
+
+        assert_eq!(cached.len(), 1);
+        assert_eq!(cached[0].body_text, "Explain the change.");
+        assert_eq!(cached[0].changed_files, 4);
+        assert_eq!(cached[0].additions, 42);
+        assert_eq!(cached[0].deletions, 7);
+    }
 
     fn snapshot() -> PullRequestAttentionSnapshot {
         PullRequestAttentionSnapshot {

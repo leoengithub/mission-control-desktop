@@ -63,7 +63,7 @@ const statusPillVariants = cva(
       },
       compact: {
         false: 'min-h-[26px] gap-1.5 py-0 pr-[9px] pl-[7px] text-xs',
-        true: 'min-h-5 gap-1 py-0 pr-[7px] pl-[5px] text-[0.66rem]',
+        true: 'min-h-5 gap-1 py-0 pr-[7px] pl-[5px] text-xs',
       },
     },
     defaultVariants: { compact: false },

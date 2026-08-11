@@ -9,6 +9,8 @@ const REPOSITORY_MONITORING_MIGRATION: &str =
     include_str!("../migrations/0003_repository_monitoring.sql");
 const PULL_REQUEST_READINESS_MIGRATION: &str =
     include_str!("../migrations/0004_pull_request_readiness.sql");
+const PULL_REQUEST_OVERVIEW_MIGRATION: &str =
+    include_str!("../migrations/0005_pull_request_overview.sql");
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
@@ -53,6 +55,10 @@ impl Database {
         }
         if version == 3 {
             connection.execute_batch(PULL_REQUEST_READINESS_MIGRATION)?;
+            version = 4;
+        }
+        if version == 4 {
+            connection.execute_batch(PULL_REQUEST_OVERVIEW_MIGRATION)?;
         }
         Ok(Self {
             connection: Mutex::new(connection),
@@ -79,6 +85,7 @@ impl Database {
 
 #[cfg(test)]
 mod tests {
+    use rusqlite::Connection;
     use tempfile::tempdir;
 
     use super::*;
@@ -92,7 +99,7 @@ mod tests {
                 connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
             })
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         let columns = database
             .with_connection(|connection| {
                 let mut statement = connection.prepare("PRAGMA table_info(agent_runs)")?;
@@ -138,5 +145,73 @@ mod tests {
                 .iter()
                 .any(|column| column == "review_decision")
         );
+        for column in ["body_text", "changed_files", "additions", "deletions"] {
+            assert!(
+                pull_request_columns
+                    .iter()
+                    .any(|candidate| candidate == column),
+                "missing pull request overview column {column}"
+            );
+        }
+    }
+
+    #[test]
+    fn overview_migration_preserves_existing_pull_requests_with_safe_defaults() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("version-four.sqlite3");
+        let connection = Connection::open(&path).unwrap();
+        connection.execute_batch(INITIAL_MIGRATION).unwrap();
+        connection
+            .execute_batch(REVIEW_WORKFLOWS_MIGRATION)
+            .unwrap();
+        connection
+            .execute_batch(REPOSITORY_MONITORING_MIGRATION)
+            .unwrap();
+        connection
+            .execute_batch(PULL_REQUEST_READINESS_MIGRATION)
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO repositories (
+                    id, owner, name, full_name, default_branch, private
+                 ) VALUES ('repo-1', 'owner', 'repo', 'owner/repo', 'main', 0)",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO pull_requests (
+                    id, repository_id, number, title, url, author_login, head_ref, head_sha,
+                    base_ref, draft, state, updated_at, last_synced_at
+                 ) VALUES (
+                    'pr-1', 'repo-1', 1, 'Existing pull request', 'https://example.test/pr-1',
+                    'owner', 'feature', 'abcdef0', 'main', 0, 'OPEN',
+                    '2026-08-11T08:00:00Z', '2026-08-11T08:01:00Z'
+                 )",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+
+        let database = Database::open(path).unwrap();
+        let overview = database
+            .with_connection(|connection| {
+                connection.query_row(
+                    "SELECT body_text, changed_files, additions, deletions
+                     FROM pull_requests WHERE id = 'pr-1'",
+                    [],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, i64>(1)?,
+                            row.get::<_, i64>(2)?,
+                            row.get::<_, i64>(3)?,
+                        ))
+                    },
+                )
+            })
+            .unwrap();
+
+        assert_eq!(overview, (String::new(), 0, 0, 0));
     }
 }
