@@ -285,6 +285,15 @@ fn attach_local_repository(
 }
 
 #[tauri::command]
+fn attach_local_repository_by_path(
+    state: State<'_, AppState>,
+    local_path: String,
+) -> Result<LocalRepositoryAttachment, String> {
+    workspace::attach_local_repository_by_path(&state.database, &local_path)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn set_repository_monitoring(
     state: State<'_, AppState>,
     repository_ids: Vec<String>,
@@ -795,7 +804,7 @@ fn git_change_evidence(worktree_path: &Path, base_head_sha: &str) -> Result<Stri
     const MAX_EVIDENCE_BYTES: usize = 80_000;
     if evidence.len() > MAX_EVIDENCE_BYTES {
         evidence.truncate(MAX_EVIDENCE_BYTES);
-        evidence.push_str("\n\n[Diff truncated by Mission Control]");
+        evidence.push_str("\n\n[Diff truncated by Captain]");
     }
     Ok(evidence)
 }
@@ -827,7 +836,7 @@ fn cleanup_paths(
                 .join(".mission-control-worktrees")
         });
     if !worktree_path.starts_with(&configured_base) {
-        return Err("worktree is outside the configured Mission Control directory".into());
+        return Err("worktree is outside the configured Captain directory".into());
     }
     Ok((repository_path, configured_base))
 }
@@ -1016,10 +1025,10 @@ fn refresh_attention_badges(app: &AppHandle, count: usize) {
     if let Some(tray) = app.tray_by_id(MAIN_TRAY_ID) {
         let _ = tray.set_title((count > 0).then(|| count.to_string()));
         let tooltip = if count == 0 {
-            "Mission Control, inbox clear".to_owned()
+            "Captain, inbox clear".to_owned()
         } else {
             format!(
-                "Mission Control, {count} pull request{} need attention",
+                "Captain, {count} pull request{} need attention",
                 if count == 1 { "" } else { "s" }
             )
         };
@@ -1097,6 +1106,7 @@ async fn disconnect_github_account(state: State<'_, AppState>) -> Result<Activat
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::Builder::new().build())
@@ -1183,8 +1193,8 @@ pub fn run() {
                 }
             });
 
-            let show = MenuItem::with_id(app, "show", "Show Mission Control", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit Mission Control", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "Show Captain", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit Captain", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
             let tray_icon = Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
             TrayIconBuilder::with_id(MAIN_TRAY_ID)
@@ -1262,6 +1272,7 @@ pub fn run() {
             mark_pull_request_seen,
             list_local_repositories,
             attach_local_repository,
+            attach_local_repository_by_path,
             set_repository_monitoring,
             detect_agents,
             list_agent_runs,
@@ -1281,7 +1292,7 @@ pub fn run() {
             disconnect_github_account
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Mission Control");
+        .expect("error while running Captain");
 }
 
 #[cfg(test)]

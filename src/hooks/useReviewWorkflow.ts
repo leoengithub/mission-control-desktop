@@ -208,6 +208,16 @@ export function useReviewWorkflow(
     [client, loadWorkspaceSupport, runAction],
   );
 
+  const addLocalRepository = useCallback(async () => {
+    const result = await runAction('add-local-repository', async () => {
+      const localPath = await client.pickLocalRepositoryDirectory();
+      if (!localPath) return null;
+      return client.attachLocalRepositoryByPath(localPath);
+    });
+    if (result) await loadWorkspaceSupport();
+    return result;
+  }, [client, loadWorkspaceSupport, runAction]);
+
   const setRepositoryMonitoring = useCallback(
     async (repositoryIds: string[]) => {
       const result = await runAction('repository-monitoring', () =>
@@ -239,6 +249,7 @@ export function useReviewWorkflow(
     completeFixSession,
     requestCopilotReview,
     attachRepository,
+    addLocalRepository,
     setRepositoryMonitoring,
     reloadWorkspaceSupport: loadWorkspaceSupport,
   };

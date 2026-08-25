@@ -14,6 +14,7 @@ use crate::{
 };
 
 const GRAPHQL_URL: &str = "https://api.github.com/graphql";
+const USER_REPOSITORIES_URL: &str = "https://api.github.com/user/repos";
 const ACTIONABLE_BOT_KEYWORDS: [&str; 11] = [
     "error", "fail", "failed", "failure", "block", "blocked", "blocking", "required", "must",
     "critical", "breaking",
@@ -34,21 +35,6 @@ query PullRequestInbox($query: String!, $after: String) {
       }
     }
     pageInfo { hasNextPage endCursor }
-  }
-  rateLimit { cost remaining resetAt }
-}
-"#;
-const REPOSITORIES_QUERY: &str = r#"
-query AccessibleRepositories($after: String) {
-  viewer {
-    repositories(first: 100, after: $after, orderBy: {field: NAME, direction: ASC}) {
-      nodes {
-        id nameWithOwner isPrivate
-        defaultBranchRef { name }
-      }
-      pageInfo { hasNextPage endCursor }
-      totalCount
-    }
   }
   rateLimit { cost remaining resetAt }
 }
@@ -102,6 +88,8 @@ pub enum GithubSyncError {
     RateLimited { retry_after_seconds: u64 },
     #[error("GitHub GraphQL error: {0}")]
     Graphql(String),
+    #[error("GitHub repository access failed: {0}")]
+    RepositoryAccess(String),
     #[error("GitHub returned more review data than this version can safely reconcile")]
     PaginationLimit,
     #[error(transparent)]
@@ -324,22 +312,37 @@ impl GithubSyncService {
         &self,
         access_token: &str,
     ) -> Result<Vec<SearchRepository>, GithubSyncError> {
-        let mut cursor: Option<String> = None;
+        let mut page = 1_u32;
         let mut repositories = Vec::new();
         loop {
-            let data: RepositoriesData = self
-                .graphql(access_token, REPOSITORIES_QUERY, json!({ "after": cursor }))
-                .await?;
-            repositories.extend(data.viewer.repositories.nodes.into_iter().flatten());
-            if !data.viewer.repositories.page_info.has_next_page {
+            let url = format!(
+                "{USER_REPOSITORIES_URL}?affiliation=owner,collaborator,organization_member&visibility=all&sort=full_name&direction=asc&per_page=100&page={page}"
+            );
+            let response = self
+                .client
+                .get(url)
+                .bearer_auth(access_token)
+                .send()
+                .await
+                .map_err(GithubSyncError::Request)?;
+            let status = response.status();
+            let response_headers = response.headers().clone();
+            validate_repository_response(status, &response_headers)?;
+            let has_next_page = response_headers
+                .get(header::LINK)
+                .and_then(|value| value.to_str().ok())
+                .is_some_and(link_header_has_next_page);
+            let page_repositories = response
+                .json::<Vec<RestRepository>>()
+                .await
+                .map_err(GithubSyncError::Request)?;
+            repositories.extend(page_repositories.into_iter().map(SearchRepository::from));
+            if !has_next_page {
                 return Ok(repositories);
             }
-            cursor = data.viewer.repositories.page_info.end_cursor;
-            if cursor.is_none() {
-                return Err(GithubSyncError::Graphql(
-                    "repository pagination omitted its end cursor".into(),
-                ));
-            }
+            page = page.checked_add(1).ok_or_else(|| {
+                GithubSyncError::RepositoryAccess("repository pagination overflowed".into())
+            })?;
         }
     }
 
@@ -489,6 +492,43 @@ fn is_rate_limited(status: StatusCode, headers: &header::HeaderMap) -> bool {
                 == Some("0"))
 }
 
+fn validate_repository_response(
+    status: StatusCode,
+    headers: &header::HeaderMap,
+) -> Result<(), GithubSyncError> {
+    if is_rate_limited(status, headers) {
+        return Err(GithubSyncError::RateLimited {
+            retry_after_seconds: retry_after_seconds(headers),
+        });
+    }
+    let sso_header = headers
+        .get("x-github-sso")
+        .and_then(|value| value.to_str().ok());
+    let partial_sso_results = status.is_success()
+        && sso_header.is_some_and(|value| {
+            value
+                .split(';')
+                .next()
+                .is_some_and(|state| state.trim().eq_ignore_ascii_case("partial-results"))
+        });
+    if partial_sso_results || (status == StatusCode::FORBIDDEN && sso_header.is_some()) {
+        return Err(GithubSyncError::RepositoryAccess(
+            "your GitHub CLI token needs organization SSO authorization; authorize it in GitHub, then refresh"
+                .into(),
+        ));
+    }
+    if status == StatusCode::UNAUTHORIZED {
+        return Err(GithubSyncError::RepositoryAccess(
+            "the active GitHub CLI token is no longer authorized; run `gh auth status`, then reconnect"
+                .into(),
+        ));
+    }
+    if !status.is_success() {
+        return Err(GithubSyncError::Http(status));
+    }
+    Ok(())
+}
+
 fn retry_after_seconds(headers: &header::HeaderMap) -> u64 {
     if let Some(seconds) = headers
         .get(header::RETRY_AFTER)
@@ -505,6 +545,12 @@ fn retry_after_seconds(headers: &header::HeaderMap) -> u64 {
         return reset_at.saturating_sub(Utc::now().timestamp()).max(1) as u64;
     }
     300
+}
+
+fn link_header_has_next_page(value: &str) -> bool {
+    value
+        .split(',')
+        .any(|link| link.split(';').any(|part| part.trim() == "rel=\"next\""))
 }
 
 pub fn list_cached_pull_requests(
@@ -820,26 +866,6 @@ struct SearchData {
 }
 
 #[derive(Deserialize)]
-struct RepositoriesData {
-    viewer: RepositoriesViewerData,
-}
-
-#[derive(Deserialize)]
-struct RepositoriesViewerData {
-    repositories: RepositoryConnection,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RepositoryConnection {
-    nodes: Vec<Option<SearchRepository>>,
-    #[serde(rename = "pageInfo")]
-    page_info: PageInfo,
-    #[allow(dead_code)]
-    total_count: u32,
-}
-
-#[derive(Deserialize)]
 struct SearchConnection {
     nodes: Vec<Option<SearchPullRequest>>,
     #[serde(rename = "pageInfo")]
@@ -888,6 +914,34 @@ struct SearchRepository {
     name_with_owner: String,
     is_private: bool,
     default_branch_ref: Option<BranchRef>,
+}
+
+#[derive(Deserialize)]
+struct RestRepository {
+    node_id: String,
+    full_name: String,
+    private: bool,
+    visibility: Option<String>,
+    default_branch: Option<String>,
+}
+
+impl From<RestRepository> for SearchRepository {
+    fn from(repository: RestRepository) -> Self {
+        let is_private = repository.private
+            || repository
+                .visibility
+                .as_deref()
+                .is_some_and(|visibility| visibility != "public");
+        Self {
+            id: repository.node_id,
+            name_with_owner: repository.full_name,
+            is_private,
+            default_branch_ref: repository
+                .default_branch
+                .filter(|branch| !branch.is_empty())
+                .map(|name| BranchRef { name }),
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -1205,6 +1259,76 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+
+    #[test]
+    fn rest_repository_discovery_keeps_private_and_internal_repositories() {
+        let private: RestRepository = serde_json::from_value(json!({
+            "node_id": "R_private",
+            "full_name": "revolico/private-web",
+            "private": true,
+            "visibility": "private",
+            "default_branch": "main"
+        }))
+        .unwrap();
+        let internal: RestRepository = serde_json::from_value(json!({
+            "node_id": "R_internal",
+            "full_name": "revolico/internal-tools",
+            "private": false,
+            "visibility": "internal",
+            "default_branch": "trunk"
+        }))
+        .unwrap();
+        let empty: RestRepository = serde_json::from_value(json!({
+            "node_id": "R_empty",
+            "full_name": "revolico/empty",
+            "private": false,
+            "visibility": "public",
+            "default_branch": null
+        }))
+        .unwrap();
+
+        let private = SearchRepository::from(private);
+        let internal = SearchRepository::from(internal);
+        let empty = SearchRepository::from(empty);
+
+        assert!(private.is_private);
+        assert!(internal.is_private);
+        assert_eq!(private.name_with_owner, "revolico/private-web");
+        assert_eq!(
+            internal
+                .default_branch_ref
+                .as_ref()
+                .map(|branch| branch.name.as_str()),
+            Some("trunk")
+        );
+        assert!(empty.default_branch_ref.is_none());
+    }
+
+    #[test]
+    fn repository_pagination_follows_only_the_next_link() {
+        assert!(link_header_has_next_page(
+            "<https://api.github.com/user/repos?page=2>; rel=\"next\", <https://api.github.com/user/repos?page=4>; rel=\"last\""
+        ));
+        assert!(!link_header_has_next_page(
+            "<https://api.github.com/user/repos?page=1>; rel=\"prev\", <https://api.github.com/user/repos?page=4>; rel=\"last\""
+        ));
+    }
+
+    #[test]
+    fn partial_sso_repository_results_are_not_authoritative() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "x-github-sso",
+            header::HeaderValue::from_static("partial-results; organizations=21955855,20582480"),
+        );
+
+        assert!(matches!(
+            validate_repository_response(StatusCode::OK, &headers),
+            Err(GithubSyncError::RepositoryAccess(message))
+                if message.contains("SSO authorization")
+        ));
+        assert!(validate_repository_response(StatusCode::OK, &header::HeaderMap::new()).is_ok());
+    }
 
     #[test]
     fn search_pull_request_deserializes_factual_overview_fields() {

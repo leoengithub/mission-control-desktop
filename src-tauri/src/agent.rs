@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    env,
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -423,10 +424,8 @@ pub async fn run_agent_reply(
     working_directory: &Path,
     settings: &AppSettings,
 ) -> Result<String, AgentError> {
-    let (binary, arguments) = print_command(agent, settings);
-    if !binary_available(&binary) {
-        return Err(AgentError::AgentUnavailable(binary));
-    }
+    let arguments = print_arguments(agent, settings);
+    let binary = resolve_agent_binary(agent).ok_or_else(|| agent_unavailable_error(agent))?;
     let mut command = AsyncCommand::new(&binary);
     command
         .args(arguments)
@@ -454,17 +453,22 @@ pub async fn run_agent_reply(
 
 pub fn detect_agents() -> Vec<AgentAvailability> {
     [
-        (AgentKind::Codex, "Codex", "codex"),
-        (AgentKind::ClaudeCode, "Claude Code", "claude"),
+        (AgentKind::Codex, "Codex"),
+        (AgentKind::ClaudeCode, "Claude Code"),
     ]
     .into_iter()
-    .map(|(agent, label, binary)| {
-        let output = Command::new(binary).arg("--version").output().ok();
+    .map(|(agent, label)| {
+        let output = resolve_agent_binary(agent)
+            .and_then(|binary| Command::new(binary).arg("--version").output().ok());
         let available = output
             .as_ref()
             .is_some_and(|output| output.status.success());
         let version = output.and_then(|output| {
-            let value = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+            let value = if output.stdout.is_empty() {
+                String::from_utf8_lossy(&output.stderr).trim().to_owned()
+            } else {
+                String::from_utf8_lossy(&output.stdout).trim().to_owned()
+            };
             (!value.is_empty()).then_some(value)
         });
         AgentAvailability {
@@ -723,13 +727,8 @@ fn terminal_command(
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
         return Ok((shell, vec!["-l".into()], false));
     };
-    let (binary, mut arguments) = match agent {
-        AgentKind::Codex => ("codex".to_owned(), Vec::new()),
-        AgentKind::ClaudeCode => ("claude".to_owned(), Vec::new()),
-    };
-    if !binary_available(&binary) {
-        return Err(AgentError::AgentUnavailable(binary));
-    }
+    let binary = resolve_agent_binary(agent).ok_or_else(|| agent_unavailable_error(agent))?;
+    let mut arguments = Vec::new();
     match agent {
         AgentKind::Codex if settings.agents.codex_permission_bypass => {
             arguments.push("--dangerously-bypass-approvals-and-sandbox".into());
@@ -739,32 +738,101 @@ fn terminal_command(
         }
         _ => {}
     }
-    Ok((binary, arguments, true))
+    Ok((binary.to_string_lossy().into_owned(), arguments, true))
 }
 
-fn print_command(agent: AgentKind, _settings: &AppSettings) -> (String, Vec<String>) {
+fn print_arguments(agent: AgentKind, _settings: &AppSettings) -> Vec<String> {
     match agent {
-        AgentKind::Codex => (
-            "codex".into(),
+        AgentKind::Codex => {
             vec![
                 "exec".into(),
                 "--skip-git-repo-check".into(),
                 "--sandbox".into(),
                 "read-only".into(),
-            ],
-        ),
-        AgentKind::ClaudeCode => (
-            "claude".into(),
-            vec!["-p".into(), "--output-format".into(), "text".into()],
-        ),
+            ]
+        }
+        AgentKind::ClaudeCode => vec!["-p".into(), "--output-format".into(), "text".into()],
     }
 }
 
-fn binary_available(binary: &str) -> bool {
-    Command::new(binary)
-        .arg("--version")
+fn resolve_agent_binary(agent: AgentKind) -> Option<PathBuf> {
+    let (binary, override_key) = agent_binary_details(agent);
+    if let Some(configured) = env::var_os(override_key) {
+        let path = PathBuf::from(configured);
+        if executable_responds(&path) {
+            return Some(path);
+        }
+    }
+    if let Some(path) = env::var_os("PATH")
+        .as_deref()
+        .and_then(|value| find_executable_on_path(binary, value))
+    {
+        return Some(path);
+    }
+    for path in known_agent_candidates(binary) {
+        if executable_responds(&path) {
+            return Some(path);
+        }
+    }
+    resolve_agent_from_login_shell(binary)
+}
+
+fn agent_binary_details(agent: AgentKind) -> (&'static str, &'static str) {
+    match agent {
+        AgentKind::Codex => ("codex", "MC_CODEX_PATH"),
+        AgentKind::ClaudeCode => ("claude", "MC_CLAUDE_PATH"),
+    }
+}
+
+fn find_executable_on_path(binary: &str, path: &std::ffi::OsStr) -> Option<PathBuf> {
+    env::split_paths(path)
+        .map(|directory| directory.join(binary))
+        .find(|candidate| executable_responds(candidate))
+}
+
+fn known_agent_candidates(binary: &str) -> Vec<PathBuf> {
+    let mut candidates = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/home/linuxbrew/.linuxbrew/bin",
+    ]
+    .into_iter()
+    .map(|directory| PathBuf::from(directory).join(binary))
+    .collect::<Vec<_>>();
+    if let Some(home) = env::var_os("HOME").map(PathBuf::from) {
+        for directory in [".local/bin", ".npm-global/bin", ".volta/bin", ".bun/bin"] {
+            candidates.push(home.join(directory).join(binary));
+        }
+    }
+    candidates
+}
+
+fn resolve_agent_from_login_shell(binary: &str) -> Option<PathBuf> {
+    let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
+    let output = Command::new(shell)
+        .args(["-lc", &format!("command -v {binary}")])
         .output()
-        .is_ok_and(|output| output.status.success())
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+    executable_responds(&path).then_some(path)
+}
+
+fn executable_responds(path: &Path) -> bool {
+    path.is_file()
+        && Command::new(path)
+            .arg("--version")
+            .output()
+            .is_ok_and(|output| output.status.success())
+}
+
+fn agent_unavailable_error(agent: AgentKind) -> AgentError {
+    let (binary, override_key) = agent_binary_details(agent);
+    AgentError::AgentUnavailable(format!(
+        "{binary}; install it in your shell PATH or set {override_key} to its absolute path, then reopen Captain"
+    ))
 }
 
 fn agent_name(agent: AgentKind) -> String {
@@ -793,4 +861,37 @@ fn map_run(row: &rusqlite::Row<'_>) -> rusqlite::Result<AgentRun> {
         reply_posted_at: row.get(13)?,
         resolved_at: row.get(14)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn agent_override_keys_are_stable() {
+        assert_eq!(
+            agent_binary_details(AgentKind::Codex),
+            ("codex", "MC_CODEX_PATH")
+        );
+        assert_eq!(
+            agent_binary_details(AgentKind::ClaudeCode),
+            ("claude", "MC_CLAUDE_PATH")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn inherited_path_resolution_returns_an_absolute_working_executable() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("codex");
+        fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        let mut permissions = fs::metadata(&executable).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&executable, permissions).unwrap();
+        let path = env::join_paths([directory.path()]).unwrap();
+
+        assert_eq!(find_executable_on_path("codex", &path), Some(executable));
+    }
 }

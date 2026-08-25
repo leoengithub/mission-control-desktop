@@ -2,7 +2,7 @@
 
 ## Boundaries
 
-Mission Control has two runtime layers:
+Captain has two runtime layers:
 
 1. The Rust core owns credentials, settings, SQLite, GitHub synchronization, attention transitions, notifications, filesystem operations, Git worktrees, PTYs, and agent processes.
 2. The React renderer owns presentation and user interaction. It receives typed snapshots and events through Tauri IPC and has no direct filesystem, shell, credential, or database access.
@@ -31,9 +31,9 @@ Every native synchronization attempt emits a typed renderer event. Successful ba
 
 HTTP `429`, exhausted `403`, and GraphQL rate-limit responses open a native retry window. Background synchronization will not issue another request before that window closes. Ordinary offline and transport failures use the selected adaptive polling interval.
 
-The monitored universe is the union of open pull requests authored by the signed-in user and open pull requests where that user is currently requested as a reviewer. GitHub node IDs deduplicate overlap between those scopes.
+The monitored universe is the union of open pull requests authored by the signed-in user and open pull requests where that user is currently requested as a reviewer. GitHub node IDs deduplicate overlap between those scopes. Accessible repository discovery uses the authenticated, paginated REST `/user/repos` endpoint with owner, collaborator, and organization-member affiliations so private and internal organization repositories are included. Existing GraphQL pull request discovery remains unchanged.
 
-GitHub authorization follows the active `github.com` account managed by GitHub CLI. The native core resolves `gh`, requests its active token when needed, verifies the corresponding GitHub user, and keeps only non-secret account identity in SQLite. Mission Control does not install an app in user or organization repositories and does not copy GitHub CLI credentials into its own store. Disconnecting Mission Control clears its cached GitHub scope without logging the user out of GitHub CLI.
+GitHub authorization follows the active `github.com` account managed by GitHub CLI. The native core resolves `gh`, requests its active token when needed, verifies the corresponding GitHub user, and keeps only non-secret account identity in SQLite. Captain does not install an app in user or organization repositories and does not copy GitHub CLI credentials into its own store. Disconnecting Captain clears its cached GitHub scope without logging the user out of GitHub CLI.
 
 ## Progressive setup
 
@@ -43,9 +43,9 @@ Notification and launch-at-login prompts appear only after their value is clear.
 
 ## Local execution
 
-Local actions require an attached repository whose canonical Git root and `origin` remote match the selected GitHub repository. Fix sessions start from the synchronized pull request head in a detached worktree below the configured Mission Control worktree base. A worktree path includes the repository, pull request number, thread, action, and source head so refreshed pull requests cannot silently reuse an older checkout.
+Local actions require an attached repository whose canonical Git root and `origin` remote match the selected GitHub repository. Fix sessions start from the synchronized pull request head in a detached worktree below the configured Captain worktree base. A worktree path includes the repository, pull request number, thread, action, and source head so refreshed pull requests cannot silently reuse an older checkout. The on-disk `.mission-control-worktrees` name remains unchanged for compatibility.
 
-The native core owns PTY processes, resize and input handling, durable output logs, exit state, and termination. The renderer receives output events and cannot spawn arbitrary processes directly. Non-interactive reply generation runs with read-only Codex sandboxing and does not inherit interactive permission-bypass settings.
+The native core owns PTY processes, resize and input handling, durable output logs, exit state, and termination. The renderer receives output events and cannot spawn arbitrary processes directly. Agent executables are resolved to absolute paths from optional `MC_CODEX_PATH` or `MC_CLAUDE_PATH` overrides, inherited `PATH`, known package-manager locations, or the login shell. The same resolved executable is used for detection, non-interactive replies, and PTY sessions. Non-interactive reply generation runs with read-only Codex sandboxing and does not inherit interactive permission-bypass settings.
 
 GitHub reply and resolve operations are separate persisted checkpoints. Retrying a partially completed run skips any successful checkpoint, preventing duplicate comments when resolution fails after a reply is posted.
 

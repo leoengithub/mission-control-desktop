@@ -1,5 +1,5 @@
 ---
-name: Mission Control Desktop
+name: Captain
 description: A calm native attention inbox for pull request review work.
 colors:
   canvas: 'oklch(97.8% 0.010 82)'
@@ -117,13 +117,15 @@ components:
     padding: '24px'
 ---
 
-# Design System: Mission Control Desktop
+# Design System: Captain
 
 ## Overview
 
 **Creative North Star: "The Review Desk"**
 
-Mission Control is a bright, organized desk for focused pull request work. A compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Account identity, monitoring state, and settings live in the inventory footer instead of consuming a separate navigation rail. Density belongs at the edge. Comprehension gets space in the center.
+Captain is a bright, organized desk for focused pull request work. A compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Account identity, monitoring state, and settings live in the inventory footer instead of consuming a separate navigation rail. Density belongs at the edge. Comprehension gets space in the center.
+
+The product mark is a professional near-black tricorn on warm ivory with a restrained green Git pull-request branch insignia in place of a skull. It identifies the app in platform chrome, onboarding, and empty states; semantic status glyphs remain separate and unchanged. The descriptor “Your pull request review desk” belongs in introductory and distribution surfaces, not repeated task chrome.
 
 The system is calm, precise, and quietly capable. It uses softly tinted near-white materials, graphite text, hairline boundaries, and semantic accents only when state deserves attention. It rejects GitHub's fragmented navigation, generic card-heavy SaaS dashboards, terminal-first neon decoration, color-only status, and marketing-page typography.
 
@@ -197,7 +199,7 @@ The palette is a warm paper-neutral field with soft cream surfaces and deliberat
 
 **The Dense Edge, Calm Center Rule.** Inventory text stays compact; reading and decision surfaces receive more space and a 1.6 line height.
 
-**The Native Voice Rule.** Do not import a decorative webfont. Mission Control must look and render like a desktop tool before it looks branded.
+**The Native Voice Rule.** Do not import a decorative webfont. Captain must look and render like a desktop tool before it looks branded.
 
 ## Elevation
 

@@ -7,6 +7,7 @@ import {
   CircleUserRound,
   Clock3,
   Copy,
+  FolderPlus,
   GitBranch,
   GitPullRequest,
   Inbox,
@@ -31,6 +32,7 @@ export type IconName =
   | 'chevron-down'
   | 'clock'
   | 'copy'
+  | 'folder-plus'
   | 'github'
   | 'inbox'
   | 'info'
@@ -53,6 +55,7 @@ const icons: Record<IconName, LucideIcon> = {
   'chevron-down': ChevronDown,
   clock: Clock3,
   copy: Copy,
+  'folder-plus': FolderPlus,
   github: CircleUserRound,
   inbox: Inbox,
   info: Info,

@@ -573,7 +573,7 @@ function ChecksView({ checks, onOpenUrl }: { checks: CheckRun[]; onOpenUrl(url: 
         <Icon name="check" size={20} />
         <strong className="text-sm text-ink">No check runs were reported</strong>
         <span className="max-w-[460px] text-xs">
-          Mission Control will display required and optional checks after GitHub reports them.
+          Captain will display required and optional checks after GitHub reports them.
         </span>
       </div>
     );
@@ -773,7 +773,7 @@ function ReviewClearState({ attentionCount }: { attentionCount: number }) {
       <span className="max-w-[460px] text-xs">
         {attentionCount > 0
           ? 'Refresh GitHub to reconcile the detailed thread cache.'
-          : 'Mission Control is monitoring this pull request for new comments and review activity.'}
+          : 'Captain is monitoring this pull request for new comments and review activity.'}
       </span>
     </div>
   );

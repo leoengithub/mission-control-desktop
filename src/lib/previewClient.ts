@@ -63,10 +63,10 @@ const previewPullRequests: CachedPullRequest[] = [
   },
   {
     id: 'pr-88',
-    repository: 'mission-control/desktop',
+    repository: 'captain/desktop',
     number: 88,
     title: 'Add cached inbox reconciliation',
-    url: 'https://github.com/mission-control/desktop/pull/88',
+    url: 'https://github.com/captain/desktop/pull/88',
     authorLogin: 'marina',
     headRef: 'feat/cached-inbox',
     headSha: 'd991ab1',
@@ -85,10 +85,10 @@ const previewPullRequests: CachedPullRequest[] = [
   },
   {
     id: 'pr-73',
-    repository: 'mission-control/desktop',
+    repository: 'captain/desktop',
     number: 73,
     title: 'Refine native notification routing',
-    url: 'https://github.com/mission-control/desktop/pull/73',
+    url: 'https://github.com/captain/desktop/pull/73',
     authorLogin: 'leo',
     headRef: 'feat/notification-routing',
     headSha: '24e410e',
@@ -106,10 +106,10 @@ const previewPullRequests: CachedPullRequest[] = [
   },
   {
     id: 'pr-144',
-    repository: 'mission-control/desktop',
+    repository: 'captain/desktop',
     number: 144,
     title: 'Harden repository access synchronization',
-    url: 'https://github.com/mission-control/desktop/pull/144',
+    url: 'https://github.com/captain/desktop/pull/144',
     authorLogin: 'nina',
     headRef: 'fix/repository-access-sync',
     headSha: '61b42df',
@@ -128,10 +128,10 @@ const previewPullRequests: CachedPullRequest[] = [
   },
   {
     id: 'pr-211',
-    repository: 'mission-control/desktop',
+    repository: 'captain/desktop',
     number: 211,
     title: 'Resolve tray lifecycle conflicts',
-    url: 'https://github.com/mission-control/desktop/pull/211',
+    url: 'https://github.com/captain/desktop/pull/211',
     authorLogin: 'sam',
     headRef: 'fix/tray-lifecycle',
     headSha: '43af9c2',
@@ -250,7 +250,7 @@ const previewReviewDetails: Record<string, PullRequestReviewDetail> = {
         status: 'IN_PROGRESS',
         conclusion: null,
         required: true,
-        detailsUrl: 'https://github.com/mission-control/desktop/actions',
+        detailsUrl: 'https://github.com/captain/desktop/actions',
         updatedAt: minutesAgo(2),
       },
     ],
@@ -368,8 +368,8 @@ export function createPreviewClient(preview: string | null): MissionControlClien
       lastValidatedAt: null,
     },
     {
-      repositoryId: 'repo-mission-control',
-      repository: 'mission-control/desktop',
+      repositoryId: 'repo-captain',
+      repository: 'captain/desktop',
       monitored: true,
       localPath: null,
       defaultBranch: 'main',
@@ -481,6 +481,31 @@ export function createPreviewClient(preview: string | null): MissionControlClien
       ];
       return attached;
     },
+    async pickLocalRepositoryDirectory() {
+      await wait(120);
+      return '/Users/leo/Work/captain/desktop';
+    },
+    async attachLocalRepositoryByPath(localPath) {
+      await wait(220);
+      const current = repositories.find(
+        (repository) => repository.repository === 'captain/desktop',
+      );
+      if (!current) {
+        throw new Error(
+          'GitHub repository captain/desktop is not accessible to the active account; refresh repository access or authorize organization SSO',
+        );
+      }
+      const attached: LocalRepositoryAttachment = {
+        ...current,
+        localPath,
+        validationState: 'valid',
+        lastValidatedAt: new Date().toISOString(),
+      };
+      repositories = repositories.map((repository) =>
+        repository.repositoryId === attached.repositoryId ? attached : repository,
+      );
+      return attached;
+    },
     async setRepositoryMonitoring(repositoryIds) {
       await wait(180);
       const selected = new Set(repositoryIds);
@@ -504,7 +529,7 @@ export function createPreviewClient(preview: string | null): MissionControlClien
     },
     async readAgentRunLog(runId) {
       await wait(30);
-      return `$ Mission Control session ${runId.slice(0, 8)}\nInspecting the review thread...\n`;
+      return `$ Captain session ${runId.slice(0, 8)}\nInspecting the review thread...\n`;
     },
     async requestCopilotReview() {
       await wait(280);
@@ -655,9 +680,9 @@ function previewRun(
     action,
     agent,
     status,
-    worktreePath: `/tmp/mission-control/${pullRequestId}`,
+    worktreePath: `/tmp/captain/${pullRequestId}`,
     baseHeadSha: 'b2178f9',
-    logPath: `/tmp/mission-control/${pullRequestId}.log`,
+    logPath: `/tmp/captain/${pullRequestId}.log`,
     startedAt: new Date().toISOString(),
     endedAt: status === 'running' ? null : new Date().toISOString(),
     summary: null,
@@ -673,7 +698,7 @@ function simulateTerminal(runId: string, handlers: Set<(event: TerminalEvent) =>
       handler({
         runId,
         kind: 'output',
-        data: '\u001b[1;32mMission Control\u001b[0m opened the isolated worktree.\r\n',
+        data: '\u001b[1;32mCaptain\u001b[0m opened the isolated worktree.\r\n',
         status: 'running',
         exitCode: null,
       }),

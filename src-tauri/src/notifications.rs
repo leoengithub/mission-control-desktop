@@ -59,7 +59,7 @@ impl NotificationTransport for NativeNotificationTransport {
 
         let mut notification = notify_rust::Notification::new();
         notification
-            .appname("Mission Control")
+            .appname("Captain")
             .summary(&plan.title)
             .body(&plan.body)
             .action("open", "Open pull request");

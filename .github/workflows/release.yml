@@ -55,7 +55,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: '-'
         with:
           tagName: v__VERSION__
-          releaseName: Mission Control v__VERSION__
+          releaseName: Captain v__VERSION__
           releaseBody: |
             Automatic Apple Silicon macOS beta built from `${{ github.event.workflow_run.head_sha || github.sha }}`.
 
@@ -64,14 +64,14 @@ jobs:
           prerelease: true
           generateReleaseNotes: true
           args: --target aarch64-apple-darwin --bundles dmg
-          releaseAssetNamePattern: Mission-Control_[version]_macOS_[arch][ext]
+          releaseAssetNamePattern: Captain_[version]_macOS_[arch][ext]
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: Mission-Control_[version]_macOS_[arch]_[bundle]
+          workflowArtifactNamePattern: Captain_[version]_macOS_[arch]_[bundle]
           uploadUpdaterJson: false
           uploadUpdaterSignatures: false
       - name: Add the release link to the workflow summary
         env:
           RELEASE_URL: ${{ steps.release.outputs.releaseHtmlUrl }}
         run: |
-          echo "### Mission Control macOS beta" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Captain macOS beta" >> "$GITHUB_STEP_SUMMARY"
           echo "[Download this release]($RELEASE_URL)" >> "$GITHUB_STEP_SUMMARY"
