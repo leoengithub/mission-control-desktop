@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-dialog';
 import type {
   ActivationState,
   AppSettings,
@@ -80,6 +81,20 @@ export function attachLocalRepository(
   localPath: string,
 ): Promise<LocalRepositoryAttachment> {
   return invoke<LocalRepositoryAttachment>('attach_local_repository', { repositoryId, localPath });
+}
+
+export async function pickLocalRepositoryDirectory(): Promise<string | null> {
+  const selected = await open({
+    title: 'Add local repository',
+    directory: true,
+    multiple: false,
+    canCreateDirectories: false,
+  });
+  return Array.isArray(selected) ? (selected[0] ?? null) : selected;
+}
+
+export function attachLocalRepositoryByPath(localPath: string): Promise<LocalRepositoryAttachment> {
+  return invoke<LocalRepositoryAttachment>('attach_local_repository_by_path', { localPath });
 }
 
 export function setRepositoryMonitoring(

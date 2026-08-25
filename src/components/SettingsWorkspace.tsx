@@ -41,7 +41,7 @@ interface SettingsWorkspaceProps {
   onBack(): void;
   onSave(patch: SettingsPatch): void;
   onNotificationsEnabled(enabled: boolean): void;
-  onAttachRepository(repositoryId: string, localPath: string): void;
+  onAddLocalRepository(): void;
   onSetRepositoryMonitoring(repositoryIds: string[]): void;
   onOpenUrl(url: string): void;
   onSwitchAccount(): void;
@@ -88,7 +88,7 @@ export function SettingsWorkspace({
   onBack,
   onSave,
   onNotificationsEnabled,
-  onAttachRepository,
+  onAddLocalRepository,
   onSetRepositoryMonitoring,
   onOpenUrl,
   onSwitchAccount,
@@ -127,7 +127,7 @@ export function SettingsWorkspace({
               <Icon name="arrow-left" size={17} />
             </button>
             <div>
-              <span className="hidden">Mission Control</span>
+              <span className="hidden">Captain</span>
               <h1 className="m-0 text-base font-semibold tracking-[-0.015em]">Settings</h1>
             </div>
           </div>
@@ -167,7 +167,7 @@ export function SettingsWorkspace({
             <Icon name="arrow-left" size={17} />
           </button>
           <div>
-            <span className="hidden">Mission Control</span>
+            <span className="hidden">Captain</span>
             <h1 className="m-0 text-base font-semibold tracking-[-0.015em]">Settings</h1>
           </div>
         </div>
@@ -312,8 +312,8 @@ export function SettingsWorkspace({
                   GitHub account
                 </h2>
                 <p className={settingsHeadingCopyClass}>
-                  Mission Control follows the active GitHub CLI account and never requires a
-                  repository installation.
+                  Captain follows the active GitHub CLI account and never requires a repository
+                  installation.
                 </p>
               </div>
             </div>
@@ -330,7 +330,7 @@ export function SettingsWorkspace({
                     {githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}
                   </strong>
                   <small className="text-xs text-ink-secondary">
-                    Credentials remain managed by GitHub CLI outside Mission Control.
+                    Credentials remain managed by GitHub CLI outside Captain.
                   </small>
                 </span>
               </div>
@@ -378,11 +378,12 @@ export function SettingsWorkspace({
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 border-b border-hairline py-3">
-              <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
+            <div className="flex items-center gap-2 border-b border-hairline py-3 max-[720px]:items-stretch max-[720px]:flex-col">
+              <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-2 focus-within:ring-focus/12">
                 <span className="sr-only">Search accessible repositories</span>
                 <Icon name="search" size={15} />
                 <input
+                  data-composite-input
                   className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
                   type="search"
                   value={repositoryQuery}
@@ -390,31 +391,23 @@ export function SettingsWorkspace({
                   placeholder="Search repositories"
                 />
               </label>
-              <span className="text-[0.72rem] text-ink-muted [font-variant-numeric:tabular-nums]">
-                {repositories.filter((repository) => repository.monitored).length} of{' '}
-                {repositories.length} monitored
-              </span>
               <Button
-                variant="ghost"
-                size="sm"
-                disabled={actionStates['repository-monitoring'] === 'running'}
-                onClick={() =>
-                  onSetRepositoryMonitoring(
-                    repositories.map((repository) => repository.repositoryId),
-                  )
-                }
+                variant="outline"
+                type="button"
+                disabled={actionStates['add-local-repository'] === 'running'}
+                onClick={onAddLocalRepository}
               >
-                Select all
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={actionStates['repository-monitoring'] === 'running'}
-                onClick={() => onSetRepositoryMonitoring([])}
-              >
-                Clear
+                <Icon name="folder-plus" size={15} />
+                {actionStates['add-local-repository'] === 'running'
+                  ? 'Adding repository…'
+                  : 'Add local repository'}
               </Button>
             </div>
+            {actionErrors['add-local-repository'] ? (
+              <p className={cn(inlineErrorClass, 'mt-3')} role="alert">
+                <Icon name="alert" size={13} /> {actionErrors['add-local-repository']}
+              </p>
+            ) : null}
             {actionErrors['repository-monitoring'] ? (
               <p className={inlineErrorClass} role="alert">
                 <Icon name="alert" size={13} /> {actionErrors['repository-monitoring']}
@@ -426,9 +419,6 @@ export function SettingsWorkspace({
                   <RepositorySetting
                     repository={repository}
                     monitoringBusy={actionStates['repository-monitoring'] === 'running'}
-                    busy={actionStates[`repository:${repository.repositoryId}`] === 'running'}
-                    error={actionErrors[`repository:${repository.repositoryId}`] ?? null}
-                    onAttach={onAttachRepository}
                     onMonitorChange={(checked) => {
                       const monitoredIds = repositories
                         .filter((candidate) =>
@@ -600,7 +590,11 @@ export function SettingsWorkspace({
                   <span className="flex min-w-0 flex-col">
                     <strong>{agent.label}</strong>
                     <small className="text-[0.68rem] text-ink-muted">
-                      {agent.available ? agent.version || 'Installed' : 'Not detected'}
+                      {agent.available
+                        ? agent.version || 'Installed'
+                        : agent.agent === 'codex'
+                          ? 'Not found. Add Codex to PATH or set MC_CODEX_PATH.'
+                          : 'Not found. Add Claude to PATH or set MC_CLAUDE_PATH.'}
                     </small>
                   </span>
                   <span className="text-[0.68rem] text-ink-muted">
@@ -657,7 +651,7 @@ export function SettingsWorkspace({
                   Application behavior
                 </h2>
                 <p className={settingsHeadingCopyClass}>
-                  Keep monitoring available without making Mission Control intrusive.
+                  Keep monitoring available without making Captain intrusive.
                 </p>
               </div>
             </div>
@@ -675,7 +669,7 @@ export function SettingsWorkspace({
                 <div className="grid min-w-0 flex-1 gap-[3px]">
                   <strong className="text-sm">When closing the window</strong>
                   <span className="text-[0.78rem] text-ink-secondary">
-                    Choose whether Mission Control keeps monitoring in the menu bar.
+                    Choose whether Captain keeps monitoring in the menu bar.
                   </span>
                 </div>
                 <CloseBehaviorControl
@@ -712,29 +706,15 @@ function resolveAutomaticWorktreeDirectory(repositories: LocalRepositoryAttachme
 
 function RepositorySetting({
   repository,
-  busy,
   monitoringBusy,
-  error,
-  onAttach,
   onMonitorChange,
 }: {
   repository: LocalRepositoryAttachment;
-  busy: boolean;
   monitoringBusy: boolean;
-  error: string | null;
-  onAttach(repositoryId: string, localPath: string): void;
   onMonitorChange(checked: boolean): void;
 }) {
   return (
-    <form
-      className="grid grid-cols-[minmax(190px,0.65fr)_auto_minmax(220px,1fr)_auto] items-center gap-3 border-b border-hairline py-3 max-[980px]:grid-cols-[1fr_auto]"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const localPath = String(form.get('localPath') ?? '').trim();
-        if (localPath) onAttach(repository.repositoryId, localPath);
-      }}
-    >
+    <div className="grid grid-cols-[minmax(190px,0.65fr)_auto_minmax(220px,1fr)] items-center gap-3 border-b border-hairline py-3 max-[980px]:grid-cols-[1fr_auto]">
       <div className="flex min-w-0 items-center gap-3 max-[980px]:col-[1/-1]">
         <span
           className={cn(
@@ -763,24 +743,13 @@ function RepositorySetting({
         />
         <span>{repository.monitored ? 'Monitored' : 'Hidden'}</span>
       </label>
-      <Input
-        className="min-h-9 w-full rounded-sm border-hairline-strong bg-surface-raised px-2.5 py-0 text-ink max-[980px]:col-[1/-1]"
-        type="text"
-        name="localPath"
-        defaultValue={repository.localPath ?? ''}
-        aria-label={`Local path for ${repository.repository}`}
-        placeholder="/Users/you/Work/repository"
-        disabled={busy}
-      />
-      <Button variant="outline" type="submit" disabled={busy}>
-        {busy ? 'Validating…' : repository.localPath ? 'Revalidate' : 'Attach'}
-      </Button>
-      {error ? (
-        <p className={cn(inlineErrorClass, 'col-[2/-1] max-[980px]:col-[1/-1]')} role="alert">
-          <Icon name="alert" size={13} /> {error}
-        </p>
-      ) : null}
-    </form>
+      <span
+        className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.75rem] text-ink-secondary max-[980px]:col-[1/-1]"
+        title={repository.localPath ?? undefined}
+      >
+        {repository.localPath ?? 'Monitoring and review only'}
+      </span>
+    </div>
   );
 }
 
@@ -888,8 +857,8 @@ function AccountActionDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             {switching
-              ? 'Mission Control will ask GitHub CLI to activate your other signed-in account. Add another account with `gh auth login` first if only one is available.'
-              : 'Mission Control will stop using the active GitHub CLI account and clear the active inbox. Your GitHub CLI login remains available to Terminal and other tools.'}{' '}
+              ? 'Captain will ask GitHub CLI to activate your other signed-in account. Add another account with `gh auth login` first if only one is available.'
+              : 'Captain will stop using the active GitHub CLI account and clear the active inbox. Your GitHub CLI login remains available to Terminal and other tools.'}{' '}
             Local repositories, worktrees, and agent logs are preserved.
           </AlertDialogDescription>
         </AlertDialogHeader>

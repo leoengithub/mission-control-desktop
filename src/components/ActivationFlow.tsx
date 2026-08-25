@@ -55,7 +55,7 @@ export function ActivationFlow({
       <section className="max-w-[620px]" aria-labelledby="activation-title">
         <div className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.04em] text-success-deep uppercase">
           <Icon name="spark" size={15} />
-          First run
+          Captain
         </div>
         <h1
           className="my-4 max-w-[11ch] text-[clamp(2.5rem,5vw,4.6rem)] leading-[0.98] font-semibold tracking-[-0.055em] text-balance max-[980px]:text-[2.8rem]"
@@ -64,14 +64,14 @@ export function ActivationFlow({
           See what needs you.
         </h1>
         <p className="m-0 max-w-[54ch] text-base leading-[1.65] text-ink-secondary">
-          Use your GitHub CLI account and Mission Control will build a live inbox from your authored
-          and review-requested pull requests.
+          Your pull request review desk uses your GitHub CLI account to build a live inbox from your
+          authored and review-requested pull requests.
         </p>
         <div className="mt-8 flex max-w-[52ch] items-center gap-2 text-[0.8125rem] text-ink-secondary">
           <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-success-soft text-success-deep">
             <Icon name="check" size={14} strokeWidth={2.4} />
           </span>
-          GitHub CLI manages your credentials. Mission Control does not install anything in your
+          GitHub CLI manages your credentials. Captain does not install anything in your
           repositories.
         </div>
         <img
@@ -313,10 +313,11 @@ function RepositorySelection({
   return (
     <div className="grid gap-3">
       <div className="flex items-center gap-3">
-        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-2 focus-within:ring-focus/12">
           <span className="sr-only">Search accessible repositories</span>
           <Icon name="search" size={15} />
           <input
+            data-composite-input
             className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
             type="search"
             value={query}

@@ -147,7 +147,7 @@ export function InboxWorkspace({
             data-tauri-drag-region
           >
             <h1 className="m-0 overflow-hidden text-[0.88rem] font-semibold tracking-[-0.015em] text-ellipsis whitespace-nowrap">
-              Mission Control
+              Captain
             </h1>
             <div
               className="flex shrink-0 items-center gap-1.5 text-xs text-ink-secondary"
@@ -174,10 +174,11 @@ export function InboxWorkspace({
           </header>
           <div className="min-h-0 flex-1 overflow-auto">
             <div className="sticky top-0 z-[2] grid gap-2 border-b border-hairline bg-canvas px-4 py-3">
-              <label className="flex min-w-0 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/10">
+              <label className="flex min-w-0 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-2 focus-within:ring-focus/12">
                 <span className="sr-only">Search pull requests</span>
                 <Icon name="search" size={16} />
                 <input
+                  data-composite-input
                   className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
                   type="search"
                   value={query}
@@ -332,7 +333,7 @@ function ContextualSetupBanner({
         <span className="text-xs text-ink-secondary max-[980px]:hidden">
           {notificationPrompt
             ? 'Enable native alerts for new review requests, unresolved threads, and failing required checks.'
-            : 'Launch Mission Control when you sign in so background monitoring starts automatically.'}
+            : 'Launch Captain when you sign in so background monitoring starts automatically.'}
         </span>
       </div>
       <Button className="shrink-0" variant="outline" type="button" onClick={onEnable}>

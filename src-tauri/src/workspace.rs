@@ -26,9 +26,15 @@ pub enum WorkspaceError {
     NotRepositoryRoot,
     #[error("local repository remote is {actual}; expected {expected}")]
     RemoteMismatch { expected: String, actual: String },
+    #[error("selected Git repository origin is not a supported GitHub remote: {0}")]
+    UnsupportedRemote(String),
+    #[error(
+        "GitHub repository {0} is not accessible to the active account; refresh repository access or authorize organization SSO"
+    )]
+    InaccessibleRemote(String),
     #[error("attach this GitHub repository in Settings before starting a local action")]
     NotAttached,
-    #[error("worktree path is outside Mission Control's configured worktree directory")]
+    #[error("worktree path is outside Captain's configured worktree directory")]
     UnsafeWorktreePath,
     #[error("worktree has uncommitted changes and was preserved")]
     DirtyWorktree,
@@ -124,6 +130,54 @@ pub fn attach_local_repository(
     repository_id: &str,
     local_path: &str,
 ) -> Result<LocalRepositoryAttachment, WorkspaceError> {
+    let (canonical, actual) = inspect_local_repository(local_path)?;
+    let (expected, default_branch) = database.with_connection(|connection| {
+        connection.query_row(
+            "SELECT full_name, default_branch FROM repositories WHERE id = ?1 AND accessible = 1",
+            [repository_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+    })?;
+    if !actual.eq_ignore_ascii_case(&expected) {
+        return Err(WorkspaceError::RemoteMismatch { expected, actual });
+    }
+    persist_local_repository(database, repository_id, canonical, expected, default_branch)
+}
+
+pub fn attach_local_repository_by_path(
+    database: &Database,
+    local_path: &str,
+) -> Result<LocalRepositoryAttachment, WorkspaceError> {
+    let (canonical, remote) = inspect_local_repository(local_path)?;
+    let repository = database.with_connection(|connection| {
+        connection
+            .query_row(
+                "SELECT id, full_name, default_branch FROM repositories \
+                 WHERE accessible = 1 AND full_name = ?1 COLLATE NOCASE",
+                [&remote],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
+            )
+            .optional()
+    })?;
+    let Some((repository_id, repository, default_branch)) = repository else {
+        return Err(WorkspaceError::InaccessibleRemote(remote));
+    };
+    persist_local_repository(
+        database,
+        &repository_id,
+        canonical,
+        repository,
+        default_branch,
+    )
+}
+
+fn inspect_local_repository(local_path: &str) -> Result<(PathBuf, String), WorkspaceError> {
     let path = PathBuf::from(local_path);
     if !path.exists() {
         return Err(WorkspaceError::MissingPath(local_path.into()));
@@ -140,17 +194,18 @@ pub fn attach_local_repository(
         return Err(WorkspaceError::NotRepositoryRoot);
     }
     let remote = git(&canonical, &["remote", "get-url", "origin"])?;
-    let actual = normalize_github_remote(&remote).unwrap_or(remote);
-    let (expected, default_branch) = database.with_connection(|connection| {
-        connection.query_row(
-            "SELECT full_name, default_branch FROM repositories WHERE id = ?1",
-            [repository_id],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-        )
-    })?;
-    if !actual.eq_ignore_ascii_case(&expected) {
-        return Err(WorkspaceError::RemoteMismatch { expected, actual });
-    }
+    let actual = normalize_github_remote(&remote)
+        .ok_or_else(|| WorkspaceError::UnsupportedRemote(remote.clone()))?;
+    Ok((canonical, actual))
+}
+
+fn persist_local_repository(
+    database: &Database,
+    repository_id: &str,
+    canonical: PathBuf,
+    repository: String,
+    default_branch: String,
+) -> Result<LocalRepositoryAttachment, WorkspaceError> {
     let validated_at = Utc::now().to_rfc3339();
     let canonical_text = canonical.to_string_lossy().to_string();
     database.with_connection(|connection| {
@@ -167,7 +222,7 @@ pub fn attach_local_repository(
     })?;
     Ok(LocalRepositoryAttachment {
         repository_id: repository_id.into(),
-        repository: expected,
+        repository,
         monitored: database.with_connection(|connection| {
             connection.query_row(
                 "SELECT monitored FROM repositories WHERE id = ?1",
@@ -434,6 +489,50 @@ mod tests {
             })
             .unwrap();
         assert_eq!(completed, "true");
+    }
+
+    #[test]
+    fn local_repository_path_auto_matches_only_an_accessible_github_remote() {
+        let (directory, repository, _) = repository_with_commit();
+        git(
+            &repository,
+            &["remote", "add", "origin", "git@github.com:revolico/web.git"],
+        )
+        .unwrap();
+        let database = Database::open(directory.path().join("attachments.sqlite3")).unwrap();
+        database
+            .with_connection(|connection| {
+                connection.execute(
+                    "INSERT INTO repositories (
+                        id, owner, name, full_name, default_branch, private, monitored, accessible
+                     ) VALUES ('repo-1', 'revolico', 'web', 'revolico/web', 'main', 1, 1, 1)",
+                    [],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+
+        let attachment =
+            attach_local_repository_by_path(&database, repository.to_string_lossy().as_ref())
+                .unwrap();
+
+        assert_eq!(attachment.repository_id, "repo-1");
+        assert_eq!(attachment.repository, "revolico/web");
+        assert_eq!(
+            attachment.local_path.as_deref(),
+            repository.canonicalize().unwrap().to_str()
+        );
+
+        database
+            .with_connection(|connection| {
+                connection.execute("UPDATE repositories SET accessible = 0", [])?;
+                Ok(())
+            })
+            .unwrap();
+        assert!(matches!(
+            attach_local_repository_by_path(&database, repository.to_string_lossy().as_ref()),
+            Err(WorkspaceError::InaccessibleRemote(remote)) if remote == "revolico/web"
+        ));
     }
 
     #[test]

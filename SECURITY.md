@@ -11,7 +11,7 @@ Until a dedicated security contact is published, use GitHub's private vulnerabil
 - GitHub CLI owns credential storage; GitHub tokens enter native core memory only for requests and never enter renderer storage or SQLite.
 - The renderer has no Node.js or shell access.
 - Agent permission bypass is disabled by default and requires an explicit advanced setting.
-- Worktree removal verifies the configured base boundary, attached repository, dirty state, active Mission Control session, and original pull request head before removal.
+- Worktree removal verifies the configured base boundary, attached repository, dirty state, active Captain session, and original pull request head before removal.
 - Logs and diagnostics are user-controlled and may contain private repository context.
 - GitHub reply and resolution checkpoints are persisted separately to prevent duplicate side effects during retry.
 - No analytics or crash data leaves the machine by default.

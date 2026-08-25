@@ -1,6 +1,6 @@
 # Contributing
 
-Mission Control Desktop is under active architectural development.
+Captain is under active architectural development.
 
 ## Expectations
 

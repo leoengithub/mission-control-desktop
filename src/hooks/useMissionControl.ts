@@ -234,7 +234,7 @@ export function useMissionControl(
           return;
         }
         const retry = event.retryAfterSeconds
-          ? ` Mission Control will retry in ${formatRetryDelay(event.retryAfterSeconds)}.`
+          ? ` Captain will retry in ${formatRetryDelay(event.retryAfterSeconds)}.`
           : '';
         setRefreshError(`${event.error ?? 'GitHub synchronization failed.'}${retry}`);
       }),

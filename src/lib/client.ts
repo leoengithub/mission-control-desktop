@@ -20,6 +20,7 @@ import type {
 } from '../contracts';
 import {
   attachLocalRepository,
+  attachLocalRepositoryByPath,
   connectGithubAccount,
   cleanupAgentWorktree,
   completeFixSession,
@@ -39,6 +40,7 @@ import {
   onInboxSync,
   onOpenPullRequest,
   onTerminalEvent,
+  pickLocalRepositoryDirectory,
   openThreadTerminal,
   openExternalUrl,
   refreshInbox,
@@ -73,6 +75,8 @@ export interface MissionControlClient {
     repositoryId: string,
     localPath: string,
   ): Promise<LocalRepositoryAttachment>;
+  pickLocalRepositoryDirectory(): Promise<string | null>;
+  attachLocalRepositoryByPath(localPath: string): Promise<LocalRepositoryAttachment>;
   setRepositoryMonitoring(repositoryIds: string[]): Promise<LocalRepositoryAttachment[]>;
   detectAgents(): Promise<AgentAvailability[]>;
   listAgentRuns(pullRequestId: string): Promise<AgentRun[]>;
@@ -114,6 +118,8 @@ const nativeClient: MissionControlClient = {
   markPullRequestSeen,
   listLocalRepositories,
   attachLocalRepository,
+  pickLocalRepositoryDirectory,
+  attachLocalRepositoryByPath,
   setRepositoryMonitoring,
   detectAgents,
   listAgentRuns,

@@ -153,9 +153,7 @@ export function App() {
           onBack={() => setActiveView('reviews')}
           onSave={(patch) => void model.saveSettings(patch)}
           onNotificationsEnabled={(enabled) => void model.setNotificationsEnabled(enabled)}
-          onAttachRepository={(repositoryId, localPath) =>
-            void reviewWorkflow.attachRepository(repositoryId, localPath)
-          }
+          onAddLocalRepository={() => void reviewWorkflow.addLocalRepository()}
           onSetRepositoryMonitoring={(repositoryIds) =>
             void updateRepositoryMonitoring(repositoryIds)
           }
@@ -173,14 +171,14 @@ function BootScreen() {
     <main
       className="flex min-w-0 flex-1 flex-col items-center justify-center gap-4"
       id="main-content"
-      aria-label="Opening Mission Control"
+      aria-label="Opening Captain"
       data-tauri-drag-region
     >
       <div className="grid size-12 place-items-center rounded-lg border border-hairline bg-surface text-success-deep">
         <Icon name="branch" size={22} strokeWidth={2.1} />
       </div>
       <div className="grid gap-1 text-center">
-        <strong className="text-base">Mission Control</strong>
+        <strong className="text-base">Captain</strong>
         <span className="text-ink-secondary">Opening your local attention inbox</span>
       </div>
       <span className="h-0.5 w-28 overflow-hidden rounded-full bg-hairline after:block after:h-full after:w-[45%] after:animate-loading-line after:rounded-[inherit] after:bg-success after:content-['']" />
@@ -198,7 +196,7 @@ function FatalState({ message, onRetry }: { message: string; onRetry(): void }) 
       <span className="grid size-12 place-items-center rounded-lg border border-hairline bg-surface text-danger-deep">
         <Icon name="alert" size={22} />
       </span>
-      <h1 className="mt-2 text-[1.4rem]">Mission Control could not open</h1>
+      <h1 className="mt-2 text-[1.4rem]">Captain could not open</h1>
       <p className="max-w-[58ch] text-ink-secondary">{message}</p>
       <Button type="button" onClick={onRetry}>
         Try again

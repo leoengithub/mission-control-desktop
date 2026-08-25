@@ -21,7 +21,7 @@ pub enum GithubAuthError {
     CliUnavailable,
     #[error("GitHub CLI is not signed in. Run `gh auth login` in Terminal, then try again.")]
     NotAuthenticated,
-    #[error("Mission Control is disconnected from GitHub CLI")]
+    #[error("Captain is disconnected from GitHub CLI")]
     Disconnected,
     #[error("could not run GitHub CLI: {0}")]
     Execution(#[source] std::io::Error),
@@ -38,7 +38,7 @@ pub enum GithubAuthError {
     )]
     NoAlternateAccount,
     #[error(
-        "More than two GitHub CLI accounts are available. Run `gh auth switch` in Terminal to choose one, then refresh Mission Control."
+        "More than two GitHub CLI accounts are available. Run `gh auth switch` in Terminal to choose one, then refresh Captain."
     )]
     AmbiguousAlternateAccount,
     #[error(transparent)]

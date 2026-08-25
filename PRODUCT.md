@@ -6,11 +6,11 @@ product
 
 ## Users
 
-Mission Control is for software developers and pull request reviewers who need to manage many authored and review-requested pull requests without repeatedly navigating GitHub. They use it throughout the workday to identify what changed, understand why a pull request needs attention, and move directly into review, repair, terminal, worktree, or agent-assisted action.
+Captain is for software developers and pull request reviewers who need to manage many authored and review-requested pull requests without repeatedly navigating GitHub. They use it throughout the workday to identify what changed, understand why a pull request needs attention, and move directly into review, repair, terminal, worktree, or agent-assisted action.
 
 ## Product Purpose
 
-Mission Control is a local-first attention inbox for pull requests. It combines review requests, unresolved threads, failing required checks, and agent escalation states into one prioritized workspace. Success means the user can answer three questions immediately: what needs me, why does it need me, and what can I do next.
+Captain is a local-first attention inbox for pull requests: your pull request review desk. It combines review requests, unresolved threads, failing required checks, and agent escalation states into one prioritized workspace. Success means the user can answer three questions immediately: what needs me, why does it need me, and what can I do next.
 
 The product should reduce manual refreshes and fragmented navigation through background synchronization, cached state, native notifications, and focused detail views. The initial public beta uses the developer's authenticated GitHub CLI account; local repositories and agent tools remain optional for monitoring and review. Terminals, worktrees, and agent controls appear contextually when they help complete the work.
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-08-03T18:58:39Z",
-  "title": "Design System: Mission Control Desktop",
+  "title": "Design System: Captain",
   "extensions": {
     "colorMeta": {
       "canvas": {
@@ -491,7 +491,7 @@
   ],
   "narrative": {
     "northStar": "The Review Desk",
-    "overview": "Mission Control is a bright, organized desk for focused pull request work. A persistent 64px rail anchors the app; a compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Density belongs at the edge. Comprehension gets space in the center. The system is calm, precise, and quietly capable. It uses softly tinted near-white materials, graphite text, hairline boundaries, and semantic accents only when state deserves attention. It rejects GitHub's fragmented navigation, generic card-heavy SaaS dashboards, terminal-first neon decoration, color-only status, and marketing-page typography. Motion is responsive but restrained: 120ms for direct press feedback and 190ms for state transitions, both using an expressive ease-out curve. Animate opacity and transform; never choreograph page entrances or block access to current state. The app targets desktop windows from 960px upward and preserves reduced-motion preferences.",
+    "overview": "Captain is a bright, organized desk for focused pull request work. A persistent 64px rail anchors the app; a compact attention inventory stays beside a generous reading surface so the user can answer what needs them, why, and what to do next without losing context. Density belongs at the edge. Comprehension gets space in the center. The system is calm, precise, and quietly capable. It uses softly tinted near-white materials, graphite text, hairline boundaries, and semantic accents only when state deserves attention. It rejects GitHub's fragmented navigation, generic card-heavy SaaS dashboards, terminal-first neon decoration, color-only status, and marketing-page typography. Motion is responsive but restrained: 120ms for direct press feedback and 190ms for state transitions, both using an expressive ease-out curve. Animate opacity and transform; never choreograph page entrances or block access to current state. The app targets desktop windows from 960px upward and preserves reduced-motion preferences.",
     "keyCharacteristics": [
       "Persistent narrow rail with a visible active destination and monitoring state",
       "Master-detail review workspace with a 320–390px attention inventory",
@@ -523,7 +523,7 @@
       },
       {
         "name": "The Native Voice Rule",
-        "body": "Do not import a decorative webfont. Mission Control must look and render like a desktop tool before it looks branded.",
+        "body": "Do not import a decorative webfont. Captain must look and render like a desktop tool before it looks branded.",
         "section": "typography"
       },
       {
