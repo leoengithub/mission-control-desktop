@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentKind, AgentRun, CheckRun, ReviewThread } from '../contracts';
 import type { ReviewWorkflowModel } from '../hooks/useReviewWorkflow';
 import type { MissionControlClient } from '../lib/client';
@@ -36,20 +36,38 @@ export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetai
   const { pullRequest, attention } = entry;
   const [tab, setTab] = useState<ReviewDetailTab>('overview');
   const [branchCopyState, setBranchCopyState] = useState<'idle' | 'success' | 'error'>('idle');
+  const branchCopyAttemptRef = useRef(0);
+  const branchCopyResetRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (branchCopyResetRef.current !== null) window.clearTimeout(branchCopyResetRef.current);
+    },
+    [],
+  );
   const detail = workflow.detail?.pullRequestId === pullRequest.id ? workflow.detail : null;
   const openThreads =
     detail?.threads.filter((thread) => !thread.resolved && !thread.outdated) ?? [];
   const failedChecks = detail?.checks.filter((check) => checkTone(check) === 'danger').length ?? 0;
   const overviewSignals = buildOverviewSignals(entry, detail?.checks ?? [], openThreads.length);
+  const scheduleBranchCopyReset = (attempt: number) => {
+    if (branchCopyResetRef.current !== null) window.clearTimeout(branchCopyResetRef.current);
+    branchCopyResetRef.current = window.setTimeout(() => {
+      if (branchCopyAttemptRef.current === attempt) setBranchCopyState('idle');
+      branchCopyResetRef.current = null;
+    }, 1800);
+  };
   const copySourceBranch = async () => {
+    const attempt = ++branchCopyAttemptRef.current;
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(pullRequest.headRef);
+      if (branchCopyAttemptRef.current !== attempt) return;
       setBranchCopyState('success');
-      window.setTimeout(() => setBranchCopyState('idle'), 1800);
+      scheduleBranchCopyReset(attempt);
     } catch {
+      if (branchCopyAttemptRef.current !== attempt) return;
       setBranchCopyState('error');
-      window.setTimeout(() => setBranchCopyState('idle'), 1800);
+      scheduleBranchCopyReset(attempt);
     }
   };
 
