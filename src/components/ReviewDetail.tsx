@@ -24,6 +24,7 @@ import { ReasonPill, StatusPill } from './StatusMark';
 import { TerminalPanel } from './TerminalPanel';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
+import { agentSelectionLabel } from '@/lib/agents';
 
 interface ReviewDetailProps {
   client: MissionControlClient;
@@ -253,6 +254,7 @@ function DetailTabTrigger({
 }
 
 function LocalAgentSelect({ workflow }: { workflow: ReviewWorkflowModel }) {
+  const selectedAgent = workflow.agents.find((agent) => agent.agent === workflow.selectedAgent);
   return (
     <label className="flex items-center gap-2 text-xs font-semibold text-ink-secondary">
       <span>Local agent</span>
@@ -265,13 +267,13 @@ function LocalAgentSelect({ workflow }: { workflow: ReviewWorkflowModel }) {
           aria-label="Local agent"
         >
           <SelectValue placeholder="No local agent available">
-            {workflow.agents.find((agent) => agent.agent === workflow.selectedAgent)?.label}
+            {selectedAgent ? agentSelectionLabel(selectedAgent) : undefined}
           </SelectValue>
         </SelectTrigger>
         <SelectContent align="end">
           {workflow.agents.map((agent) => (
             <SelectItem disabled={!agent.available} value={agent.agent} key={agent.agent}>
-              {agent.label} {agent.available ? '' : '(not installed)'}
+              {agentSelectionLabel(agent)}
             </SelectItem>
           ))}
         </SelectContent>

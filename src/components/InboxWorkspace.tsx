@@ -15,6 +15,7 @@ import { ReviewDetail } from './ReviewDetail';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
+import { startWindowDrag } from '@/lib/windowDrag';
 
 interface InboxWorkspaceProps {
   githubLogin: string | null;
@@ -145,6 +146,7 @@ export function InboxWorkspace({
           <header
             className="flex min-h-11 shrink-0 basis-11 items-center justify-between gap-2 border-b border-hairline pr-2.5 pl-[88px]"
             data-tauri-drag-region
+            onMouseDown={startWindowDrag}
           >
             <h1 className="m-0 overflow-hidden text-[0.88rem] font-semibold tracking-[-0.015em] text-ellipsis whitespace-nowrap">
               Captain
@@ -187,7 +189,7 @@ export function InboxWorkspace({
                 />
               </label>
               <div
-                className="grid grid-cols-[1.25fr_repeat(3,1fr)] gap-1 rounded-md bg-surface-muted p-1"
+                className="grid grid-cols-[1.25fr_repeat(3,1fr)] gap-[3px] rounded-md bg-surface-muted p-[3px]"
                 role="group"
                 aria-label="Quick filters"
               >
@@ -196,7 +198,7 @@ export function InboxWorkspace({
                   return (
                     <button
                       className={cn(
-                        'flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-sm border border-transparent bg-transparent px-1 py-1.5 text-xs font-semibold text-ink-secondary transition-[background,color,border-color] duration-state ease-out hover:text-ink',
+                        'flex h-6 min-w-0 cursor-pointer items-center justify-center gap-1 rounded-sm border border-transparent bg-transparent px-1 text-[0.7rem] font-semibold text-ink-secondary transition-[background,color,border-color] duration-state ease-out hover:text-ink',
                         active && 'border border-hairline bg-surface-raised text-ink',
                       )}
                       key={filter.id}
@@ -205,7 +207,7 @@ export function InboxWorkspace({
                       onClick={() => setQuickFilter(filter.id)}
                     >
                       <span className="whitespace-nowrap">{filter.label}</span>
-                      <span className="shrink-0 text-xs text-ink-muted [font-variant-numeric:tabular-nums]">
+                      <span className="shrink-0 text-[0.7rem] text-ink-muted [font-variant-numeric:tabular-nums]">
                         {filterCounts[filter.id]}
                       </span>
                     </button>
@@ -250,6 +252,7 @@ export function InboxWorkspace({
                   <PullRequestRow
                     key={entry.pullRequest.id}
                     entry={entry}
+                    quickFilter={quickFilter}
                     selected={selectedEntry?.pullRequest.id === entry.pullRequest.id}
                     onSelect={() => onSelectPullRequest(entry.pullRequest.id)}
                   />
@@ -352,15 +355,20 @@ function ContextualSetupBanner({
 
 function PullRequestRow({
   entry,
+  quickFilter,
   selected,
   onSelect,
 }: {
   entry: PullRequestInboxEntry;
+  quickFilter: InboxQuickFilter;
   selected: boolean;
   onSelect(): void;
 }) {
   const { pullRequest } = entry;
   const disposition = inboxDisposition(entry);
+  const dispositionIsFilterContext =
+    (quickFilter === 'ready' && disposition.kind === 'ready') ||
+    (quickFilter === 'drafts' && pullRequest.draft);
   return (
     <button
       className={cn(
@@ -399,9 +407,11 @@ function PullRequestRow({
               −{pullRequest.deletions}
             </span>
           </span>
-          <span className={dispositionLabelVariants({ tone: disposition.tone })}>
-            {disposition.label}
-          </span>
+          {!dispositionIsFilterContext ? (
+            <span className={dispositionLabelVariants({ tone: disposition.tone })}>
+              {disposition.label}
+            </span>
+          ) : null}
         </span>
       </span>
     </button>

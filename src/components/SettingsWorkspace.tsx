@@ -26,6 +26,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { agentDiscoveryLabel } from '@/lib/agents';
+import { startWindowDrag } from '@/lib/windowDrag';
 
 interface SettingsWorkspaceProps {
   settings: AppSettings | null;
@@ -112,12 +114,13 @@ export function SettingsWorkspace({
   if (!settings) {
     return (
       <main
-        className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
+        className="relative z-[1] m-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-surface-raised bg-surface shadow-panel"
         id="main-content"
       >
         <header
-          className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
+          className="flex min-h-11 shrink-0 basis-11 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
           data-tauri-drag-region
+          onMouseDown={startWindowDrag}
         >
           <div className="flex items-center gap-3">
             <button
@@ -152,12 +155,13 @@ export function SettingsWorkspace({
 
   return (
     <main
-      className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
+      className="relative z-[1] m-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-surface-raised bg-surface shadow-panel"
       id="main-content"
     >
       <header
-        className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
+        className="flex min-h-11 shrink-0 basis-11 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
         data-tauri-drag-region
+        onMouseDown={startWindowDrag}
       >
         <div className="flex items-center gap-3">
           <button
@@ -724,10 +728,8 @@ function agentAvailabilityDetail(agent: AgentAvailability): string {
 }
 
 function agentAvailabilityLabel(agent: AgentAvailability, isDefault: boolean): string {
-  if (isDefault) return 'Default';
-  if (agent.source === 'preview_fixture') return 'Preview';
-  if (agent.status === 'probe_failed') return 'Probe failed';
-  return agent.available ? 'Available' : 'Not found';
+  const discoveryLabel = agentDiscoveryLabel(agent);
+  return isDefault ? `Default · ${discoveryLabel}` : discoveryLabel;
 }
 
 function RepositorySetting({
