@@ -144,7 +144,7 @@ export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetai
         onValueChange={(value) => setTab(value as ReviewDetailTab)}
       >
         <TabsList
-          className="h-11 w-full justify-start gap-1 rounded-none border-b border-hairline bg-surface px-5 py-0 max-[980px]:px-4"
+          className="h-11 min-h-[34px] w-full justify-start gap-1 rounded-none border-b border-hairline bg-surface px-5 py-0 max-[980px]:px-4"
           variant="line"
           aria-label="Pull request detail sections"
         >
@@ -215,7 +215,10 @@ function DetailTabTrigger({
   alertCount?: number;
 }) {
   return (
-    <TabsTrigger className="h-full flex-none px-2.5 text-xs font-semibold" value={value}>
+    <TabsTrigger
+      className="!h-[31px] flex-none px-2.5 text-xs font-semibold after:!bottom-[-2px]"
+      value={value}
+    >
       <span>{label}</span>
       {count !== undefined ? (
         <span
@@ -281,7 +284,14 @@ function OverviewView({
           <span className="text-xs font-semibold tracking-[0.04em] text-ink-muted uppercase">
             Change context
           </span>
-          <h3 className="mt-1.5 mb-2 text-base font-semibold">Pull request description</h3>
+          <div className="mt-1.5 mb-2 flex items-center justify-between gap-4">
+            <h3 className="m-0 min-w-0 text-base font-semibold">Pull request description</h3>
+            <dl className="grid shrink-0 grid-cols-3 gap-4 text-right">
+              <ChangeMetric label="Files" value={pullRequest.changedFiles} />
+              <ChangeMetric label="Added" value={`+${pullRequest.additions}`} tone="success" />
+              <ChangeMetric label="Removed" value={`−${pullRequest.deletions}`} tone="danger" />
+            </dl>
+          </div>
           {pullRequest.bodyText ? (
             <>
               <p
@@ -311,11 +321,6 @@ function OverviewView({
             </p>
           )}
         </div>
-        <dl className="mt-4 grid w-fit min-w-[220px] justify-self-end grid-cols-3 content-start gap-4 text-right max-[980px]:justify-self-start max-[980px]:text-left">
-          <ChangeMetric label="Files" value={pullRequest.changedFiles} />
-          <ChangeMetric label="Added" value={`+${pullRequest.additions}`} tone="success" />
-          <ChangeMetric label="Removed" value={`−${pullRequest.deletions}`} tone="danger" />
-        </dl>
       </section>
 
       <section className="py-5" aria-labelledby="readiness-title">
