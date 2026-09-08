@@ -218,6 +218,12 @@ export function useReviewWorkflow(
     return result;
   }, [client, loadWorkspaceSupport, runAction]);
 
+  const refreshAgents = useCallback(async () => {
+    const result = await runAction('agent-discovery', () => client.detectAgents());
+    if (result && mountedRef.current) setAgents(result);
+    return result;
+  }, [client, runAction]);
+
   const setRepositoryMonitoring = useCallback(
     async (repositoryIds: string[]) => {
       const result = await runAction('repository-monitoring', () =>
@@ -250,6 +256,7 @@ export function useReviewWorkflow(
     requestCopilotReview,
     attachRepository,
     addLocalRepository,
+    refreshAgents,
     setRepositoryMonitoring,
     reloadWorkspaceSupport: loadWorkspaceSupport,
   };

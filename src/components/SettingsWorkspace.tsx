@@ -42,6 +42,7 @@ interface SettingsWorkspaceProps {
   onSave(patch: SettingsPatch): void;
   onNotificationsEnabled(enabled: boolean): void;
   onAddLocalRepository(): void;
+  onRefreshAgents(): void;
   onSetRepositoryMonitoring(repositoryIds: string[]): void;
   onOpenUrl(url: string): void;
   onSwitchAccount(): void;
@@ -89,6 +90,7 @@ export function SettingsWorkspace({
   onSave,
   onNotificationsEnabled,
   onAddLocalRepository,
+  onRefreshAgents,
   onSetRepositoryMonitoring,
   onOpenUrl,
   onSwitchAccount,
@@ -548,7 +550,7 @@ export function SettingsWorkspace({
               <span className={settingsIconClass}>
                 <Icon name="terminal" size={17} />
               </span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <h2 className={settingsHeadingTitleClass} id="agents-heading">
                   Local agents
                 </h2>
@@ -556,7 +558,22 @@ export function SettingsWorkspace({
                   Select the default for review replies and isolated fix sessions.
                 </p>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                disabled={actionStates['agent-discovery'] === 'running'}
+                onClick={onRefreshAgents}
+              >
+                <Icon name="refresh" size={14} />
+                {actionStates['agent-discovery'] === 'running' ? 'Detecting…' : 'Refresh'}
+              </Button>
             </div>
+            {actionErrors['agent-discovery'] ? (
+              <p className={cn(inlineErrorClass, 'mt-3 ml-11')} role="alert">
+                <Icon name="alert" size={13} /> {actionErrors['agent-discovery']}
+              </p>
+            ) : null}
             <div
               className="ml-11 grid w-[calc(100%-44px)] grid-cols-2 gap-3 max-[980px]:grid-cols-1"
               role="radiogroup"
@@ -590,15 +607,11 @@ export function SettingsWorkspace({
                   <span className="flex min-w-0 flex-col">
                     <strong>{agent.label}</strong>
                     <small className="text-[0.68rem] text-ink-muted">
-                      {agent.available
-                        ? agent.version || 'Installed'
-                        : agent.agent === 'codex'
-                          ? 'Not found. Add Codex to PATH or set MC_CODEX_PATH.'
-                          : 'Not found. Add Claude to PATH or set MC_CLAUDE_PATH.'}
+                      {agentAvailabilityDetail(agent)}
                     </small>
                   </span>
                   <span className="text-[0.68rem] text-ink-muted">
-                    {settings.agents.defaultAgent === agent.agent ? 'Default' : 'Available'}
+                    {agentAvailabilityLabel(agent, settings.agents.defaultAgent === agent.agent)}
                   </span>
                 </button>
               ))}
@@ -702,6 +715,19 @@ function resolveAutomaticWorktreeDirectory(repositories: LocalRepositoryAttachme
     parentBoundary === 0 ? separator : normalizedPath.slice(0, Math.max(parentBoundary, 0));
 
   return `${parentPath}${parentPath.endsWith(separator) ? '' : separator}.mission-control-worktrees`;
+}
+
+function agentAvailabilityDetail(agent: AgentAvailability): string {
+  if (agent.source === 'preview_fixture') return agent.detail;
+  if (agent.available) return agent.version || agent.detail;
+  return agent.detail;
+}
+
+function agentAvailabilityLabel(agent: AgentAvailability, isDefault: boolean): string {
+  if (isDefault) return 'Default';
+  if (agent.source === 'preview_fixture') return 'Preview';
+  if (agent.status === 'probe_failed') return 'Probe failed';
+  return agent.available ? 'Available' : 'Not found';
 }
 
 function RepositorySetting({
