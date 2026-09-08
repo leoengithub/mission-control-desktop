@@ -507,15 +507,12 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
     >
       <header className="flex items-center justify-between gap-3 border-b border-hairline px-1 py-2.5">
         <div className="flex items-center gap-3">
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 text-xs font-semibold text-warning-deep',
-              (thread.resolved || thread.outdated) && 'text-success-deep',
-            )}
-          >
-            <Icon name={thread.resolved ? 'check' : thread.outdated ? 'x' : 'clock'} size={13} />
-            {thread.resolved ? 'Resolved' : thread.outdated ? 'Outdated' : 'Needs reply'}
-          </span>
+          {thread.resolved || thread.outdated ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success-deep">
+              <Icon name={thread.resolved ? 'check' : 'x'} size={13} />
+              {thread.resolved ? 'Resolved' : 'Outdated'}
+            </span>
+          ) : null}
           {thread.hasNewActivity && !thread.resolved ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-info-deep">
               <Icon name="spark" size={12} /> New activity
