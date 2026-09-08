@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentKind, AgentRun, CheckRun, ReviewThread } from '../contracts';
 import type { ReviewWorkflowModel } from '../hooks/useReviewWorkflow';
 import type { MissionControlClient } from '../lib/client';
@@ -35,27 +35,86 @@ interface ReviewDetailProps {
 export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetailProps) {
   const { pullRequest, attention } = entry;
   const [tab, setTab] = useState<ReviewDetailTab>('overview');
+  const [branchCopyState, setBranchCopyState] = useState<'idle' | 'success' | 'error'>('idle');
+  const branchCopyAttemptRef = useRef(0);
+  const branchCopyResetRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (branchCopyResetRef.current !== null) window.clearTimeout(branchCopyResetRef.current);
+    },
+    [],
+  );
   const detail = workflow.detail?.pullRequestId === pullRequest.id ? workflow.detail : null;
   const openThreads =
     detail?.threads.filter((thread) => !thread.resolved && !thread.outdated) ?? [];
   const failedChecks = detail?.checks.filter((check) => checkTone(check) === 'danger').length ?? 0;
   const overviewSignals = buildOverviewSignals(entry, detail?.checks ?? [], openThreads.length);
+  const scheduleBranchCopyReset = (attempt: number) => {
+    if (branchCopyResetRef.current !== null) window.clearTimeout(branchCopyResetRef.current);
+    branchCopyResetRef.current = window.setTimeout(() => {
+      if (branchCopyAttemptRef.current === attempt) setBranchCopyState('idle');
+      branchCopyResetRef.current = null;
+    }, 1800);
+  };
+  const copySourceBranch = async () => {
+    const attempt = ++branchCopyAttemptRef.current;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(pullRequest.headRef);
+      if (branchCopyAttemptRef.current !== attempt) return;
+      setBranchCopyState('success');
+      scheduleBranchCopyReset(attempt);
+    } catch {
+      if (branchCopyAttemptRef.current !== attempt) return;
+      setBranchCopyState('error');
+      scheduleBranchCopyReset(attempt);
+    }
+  };
 
   return (
     <article className="min-h-full bg-transparent">
       <header className="flex items-start justify-between gap-5 border-b border-hairline bg-surface px-5 py-3.5 max-[980px]:px-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-secondary">
-            {entry.primaryReason ? (
-              <ReasonPill reason={entry.primaryReason} />
-            ) : (
-              <StatusPill tone="success" label="No active escalation" />
-            )}
+            {entry.primaryReason ? <ReasonPill reason={entry.primaryReason} /> : null}
             {pullRequest.draft ? <StatusPill tone="neutral" label="Draft" /> : null}
-            <span className="inline-flex h-[26px] items-center gap-1.5 rounded-md bg-surface-muted px-2.5 font-mono text-ink-secondary">
+            <button
+              className={cn(
+                'inline-flex h-[26px] min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-surface-muted px-2.5 font-mono text-ink-secondary transition-colors hover:bg-surface-selected hover:text-ink',
+                branchCopyState === 'success' && 'bg-success-soft text-success-deep',
+                branchCopyState === 'error' && 'bg-danger-soft text-danger-deep',
+              )}
+              type="button"
+              aria-label={
+                branchCopyState === 'success'
+                  ? `Source branch ${pullRequest.headRef} copied`
+                  : branchCopyState === 'error'
+                    ? `Could not copy source branch ${pullRequest.headRef}`
+                    : `Copy source branch ${pullRequest.headRef}`
+              }
+              onClick={() => void copySourceBranch()}
+            >
               <Icon name="branch" size={13} />
-              {pullRequest.headRef} → {pullRequest.baseRef}
-            </span>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                {pullRequest.headRef} → {pullRequest.baseRef}
+              </span>
+              {branchCopyState === 'success' ? <Icon name="check" size={13} /> : null}
+              {branchCopyState === 'error' ? <Icon name="alert" size={13} /> : null}
+            </button>
+            {branchCopyState !== 'idle' ? (
+              <span
+                className={cn(
+                  'text-xs',
+                  branchCopyState === 'success' ? 'text-success-deep' : 'text-danger-deep',
+                )}
+                role="status"
+                aria-live="polite"
+              >
+                {branchCopyState === 'success'
+                  ? 'Copied source branch'
+                  : 'Could not copy source branch'}
+              </span>
+            ) : null}
             <span className="inline-flex h-[26px] items-center rounded-md bg-surface-muted px-2.5 font-mono text-ink-secondary">
               {pullRequest.repository} #{pullRequest.number}
             </span>
@@ -103,7 +162,7 @@ export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetai
         onValueChange={(value) => setTab(value as ReviewDetailTab)}
       >
         <TabsList
-          className="h-11 w-full justify-start gap-1 rounded-none border-b border-hairline bg-surface px-5 py-0 max-[980px]:px-4"
+          className="h-11 min-h-[34px] w-full justify-start gap-1 rounded-none border-b border-hairline bg-surface px-5 py-0 max-[980px]:px-4"
           variant="line"
           aria-label="Pull request detail sections"
         >
@@ -174,7 +233,10 @@ function DetailTabTrigger({
   alertCount?: number;
 }) {
   return (
-    <TabsTrigger className="h-full flex-none px-2.5 text-xs font-semibold" value={value}>
+    <TabsTrigger
+      className="!h-[31px] flex-none px-2.5 text-xs font-semibold after:!bottom-[-2px]"
+      value={value}
+    >
       <span>{label}</span>
       {count !== undefined ? (
         <span
@@ -235,12 +297,19 @@ function OverviewView({
 
   return (
     <div className="px-5 pb-8 max-[980px]:px-4">
-      <section className="grid grid-cols-[minmax(0,1fr)_auto] gap-8 border-b border-hairline py-5 max-[980px]:grid-cols-1">
-        <div className="min-w-0 max-w-[72ch]">
+      <section className="border-b border-hairline py-5">
+        <div className="min-w-0">
           <span className="text-xs font-semibold tracking-[0.04em] text-ink-muted uppercase">
             Change context
           </span>
-          <h3 className="mt-1.5 mb-2 text-base font-semibold">Pull request description</h3>
+          <div className="mt-1.5 mb-2 flex items-center justify-between gap-4">
+            <h3 className="m-0 min-w-0 text-base font-semibold">Pull request description</h3>
+            <dl className="grid shrink-0 grid-cols-3 gap-4 text-right">
+              <ChangeMetric label="Files" value={pullRequest.changedFiles} />
+              <ChangeMetric label="Added" value={`+${pullRequest.additions}`} tone="success" />
+              <ChangeMetric label="Removed" value={`−${pullRequest.deletions}`} tone="danger" />
+            </dl>
+          </div>
           {pullRequest.bodyText ? (
             <>
               <p
@@ -252,14 +321,21 @@ function OverviewView({
                 {pullRequest.bodyText}
               </p>
               {canExpandDescription ? (
-                <button
-                  className="mt-2 cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-ink-secondary hover:text-ink"
+                <Button
+                  className="mt-2"
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   aria-expanded={descriptionExpanded}
                   onClick={() => setDescriptionExpanded((expanded) => !expanded)}
                 >
-                  {descriptionExpanded ? 'Show less' : 'Show full description'}
-                </button>
+                  {descriptionExpanded ? 'Show less description' : 'Show full description'}
+                  <Icon
+                    name="chevron-down"
+                    size={14}
+                    className={cn('transition-transform', descriptionExpanded && 'rotate-180')}
+                  />
+                </Button>
               ) : null}
             </>
           ) : (
@@ -268,25 +344,12 @@ function OverviewView({
             </p>
           )}
         </div>
-        <dl className="grid min-w-[220px] grid-cols-3 content-start gap-4 text-right max-[980px]:min-w-0 max-[980px]:text-left">
-          <ChangeMetric label="Files" value={pullRequest.changedFiles} />
-          <ChangeMetric label="Added" value={`+${pullRequest.additions}`} tone="success" />
-          <ChangeMetric label="Removed" value={`−${pullRequest.deletions}`} tone="danger" />
-        </dl>
       </section>
 
       <section className="py-5" aria-labelledby="readiness-title">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-semibold tracking-[0.04em] text-ink-muted uppercase">
-              Decision signals
-            </span>
-            <h3 className="mt-1.5 mb-0 text-base font-semibold" id="readiness-title">
-              Merge readiness
-            </h3>
-          </div>
-          <span className="text-xs text-ink-muted">GitHub facts</span>
-        </div>
+        <h3 className="sr-only" id="readiness-title">
+          Merge readiness
+        </h3>
         {detailLoading ? (
           <div className="grid grid-cols-4 border-t border-hairline max-[1120px]:grid-cols-2">
             {[0, 1, 2, 3].map((item) => (
@@ -462,15 +525,12 @@ function ThreadCard({ thread, workflow }: { thread: ReviewThread; workflow: Revi
     >
       <header className="flex items-center justify-between gap-3 border-b border-hairline px-1 py-2.5">
         <div className="flex items-center gap-3">
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 text-xs font-semibold text-warning-deep',
-              (thread.resolved || thread.outdated) && 'text-success-deep',
-            )}
-          >
-            <Icon name={thread.resolved ? 'check' : thread.outdated ? 'x' : 'clock'} size={13} />
-            {thread.resolved ? 'Resolved' : thread.outdated ? 'Outdated' : 'Needs reply'}
-          </span>
+          {thread.resolved || thread.outdated ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success-deep">
+              <Icon name={thread.resolved ? 'check' : 'x'} size={13} />
+              {thread.resolved ? 'Resolved' : 'Outdated'}
+            </span>
+          ) : null}
           {thread.hasNewActivity && !thread.resolved ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-info-deep">
               <Icon name="spark" size={12} /> New activity

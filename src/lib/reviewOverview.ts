@@ -18,44 +18,7 @@ export function buildOverviewSignals(
   openThreadCount: number,
 ): OverviewSignal[] {
   const requiredChecks = checks.filter((check) => check.required);
-  const failingRequired = requiredChecks.filter((check) => checkTone(check) === 'danger').length;
-  const pendingRequired = requiredChecks.filter((check) => checkTone(check) === 'warning').length;
-
-  const checksSignal: OverviewSignal = failingRequired
-    ? {
-        id: 'checks',
-        label: 'Required checks',
-        value: `${failingRequired} failing`,
-        detail: 'GitHub reports a required check failure.',
-        tone: 'danger',
-        target: 'checks',
-      }
-    : pendingRequired
-      ? {
-          id: 'checks',
-          label: 'Required checks',
-          value: `${pendingRequired} pending`,
-          detail: 'GitHub is still running required checks.',
-          tone: 'warning',
-          target: 'checks',
-        }
-      : requiredChecks.length
-        ? {
-            id: 'checks',
-            label: 'Required checks',
-            value: `${requiredChecks.length} passing`,
-            detail: 'All reported required checks are successful.',
-            tone: 'success',
-            target: 'checks',
-          }
-        : {
-            id: 'checks',
-            label: 'Required checks',
-            value: 'None reported',
-            detail: 'GitHub did not identify any required checks.',
-            tone: 'neutral',
-            target: 'checks',
-          };
+  const checksSignal = requiredChecksSignal(requiredChecks);
 
   return [
     {
@@ -74,24 +37,97 @@ export function buildOverviewSignals(
   ];
 }
 
+function requiredChecksSignal(requiredChecks: CheckRun[]): OverviewSignal {
+  const failingRequired = requiredChecks.filter((check) => checkTone(check) === 'danger').length;
+  if (failingRequired) {
+    return {
+      id: 'checks',
+      label: 'Required checks',
+      value: `${failingRequired} failing`,
+      detail: 'GitHub reports a required check failure.',
+      tone: 'danger',
+      target: 'checks',
+    };
+  }
+
+  const pendingRequired = requiredChecks.filter((check) => checkTone(check) === 'warning').length;
+  if (pendingRequired) {
+    return {
+      id: 'checks',
+      label: 'Required checks',
+      value: `${pendingRequired} pending`,
+      detail: 'GitHub is still running required checks.',
+      tone: 'warning',
+      target: 'checks',
+    };
+  }
+
+  const unknownRequired = requiredChecks.filter((check) => checkTone(check) === 'neutral').length;
+  if (unknownRequired) {
+    return {
+      id: 'checks',
+      label: 'Required checks',
+      value: `${unknownRequired} unknown`,
+      detail: 'GitHub reported a required check in an unrecognized state.',
+      tone: 'neutral',
+      target: 'checks',
+    };
+  }
+
+  if (requiredChecks.length) {
+    return {
+      id: 'checks',
+      label: 'Required checks',
+      value: `${requiredChecks.length} passing`,
+      detail: 'All reported required checks are successful.',
+      tone: 'success',
+      target: 'checks',
+    };
+  }
+
+  return {
+    id: 'checks',
+    label: 'Required checks',
+    value: 'None reported',
+    detail: 'GitHub did not identify any required checks.',
+    tone: 'neutral',
+    target: 'checks',
+  };
+}
+
 export function checkTone(check: CheckRun): 'danger' | 'warning' | 'success' | 'neutral' {
-  const conclusion = check.conclusion?.toUpperCase();
+  const status = check.status.trim().toUpperCase();
+  const conclusion = check.conclusion?.trim().toUpperCase();
   if (
-    ['FAILURE', 'ERROR', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE'].includes(
-      conclusion ?? '',
-    )
+    [
+      'FAILURE',
+      'ERROR',
+      'TIMED_OUT',
+      'ACTION_REQUIRED',
+      'STARTUP_FAILURE',
+      'CANCELLED',
+      'STALE',
+    ].includes(conclusion ?? '')
   ) {
     return 'danger';
   }
-  if (
-    check.status.toUpperCase() !== 'COMPLETED' ||
-    ['CANCELLED', 'STALE'].includes(conclusion ?? '')
-  ) {
-    return 'warning';
-  }
-  if (conclusion === 'SUCCESS' || conclusion === 'NEUTRAL' || conclusion === 'SKIPPED') {
+
+  const passingConclusions = ['SUCCESS', 'NEUTRAL', 'SKIPPED'];
+  if (status === 'COMPLETED' && passingConclusions.includes(conclusion ?? '')) {
     return 'success';
   }
+
+  // StatusContext rows are persisted using their state for both status and
+  // conclusion (for example SUCCESS/SUCCESS). They are terminal even though
+  // they do not use CheckRun's COMPLETED status.
+  if (status === conclusion && passingConclusions.includes(status)) {
+    return 'success';
+  }
+
+  if (['QUEUED', 'IN_PROGRESS', 'REQUESTED', 'WAITING', 'PENDING', 'EXPECTED'].includes(status)) {
+    return 'warning';
+  }
+
   return 'neutral';
 }
 
