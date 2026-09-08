@@ -304,14 +304,19 @@ function OverviewView({
               </p>
               {canExpandDescription ? (
                 <Button
-                  className="mt-2 h-auto justify-start px-0 text-xs font-semibold text-ink-secondary hover:bg-transparent hover:text-ink hover:underline"
-                  variant="link"
+                  className="mt-2"
+                  variant="ghost"
                   size="sm"
                   type="button"
                   aria-expanded={descriptionExpanded}
                   onClick={() => setDescriptionExpanded((expanded) => !expanded)}
                 >
                   {descriptionExpanded ? 'Show less description' : 'Show full description'}
+                  <Icon
+                    name="chevron-down"
+                    size={14}
+                    className={cn('transition-transform', descriptionExpanded && 'rotate-180')}
+                  />
                 </Button>
               ) : null}
             </>
