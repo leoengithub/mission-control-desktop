@@ -62,7 +62,7 @@ export function ReviewDetail({ client, entry, workflow, onOpenUrl }: ReviewDetai
             {pullRequest.draft ? <StatusPill tone="neutral" label="Draft" /> : null}
             <button
               className={cn(
-                'inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-surface-muted px-2.5 font-mono text-ink-secondary transition-colors hover:bg-surface-selected hover:text-ink',
+                'inline-flex h-[26px] min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-surface-muted px-2.5 font-mono text-ink-secondary transition-colors hover:bg-surface-selected hover:text-ink',
                 branchCopyState === 'success' && 'bg-success-soft text-success-deep',
                 branchCopyState === 'error' && 'bg-danger-soft text-danger-deep',
               )}
