@@ -143,7 +143,7 @@ export function InboxWorkspace({
       <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(330px,370px)_minmax(0,1fr)] max-[1120px]:grid-cols-[340px_minmax(0,1fr)] max-[980px]:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Pull requests">
           <header
-            className="flex min-h-11 shrink-0 basis-11 items-center justify-between gap-2 border-b border-hairline pr-2.5 pl-4"
+            className="flex min-h-11 shrink-0 basis-11 items-center justify-between gap-2 border-b border-hairline pr-2.5 pl-[88px]"
             data-tauri-drag-region
           >
             <h1 className="m-0 overflow-hidden text-[0.88rem] font-semibold tracking-[-0.015em] text-ellipsis whitespace-nowrap">

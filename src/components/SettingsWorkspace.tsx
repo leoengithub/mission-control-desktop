@@ -114,7 +114,7 @@ export function SettingsWorkspace({
         id="main-content"
       >
         <header
-          className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-4"
+          className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
           data-tauri-drag-region
         >
           <div className="flex items-center gap-3">
@@ -154,7 +154,7 @@ export function SettingsWorkspace({
       id="main-content"
     >
       <header
-        className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-4"
+        className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
         data-tauri-drag-region
       >
         <div className="flex items-center gap-3">
