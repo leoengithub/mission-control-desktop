@@ -37,6 +37,8 @@ pub enum AgentError {
     Terminal(String),
     #[error("agent executable was not found: {0}")]
     AgentUnavailable(String),
+    #[error("agent executable could not be used: {0}")]
+    AgentProbeFailed(String),
     #[error("agent execution failed: {0}")]
     Execution(String),
     #[error("agent execution timed out after five minutes")]
@@ -92,6 +94,33 @@ pub struct AgentAvailability {
     pub label: &'static str,
     pub available: bool,
     pub version: Option<String>,
+    pub source: AgentDiscoverySource,
+    pub status: AgentDiscoveryStatus,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentDiscoverySource {
+    Native,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentDiscoveryStatus {
+    Available,
+    NotFound,
+    ProbeFailed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum AgentDiscovery {
+    Available {
+        path: PathBuf,
+        version: Option<String>,
+    },
+    NotFound,
+    ProbeFailed,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -425,7 +454,7 @@ pub async fn run_agent_reply(
     settings: &AppSettings,
 ) -> Result<String, AgentError> {
     let arguments = print_arguments(agent, settings);
-    let binary = resolve_agent_binary(agent).ok_or_else(|| agent_unavailable_error(agent))?;
+    let binary = resolve_agent_binary(agent)?;
     let mut command = AsyncCommand::new(&binary);
     command
         .args(arguments)
@@ -458,24 +487,34 @@ pub fn detect_agents() -> Vec<AgentAvailability> {
     ]
     .into_iter()
     .map(|(agent, label)| {
-        let output = resolve_agent_binary(agent)
-            .and_then(|binary| Command::new(binary).arg("--version").output().ok());
-        let available = output
-            .as_ref()
-            .is_some_and(|output| output.status.success());
-        let version = output.and_then(|output| {
-            let value = if output.stdout.is_empty() {
-                String::from_utf8_lossy(&output.stderr).trim().to_owned()
-            } else {
-                String::from_utf8_lossy(&output.stdout).trim().to_owned()
-            };
-            (!value.is_empty()).then_some(value)
-        });
+        let (available, version, status, detail) = match discover_agent(agent) {
+            AgentDiscovery::Available { version, .. } => (
+                true,
+                version,
+                AgentDiscoveryStatus::Available,
+                "Detected by the packaged desktop runtime.".to_owned(),
+            ),
+            AgentDiscovery::NotFound => (
+                false,
+                None,
+                AgentDiscoveryStatus::NotFound,
+                agent_not_found_detail(agent),
+            ),
+            AgentDiscovery::ProbeFailed => (
+                false,
+                None,
+                AgentDiscoveryStatus::ProbeFailed,
+                "An executable was found, but its `--version` probe failed.".to_owned(),
+            ),
+        };
         AgentAvailability {
             agent,
             label,
             available,
             version,
+            source: AgentDiscoverySource::Native,
+            status,
+            detail,
         }
     })
     .collect()
@@ -727,7 +766,7 @@ fn terminal_command(
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
         return Ok((shell, vec!["-l".into()], false));
     };
-    let binary = resolve_agent_binary(agent).ok_or_else(|| agent_unavailable_error(agent))?;
+    let binary = resolve_agent_binary(agent)?;
     let mut arguments = Vec::new();
     match agent {
         AgentKind::Codex if settings.agents.codex_permission_bypass => {
@@ -755,26 +794,56 @@ fn print_arguments(agent: AgentKind, _settings: &AppSettings) -> Vec<String> {
     }
 }
 
-fn resolve_agent_binary(agent: AgentKind) -> Option<PathBuf> {
+fn resolve_agent_binary(agent: AgentKind) -> Result<PathBuf, AgentError> {
+    match discover_agent(agent) {
+        AgentDiscovery::Available { path, .. } => Ok(path),
+        AgentDiscovery::NotFound => {
+            let (binary, _) = agent_binary_details(agent);
+            Err(AgentError::AgentUnavailable(format!(
+                "{binary}; {}",
+                agent_not_found_detail(agent)
+            )))
+        }
+        AgentDiscovery::ProbeFailed => {
+            let (binary, _) = agent_binary_details(agent);
+            Err(AgentError::AgentProbeFailed(format!(
+                "{binary} was found, but its `--version` probe failed"
+            )))
+        }
+    }
+}
+
+fn discover_agent(agent: AgentKind) -> AgentDiscovery {
     let (binary, override_key) = agent_binary_details(agent);
+    let mut saw_candidate = false;
     if let Some(configured) = env::var_os(override_key) {
         let path = PathBuf::from(configured);
-        if executable_responds(&path) {
-            return Some(path);
+        if let Some(discovery) = probe_agent_candidate(&path, &mut saw_candidate) {
+            return discovery;
         }
     }
-    if let Some(path) = env::var_os("PATH")
-        .as_deref()
-        .and_then(|value| find_executable_on_path(binary, value))
-    {
-        return Some(path);
+    if let Some(path) = env::var_os("PATH") {
+        for candidate in executable_candidates_on_path(binary, &path) {
+            if let Some(discovery) = probe_agent_candidate(&candidate, &mut saw_candidate) {
+                return discovery;
+            }
+        }
     }
     for path in known_agent_candidates(binary) {
-        if executable_responds(&path) {
-            return Some(path);
+        if let Some(discovery) = probe_agent_candidate(&path, &mut saw_candidate) {
+            return discovery;
         }
     }
-    resolve_agent_from_login_shell(binary)
+    if let Some(path) = resolve_agent_from_login_shell(binary)
+        && let Some(discovery) = probe_agent_candidate(&path, &mut saw_candidate)
+    {
+        return discovery;
+    }
+    if saw_candidate {
+        AgentDiscovery::ProbeFailed
+    } else {
+        AgentDiscovery::NotFound
+    }
 }
 
 fn agent_binary_details(agent: AgentKind) -> (&'static str, &'static str) {
@@ -784,10 +853,11 @@ fn agent_binary_details(agent: AgentKind) -> (&'static str, &'static str) {
     }
 }
 
-fn find_executable_on_path(binary: &str, path: &std::ffi::OsStr) -> Option<PathBuf> {
+fn executable_candidates_on_path(binary: &str, path: &std::ffi::OsStr) -> Vec<PathBuf> {
     env::split_paths(path)
         .map(|directory| directory.join(binary))
-        .find(|candidate| executable_responds(candidate))
+        .filter(|candidate| candidate.is_file())
+        .collect()
 }
 
 fn known_agent_candidates(binary: &str) -> Vec<PathBuf> {
@@ -817,22 +887,34 @@ fn resolve_agent_from_login_shell(binary: &str) -> Option<PathBuf> {
         return None;
     }
     let path = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
-    executable_responds(&path).then_some(path)
+    path.is_file().then_some(path)
 }
 
-fn executable_responds(path: &Path) -> bool {
-    path.is_file()
-        && Command::new(path)
-            .arg("--version")
-            .output()
-            .is_ok_and(|output| output.status.success())
+fn probe_agent_candidate(path: &Path, saw_candidate: &mut bool) -> Option<AgentDiscovery> {
+    if !path.is_file() {
+        return None;
+    }
+    *saw_candidate = true;
+    let output = Command::new(path).arg("--version").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let value = if output.stdout.is_empty() {
+        String::from_utf8_lossy(&output.stderr).trim().to_owned()
+    } else {
+        String::from_utf8_lossy(&output.stdout).trim().to_owned()
+    };
+    Some(AgentDiscovery::Available {
+        path: path.to_owned(),
+        version: (!value.is_empty()).then_some(value),
+    })
 }
 
-fn agent_unavailable_error(agent: AgentKind) -> AgentError {
+fn agent_not_found_detail(agent: AgentKind) -> String {
     let (binary, override_key) = agent_binary_details(agent);
-    AgentError::AgentUnavailable(format!(
-        "{binary}; install it in your shell PATH or set {override_key} to its absolute path, then reopen Captain"
-    ))
+    format!(
+        "Add {binary} to your shell PATH or set {override_key} to its absolute path, then refresh."
+    )
 }
 
 fn agent_name(agent: AgentKind) -> String {
@@ -892,6 +974,47 @@ mod tests {
         fs::set_permissions(&executable, permissions).unwrap();
         let path = env::join_paths([directory.path()]).unwrap();
 
-        assert_eq!(find_executable_on_path("codex", &path), Some(executable));
+        assert_eq!(
+            executable_candidates_on_path("codex", &path),
+            vec![executable]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn candidate_probe_distinguishes_available_failed_and_missing_executables() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let available = directory.path().join("available-agent");
+        fs::write(&available, "#!/bin/sh\necho 'agent 1.2.3'\n").unwrap();
+        let failed = directory.path().join("failed-agent");
+        fs::write(&failed, "#!/bin/sh\nexit 1\n").unwrap();
+        for executable in [&available, &failed] {
+            let mut permissions = fs::metadata(executable).unwrap().permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(executable, permissions).unwrap();
+        }
+
+        let mut saw_candidate = false;
+        assert_eq!(
+            probe_agent_candidate(&available, &mut saw_candidate),
+            Some(AgentDiscovery::Available {
+                path: available,
+                version: Some("agent 1.2.3".into()),
+            })
+        );
+        assert!(saw_candidate);
+
+        saw_candidate = false;
+        assert_eq!(probe_agent_candidate(&failed, &mut saw_candidate), None);
+        assert!(saw_candidate);
+
+        saw_candidate = false;
+        assert_eq!(
+            probe_agent_candidate(&directory.path().join("missing-agent"), &mut saw_candidate),
+            None
+        );
+        assert!(!saw_candidate);
     }
 }

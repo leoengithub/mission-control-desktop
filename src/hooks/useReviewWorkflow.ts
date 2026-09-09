@@ -7,6 +7,7 @@ import type {
   PullRequestReviewDetail,
 } from '../contracts';
 import type { MissionControlClient } from '../lib/client';
+import { reconcileSelectedAgent } from '../lib/agents';
 
 export type ReviewActionState = 'idle' | 'running' | 'error';
 
@@ -27,6 +28,14 @@ export function useReviewWorkflow(
   const [actionStates, setActionStates] = useState<Record<string, ReviewActionState>>({});
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
 
+  const applyDetectedAgents = useCallback(
+    (nextAgents: AgentAvailability[]) => {
+      setAgents(nextAgents);
+      setSelectedAgent((current) => reconcileSelectedAgent(current, nextAgents, defaultAgent));
+    },
+    [defaultAgent],
+  );
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -41,20 +50,8 @@ export function useReviewWorkflow(
     ]);
     if (!mountedRef.current) return;
     setRepositories(nextRepositories);
-    setAgents(nextAgents);
-    setSelectedAgent((current) => {
-      if (current && nextAgents.some((agent) => agent.agent === current && agent.available)) {
-        return current;
-      }
-      if (
-        defaultAgent &&
-        nextAgents.some((agent) => agent.agent === defaultAgent && agent.available)
-      ) {
-        return defaultAgent;
-      }
-      return nextAgents.find((agent) => agent.available)?.agent ?? null;
-    });
-  }, [client, defaultAgent]);
+    applyDetectedAgents(nextAgents);
+  }, [applyDetectedAgents, client]);
 
   const loadReview = useCallback(async () => {
     if (!pullRequestId) {
@@ -218,6 +215,12 @@ export function useReviewWorkflow(
     return result;
   }, [client, loadWorkspaceSupport, runAction]);
 
+  const refreshAgents = useCallback(async () => {
+    const result = await runAction('agent-discovery', () => client.detectAgents());
+    if (result && mountedRef.current) applyDetectedAgents(result);
+    return result;
+  }, [applyDetectedAgents, client, runAction]);
+
   const setRepositoryMonitoring = useCallback(
     async (repositoryIds: string[]) => {
       const result = await runAction('repository-monitoring', () =>
@@ -250,6 +253,7 @@ export function useReviewWorkflow(
     requestCopilotReview,
     attachRepository,
     addLocalRepository,
+    refreshAgents,
     setRepositoryMonitoring,
     reloadWorkspaceSupport: loadWorkspaceSupport,
   };

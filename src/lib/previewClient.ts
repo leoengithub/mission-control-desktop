@@ -519,8 +519,24 @@ export function createPreviewClient(preview: string | null): MissionControlClien
     async detectAgents() {
       await wait(80);
       return [
-        { agent: 'codex', label: 'Codex', available: true, version: 'codex 0.122.0' },
-        { agent: 'claude_code', label: 'Claude Code', available: true, version: '2.1.0' },
+        {
+          agent: 'codex',
+          label: 'Codex',
+          available: true,
+          version: 'codex 0.122.0',
+          source: 'preview_fixture',
+          status: 'available',
+          detail: 'Preview fixture. Native agent discovery does not run in the browser preview.',
+        },
+        {
+          agent: 'claude_code',
+          label: 'Claude Code',
+          available: true,
+          version: '2.1.0',
+          source: 'preview_fixture',
+          status: 'available',
+          detail: 'Preview fixture. Native agent discovery does not run in the browser preview.',
+        },
       ];
     },
     async listAgentRuns(pullRequestId) {

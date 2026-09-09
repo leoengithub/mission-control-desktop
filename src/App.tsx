@@ -154,6 +154,7 @@ export function App() {
           onSave={(patch) => void model.saveSettings(patch)}
           onNotificationsEnabled={(enabled) => void model.setNotificationsEnabled(enabled)}
           onAddLocalRepository={() => void reviewWorkflow.addLocalRepository()}
+          onRefreshAgents={() => void reviewWorkflow.refreshAgents()}
           onSetRepositoryMonitoring={(repositoryIds) =>
             void updateRepositoryMonitoring(repositoryIds)
           }

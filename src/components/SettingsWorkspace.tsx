@@ -26,6 +26,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { agentDiscoveryLabel } from '@/lib/agents';
+import { startWindowDrag } from '@/lib/windowDrag';
 
 interface SettingsWorkspaceProps {
   settings: AppSettings | null;
@@ -42,6 +44,7 @@ interface SettingsWorkspaceProps {
   onSave(patch: SettingsPatch): void;
   onNotificationsEnabled(enabled: boolean): void;
   onAddLocalRepository(): void;
+  onRefreshAgents(): void;
   onSetRepositoryMonitoring(repositoryIds: string[]): void;
   onOpenUrl(url: string): void;
   onSwitchAccount(): void;
@@ -89,6 +92,7 @@ export function SettingsWorkspace({
   onSave,
   onNotificationsEnabled,
   onAddLocalRepository,
+  onRefreshAgents,
   onSetRepositoryMonitoring,
   onOpenUrl,
   onSwitchAccount,
@@ -110,31 +114,46 @@ export function SettingsWorkspace({
   if (!settings) {
     return (
       <main
-        className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
+        className="flex min-w-0 flex-1 flex-col bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
         id="main-content"
       >
-        <header
-          className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
-          data-tauri-drag-region
-        >
-          <div className="flex items-center gap-3">
-            <button
-              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
-              type="button"
-              aria-label="Back to reviews"
-              onClick={onBack}
+        <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(330px,370px)_minmax(0,1fr)] max-[1120px]:grid-cols-[340px_minmax(0,1fr)] max-[980px]:grid-cols-[minmax(0,1fr)]">
+          <aside className="flex min-h-0 min-w-0 flex-col max-[980px]:hidden">
+            <header
+              className="flex min-h-11 shrink-0 basis-11 items-center gap-3 border-b border-hairline pr-3 pl-[88px]"
+              data-tauri-drag-region
+              onMouseDown={startWindowDrag}
             >
-              <Icon name="arrow-left" size={17} />
-            </button>
-            <div>
-              <span className="hidden">Captain</span>
-              <h1 className="m-0 text-base font-semibold tracking-[-0.015em]">Settings</h1>
+              <button
+                className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
+                type="button"
+                aria-label="Back to reviews"
+                onClick={onBack}
+              >
+                <Icon name="arrow-left" size={17} />
+              </button>
+              <h1 className="m-0 text-[0.88rem] font-semibold tracking-[-0.015em]">Settings</h1>
+            </header>
+          </aside>
+          <section
+            className="relative z-[1] my-2 mr-2 min-h-0 min-w-0 overflow-hidden rounded-lg border border-surface-raised bg-surface shadow-panel max-[980px]:m-2"
+            aria-label="Settings"
+          >
+            <header
+              className="flex min-h-11 shrink-0 basis-11 items-center justify-end border-b border-hairline px-6 text-[0.78rem] text-ink-secondary"
+              data-tauri-drag-region
+              onMouseDown={startWindowDrag}
+            >
+              Loading settings
+            </header>
+            <div
+              className="mx-auto w-[min(760px,calc(100%-64px))] pt-12"
+              aria-label="Loading settings"
+            >
+              <span className="relative mb-3 block h-[30px] w-[45%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
+              <span className="relative block h-[9px] w-[78%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
             </div>
-          </div>
-        </header>
-        <div className="mx-auto w-[min(640px,calc(100%-64px))] pt-12" aria-label="Loading settings">
-          <span className="relative mb-3 block h-[30px] w-[45%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
-          <span className="relative block h-[9px] w-[78%] overflow-hidden rounded-full bg-surface-muted after:block after:h-full after:w-full after:animate-shimmer after:bg-[linear-gradient(90deg,transparent,oklch(100%_0_0/0.7),transparent)] after:content-['']" />
+          </section>
         </div>
       </main>
     );
@@ -150,539 +169,561 @@ export function SettingsWorkspace({
 
   return (
     <main
-      className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
+      className="flex min-w-0 flex-1 flex-col bg-[color-mix(in_oklch,var(--canvas)_88%,transparent)]"
       id="main-content"
     >
-      <header
-        className="flex min-h-14 items-center justify-between border-b border-hairline bg-surface pr-6 pl-[88px]"
-        data-tauri-drag-region
-      >
-        <div className="flex items-center gap-3">
-          <button
-            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
-            type="button"
-            aria-label="Back to reviews"
-            onClick={onBack}
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(330px,370px)_minmax(0,1fr)] max-[1120px]:grid-cols-[340px_minmax(0,1fr)] max-[980px]:grid-cols-[minmax(0,1fr)]">
+        <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden max-[980px]:hidden">
+          <header
+            className="flex min-h-11 shrink-0 basis-11 items-center gap-3 border-b border-hairline pr-3 pl-[88px]"
+            data-tauri-drag-region
+            onMouseDown={startWindowDrag}
           >
-            <Icon name="arrow-left" size={17} />
-          </button>
-          <div>
-            <span className="hidden">Captain</span>
-            <h1 className="m-0 text-base font-semibold tracking-[-0.015em]">Settings</h1>
-          </div>
-        </div>
-        <div
-          className={cn(
-            'inline-flex items-center gap-1.5 text-[0.78rem] text-ink-secondary',
-            saveState === 'saving' && '[&_svg]:animate-spin',
-            saveState === 'saved' && 'text-success-deep',
-            saveState === 'error' && 'text-danger-deep',
-          )}
-          aria-live="polite"
-        >
-          <Icon
-            name={saveState === 'error' ? 'alert' : saveState === 'saving' ? 'sync' : 'check'}
-            size={14}
-          />
-          <span>
-            {saveState === 'saving'
-              ? 'Saving'
-              : saveState === 'saved'
-                ? 'Saved locally'
-                : saveState === 'error'
-                  ? 'Could not save'
-                  : 'Changes save automatically'}
-          </span>
-        </div>
-      </header>
-
-      {error ? (
-        <div
-          className="flex min-h-9 items-center gap-2 border-b border-danger/35 bg-danger-soft px-6 py-2 text-[0.8125rem] text-danger-deep"
-          role="alert"
-        >
-          <Icon name="alert" size={15} />
-          <span>{error}</span>
-        </div>
-      ) : null}
-
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[220px_minmax(0,1fr)] overflow-hidden max-[1120px]:grid-cols-[190px_minmax(0,1fr)] max-[980px]:grid-cols-[minmax(0,1fr)]">
-        <nav
-          className="flex min-w-0 flex-col gap-0.5 border-r border-hairline bg-[color-mix(in_oklch,var(--info-soft)_42%,var(--surface))] px-4 py-6 max-[980px]:hidden"
-          aria-label="Settings sections"
-        >
-          <span className="px-3 pb-2 text-[0.7rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
-            Workspace
-          </span>
-          <a className={settingsNavLinkClass} href="#sync-settings">
-            <Icon name="sync" size={15} />
-            Synchronization
-          </a>
-          <a className={settingsNavLinkClass} href="#account-settings">
-            <Icon name="github" size={15} />
-            GitHub account
-          </a>
-          <a className={settingsNavLinkClass} href="#repository-settings">
-            <Icon name="branch" size={15} />
-            Repositories
-          </a>
-          <a className={settingsNavLinkClass} href="#notification-settings">
-            <Icon name="alert" size={15} />
-            Notifications
-          </a>
-          <span className="px-3 pt-6 pb-2 text-[0.7rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
-            Tools
-          </span>
-          <a className={settingsNavLinkClass} href="#agent-settings">
-            <Icon name="terminal" size={15} />
-            Local agents
-          </a>
-          <a className={settingsNavLinkClass} href="#application-settings">
-            <Icon name="settings" size={15} />
-            Application
-          </a>
-        </nav>
-
-        <div className="min-h-0 w-full max-w-[980px] overflow-auto px-12 pb-12 max-[1120px]:px-8 max-[980px]:mx-auto max-[980px]:max-w-[860px] max-[980px]:px-6">
-          <section
-            className={settingsSectionClass}
-            id="sync-settings"
-            aria-labelledby="sync-heading"
-          >
-            <div className={settingsHeadingClass}>
-              <span className={settingsIconClass}>
-                <Icon name="sync" size={17} />
-              </span>
-              <div>
-                <h2 className={settingsHeadingTitleClass} id="sync-heading">
-                  GitHub synchronization
-                </h2>
-                <p className={settingsHeadingCopyClass}>
-                  Choose how quickly background monitoring should discover changes.
-                </p>
-              </div>
-            </div>
-            <div
-              className="mt-4 grid grid-cols-3 gap-[3px] rounded-md border border-hairline bg-surface-muted p-[3px] max-[980px]:grid-cols-1"
-              role="radiogroup"
-              aria-label="Synchronization cadence"
+            <button
+              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-sm bg-transparent text-ink-secondary transition-[background,color,transform] duration-state ease-out hover:bg-surface-muted hover:text-ink active:scale-[0.94]"
+              type="button"
+              aria-label="Back to reviews"
+              onClick={onBack}
             >
-              {syncOptions.map((option) => (
-                <button
-                  className={cn(
-                    'grid min-h-[66px] cursor-pointer grid-cols-[18px_minmax(0,1fr)] content-center items-center gap-x-2 gap-y-[3px] rounded-[8px] border border-transparent bg-transparent p-3 text-left transition-[border-color,background,transform] duration-state ease-out hover:border-hairline hover:bg-surface/60 active:scale-[0.99]',
-                    settings.sync.preset === option.value &&
-                      'border-hairline bg-surface shadow-[0_1px_3px_oklch(28%_0.01_128/0.1)]',
-                  )}
-                  type="button"
-                  role="radio"
-                  aria-checked={settings.sync.preset === option.value}
-                  disabled={saving}
-                  key={option.value}
-                  onClick={() => onSave({ sync: { preset: option.value } })}
-                >
-                  <span
-                    className={cn(
-                      'grid size-[17px] place-items-center rounded-full border border-hairline-strong bg-surface text-success-deep',
-                      settings.sync.preset === option.value && 'border-success',
-                    )}
-                  >
-                    {settings.sync.preset === option.value ? <Icon name="check" size={13} /> : null}
-                  </span>
-                  <strong className="text-[0.8125rem]">{option.label}</strong>
-                  <span className="col-start-2 text-[0.72rem] text-ink-secondary">
-                    {option.description}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section
-            className={settingsSectionClass}
-            id="account-settings"
-            aria-labelledby="github-account-heading"
+              <Icon name="arrow-left" size={17} />
+            </button>
+            <h1 className="m-0 text-[0.88rem] font-semibold tracking-[-0.015em]">Settings</h1>
+          </header>
+          <nav
+            className="flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-auto bg-[color-mix(in_oklch,var(--info-soft)_42%,var(--canvas))] px-4 py-6"
+            aria-label="Settings sections"
           >
-            <div className={settingsHeadingClass}>
-              <span className={settingsIconClass}>
-                <Icon name="github" size={17} />
-              </span>
-              <div>
-                <h2 className={settingsHeadingTitleClass} id="github-account-heading">
-                  GitHub account
-                </h2>
-                <p className={settingsHeadingCopyClass}>
-                  Captain follows the active GitHub CLI account and never requires a repository
-                  installation.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between gap-4 rounded-md border border-hairline bg-surface p-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <span
-                  className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-selected text-success-deep"
-                  aria-hidden="true"
-                >
-                  <Icon name="github" size={18} />
-                </span>
-                <span className="grid min-w-0 gap-0.5">
-                  <strong className="text-sm">
-                    {githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}
-                  </strong>
-                  <small className="text-xs text-ink-secondary">
-                    Credentials remain managed by GitHub CLI outside Captain.
-                  </small>
-                </span>
-              </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={accountBusy}
-                  onClick={() => onOpenUrl(authorizationSettingsUrl)}
-                >
-                  Review GitHub CLI authorization
-                  <Icon name="arrow-up-right" size={14} />
-                </Button>
-                <AccountActionDialog
-                  action="switch"
-                  busy={accountBusy}
-                  onConfirm={onSwitchAccount}
-                />
-                <AccountActionDialog
-                  action="disconnect"
-                  busy={accountBusy}
-                  onConfirm={onDisconnectAccount}
-                />
-              </div>
-            </div>
-          </section>
+            <span className="px-3 pb-2 text-[0.7rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+              Workspace
+            </span>
+            <a className={settingsNavLinkClass} href="#sync-settings">
+              <Icon name="sync" size={15} />
+              Synchronization
+            </a>
+            <a className={settingsNavLinkClass} href="#account-settings">
+              <Icon name="github" size={15} />
+              GitHub account
+            </a>
+            <a className={settingsNavLinkClass} href="#repository-settings">
+              <Icon name="branch" size={15} />
+              Repositories
+            </a>
+            <a className={settingsNavLinkClass} href="#notification-settings">
+              <Icon name="alert" size={15} />
+              Notifications
+            </a>
+            <span className="px-3 pt-6 pb-2 text-[0.7rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+              Tools
+            </span>
+            <a className={settingsNavLinkClass} href="#agent-settings">
+              <Icon name="terminal" size={15} />
+              Local agents
+            </a>
+            <a className={settingsNavLinkClass} href="#application-settings">
+              <Icon name="settings" size={15} />
+              Application
+            </a>
+          </nav>
+        </aside>
 
-          <section
-            className={settingsSectionClass}
-            id="repository-settings"
-            aria-labelledby="repositories-heading"
+        <section
+          className="relative z-[1] my-2 mr-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-surface-raised bg-surface shadow-panel max-[980px]:m-2"
+          aria-label="Settings details"
+        >
+          <header
+            className="flex min-h-11 shrink-0 basis-11 items-center justify-end border-b border-hairline px-6"
+            data-tauri-drag-region
+            onMouseDown={startWindowDrag}
           >
-            <div className={settingsHeadingClass}>
-              <span className={settingsIconClass}>
-                <Icon name="branch" size={17} />
-              </span>
-              <div>
-                <h2 className={settingsHeadingTitleClass} id="repositories-heading">
-                  Repositories
-                </h2>
-                <p className={settingsHeadingCopyClass}>
-                  These are repositories visible to the active GitHub CLI account
-                  {githubLogin ? ` @${githubLogin}` : ''}. Choose which appear in the inbox, then
-                  optionally attach local Git roots for fix sessions.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 border-b border-hairline py-3 max-[720px]:items-stretch max-[720px]:flex-col">
-              <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-2 focus-within:ring-focus/12">
-                <span className="sr-only">Search accessible repositories</span>
-                <Icon name="search" size={15} />
-                <input
-                  data-composite-input
-                  className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
-                  type="search"
-                  value={repositoryQuery}
-                  onChange={(event) => setRepositoryQuery(event.target.value)}
-                  placeholder="Search repositories"
-                />
-              </label>
-              <Button
-                variant="outline"
-                type="button"
-                disabled={actionStates['add-local-repository'] === 'running'}
-                onClick={onAddLocalRepository}
-              >
-                <Icon name="folder-plus" size={15} />
-                {actionStates['add-local-repository'] === 'running'
-                  ? 'Adding repository…'
-                  : 'Add local repository'}
-              </Button>
-            </div>
-            {actionErrors['add-local-repository'] ? (
-              <p className={cn(inlineErrorClass, 'mt-3')} role="alert">
-                <Icon name="alert" size={13} /> {actionErrors['add-local-repository']}
-              </p>
-            ) : null}
-            {actionErrors['repository-monitoring'] ? (
-              <p className={inlineErrorClass} role="alert">
-                <Icon name="alert" size={13} /> {actionErrors['repository-monitoring']}
-              </p>
-            ) : null}
-            <div className="flex flex-col">
-              {filteredRepositories.length > 0 ? (
-                filteredRepositories.map((repository) => (
-                  <RepositorySetting
-                    repository={repository}
-                    monitoringBusy={actionStates['repository-monitoring'] === 'running'}
-                    onMonitorChange={(checked) => {
-                      const monitoredIds = repositories
-                        .filter((candidate) =>
-                          candidate.repositoryId === repository.repositoryId
-                            ? checked
-                            : candidate.monitored,
-                        )
-                        .map((candidate) => candidate.repositoryId);
-                      onSetRepositoryMonitoring(monitoredIds);
-                    }}
-                    key={repository.repositoryId}
-                  />
-                ))
-              ) : (
-                <p className="m-0 py-4 text-ink-muted">
-                  {repositories.length === 0
-                    ? 'Repositories appear after GitHub access is synchronized.'
-                    : 'No accessible repository matches that search.'}
-                </p>
+            <div
+              className={cn(
+                'inline-flex items-center gap-1.5 text-[0.78rem] text-ink-secondary',
+                saveState === 'saving' && '[&_svg]:animate-spin',
+                saveState === 'saved' && 'text-success-deep',
+                saveState === 'error' && 'text-danger-deep',
               )}
-            </div>
-            <div className="mt-4 flex flex-col border-t border-hairline">
-              <label className="flex min-h-14 cursor-default items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
-                <span className="grid min-w-0 flex-1 gap-[3px]">
-                  <strong className="text-sm">Worktree directory</strong>
-                  <span className="text-[0.78rem] text-ink-secondary">
-                    Leave empty to use a managed sibling directory beside each repository.
-                  </span>
-                </span>
-                <Input
-                  className="min-h-9 w-[min(46%,420px)] rounded-sm border-hairline-strong bg-surface-raised px-2.5 py-0 text-ink"
-                  type="text"
-                  defaultValue={settings.worktrees.baseDirectory ?? ''}
-                  placeholder={automaticWorktreeDirectory}
-                  disabled={saving}
-                  onBlur={(event) =>
-                    onSave({
-                      worktrees: {
-                        ...settings.worktrees,
-                        baseDirectory: event.target.value.trim() || null,
-                      },
-                    })
-                  }
-                />
-              </label>
-              <label className="flex min-h-14 cursor-default items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
-                <span className="grid min-w-0 flex-1 gap-[3px]">
-                  <strong className="text-sm">Cleanup policy</strong>
-                  <span className="text-[0.78rem] text-ink-secondary">
-                    Dirty worktrees and unique commits are always preserved.
-                  </span>
-                </span>
-                <select
-                  className="min-h-[34px] w-[min(46%,420px)] cursor-pointer rounded-sm border border-hairline-strong bg-surface-raised py-0 pr-[30px] pl-2.5 text-ink"
-                  value={settings.worktrees.cleanupPolicy}
-                  disabled={saving}
-                  onChange={(event) =>
-                    onSave({
-                      worktrees: {
-                        ...settings.worktrees,
-                        cleanupPolicy: event.target
-                          .value as AppSettings['worktrees']['cleanupPolicy'],
-                      },
-                    })
-                  }
-                >
-                  <option value="safe_only">Remove unchanged worktrees</option>
-                  <option value="always_preserve">Always preserve</option>
-                  <option value="always_ask">Preserve for manual cleanup</option>
-                </select>
-              </label>
-            </div>
-          </section>
-
-          <section
-            className={settingsSectionClass}
-            id="notification-settings"
-            aria-labelledby="notifications-heading"
-          >
-            <SettingToggle
-              icon="alert"
-              headingId="notifications-heading"
-              title="Native notifications"
-              description="Alert only when a pull request newly escalates into an actionable state."
-              checked={settings.notifications.enabled}
-              disabled={saving}
-              onChange={onNotificationsEnabled}
-            />
-            {notificationPermission === 'denied' ? (
-              <p className="mt-2 mb-0 flex items-center gap-2 pl-11 text-[0.78rem] text-danger-deep">
-                <Icon name="alert" size={14} />
-                Notifications are blocked by the operating system. Re-enable them in system
-                settings.
-              </p>
-            ) : null}
-            <div className="grid gap-2 pt-4 pl-11" aria-label="Pull request notification reasons">
-              <span className="mb-1 text-[0.72rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
-                Notify me when
-              </span>
-              <ReasonCheckbox
-                label="My review is requested"
-                checked={settings.notifications.reviewRequested}
-                disabled={!settings.notifications.enabled || saving}
-                onChange={(checked) => updateNotificationReason('reviewRequested', checked)}
-              />
-              <ReasonCheckbox
-                label="A review thread on my pull request is unresolved"
-                checked={settings.notifications.unresolvedThread}
-                disabled={!settings.notifications.enabled || saving}
-                onChange={(checked) => updateNotificationReason('unresolvedThread', checked)}
-              />
-              <ReasonCheckbox
-                label="Required checks on my pull request are failing"
-                checked={settings.notifications.requiredChecksFailing}
-                disabled={!settings.notifications.enabled || saving}
-                onChange={(checked) => updateNotificationReason('requiredChecksFailing', checked)}
-              />
-            </div>
-          </section>
-
-          <section
-            className={settingsSectionClass}
-            id="agent-settings"
-            aria-labelledby="agents-heading"
-          >
-            <div className={settingsHeadingClass}>
-              <span className={settingsIconClass}>
-                <Icon name="terminal" size={17} />
-              </span>
-              <div>
-                <h2 className={settingsHeadingTitleClass} id="agents-heading">
-                  Local agents
-                </h2>
-                <p className={settingsHeadingCopyClass}>
-                  Select the default for review replies and isolated fix sessions.
-                </p>
-              </div>
-            </div>
-            <div
-              className="ml-11 grid w-[calc(100%-44px)] grid-cols-2 gap-3 max-[980px]:grid-cols-1"
-              role="radiogroup"
-              aria-label="Default local agent"
+              aria-live="polite"
             >
-              {agents.map((agent) => (
-                <button
-                  className={cn(
-                    'grid min-h-[70px] cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-hairline bg-surface p-3 text-left hover:border-hairline-strong hover:bg-surface-raised',
-                    settings.agents.defaultAgent === agent.agent &&
-                      'border-success/45 bg-success-soft',
-                  )}
-                  type="button"
-                  role="radio"
-                  aria-checked={settings.agents.defaultAgent === agent.agent}
-                  disabled={!agent.available || saving}
-                  key={agent.agent}
-                  onClick={() =>
-                    onSave({ agents: { ...settings.agents, defaultAgent: agent.agent } })
-                  }
-                >
-                  <span
+              <Icon
+                name={saveState === 'error' ? 'alert' : saveState === 'saving' ? 'sync' : 'check'}
+                size={14}
+              />
+              <span>
+                {saveState === 'saving'
+                  ? 'Saving'
+                  : saveState === 'saved'
+                    ? 'Saved locally'
+                    : saveState === 'error'
+                      ? 'Could not save'
+                      : 'Changes save automatically'}
+              </span>
+            </div>
+          </header>
+
+          {error ? (
+            <div
+              className="flex min-h-9 items-center gap-2 border-b border-danger/35 bg-danger-soft px-6 py-2 text-[0.8125rem] text-danger-deep"
+              role="alert"
+            >
+              <Icon name="alert" size={15} />
+              <span>{error}</span>
+            </div>
+          ) : null}
+
+          <div className="mx-auto min-h-0 w-full max-w-[1080px] flex-1 overflow-auto px-12 pb-12 max-[1120px]:px-8 max-[980px]:max-w-[860px] max-[980px]:px-6">
+            <section
+              className={settingsSectionClass}
+              id="sync-settings"
+              aria-labelledby="sync-heading"
+            >
+              <div className={settingsHeadingClass}>
+                <span className={settingsIconClass}>
+                  <Icon name="sync" size={17} />
+                </span>
+                <div>
+                  <h2 className={settingsHeadingTitleClass} id="sync-heading">
+                    GitHub synchronization
+                  </h2>
+                  <p className={settingsHeadingCopyClass}>
+                    Choose how quickly background monitoring should discover changes.
+                  </p>
+                </div>
+              </div>
+              <div
+                className="mt-4 grid grid-cols-3 gap-[3px] rounded-md border border-hairline bg-surface-muted p-[3px] max-[980px]:grid-cols-1"
+                role="radiogroup"
+                aria-label="Synchronization cadence"
+              >
+                {syncOptions.map((option) => (
+                  <button
                     className={cn(
-                      'grid size-[26px] place-items-center rounded-full border border-hairline-strong text-ink-secondary',
-                      settings.agents.defaultAgent === agent.agent &&
-                        'border-success text-success-deep',
+                      'grid min-h-[66px] cursor-pointer grid-cols-[18px_minmax(0,1fr)] content-center items-center gap-x-2 gap-y-[3px] rounded-[8px] border border-transparent bg-transparent p-3 text-left transition-[border-color,background,transform] duration-state ease-out hover:border-hairline hover:bg-surface/60 active:scale-[0.99]',
+                      settings.sync.preset === option.value &&
+                        'border-hairline bg-surface shadow-[0_1px_3px_oklch(28%_0.01_128/0.1)]',
                     )}
+                    type="button"
+                    role="radio"
+                    aria-checked={settings.sync.preset === option.value}
+                    disabled={saving}
+                    key={option.value}
+                    onClick={() => onSave({ sync: { preset: option.value } })}
                   >
-                    <Icon name={agent.available ? 'check' : 'alert'} size={14} />
+                    <span
+                      className={cn(
+                        'grid size-[17px] place-items-center rounded-full border border-hairline-strong bg-surface text-success-deep',
+                        settings.sync.preset === option.value && 'border-success',
+                      )}
+                    >
+                      {settings.sync.preset === option.value ? (
+                        <Icon name="check" size={13} />
+                      ) : null}
+                    </span>
+                    <strong className="text-[0.8125rem]">{option.label}</strong>
+                    <span className="col-start-2 text-[0.72rem] text-ink-secondary">
+                      {option.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section
+              className={settingsSectionClass}
+              id="account-settings"
+              aria-labelledby="github-account-heading"
+            >
+              <div className={settingsHeadingClass}>
+                <span className={settingsIconClass}>
+                  <Icon name="github" size={17} />
+                </span>
+                <div>
+                  <h2 className={settingsHeadingTitleClass} id="github-account-heading">
+                    GitHub account
+                  </h2>
+                  <p className={settingsHeadingCopyClass}>
+                    Captain follows the active GitHub CLI account and never requires a repository
+                    installation.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-4 rounded-md border border-hairline bg-surface p-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-selected text-success-deep"
+                    aria-hidden="true"
+                  >
+                    <Icon name="github" size={18} />
                   </span>
-                  <span className="flex min-w-0 flex-col">
-                    <strong>{agent.label}</strong>
-                    <small className="text-[0.68rem] text-ink-muted">
-                      {agent.available
-                        ? agent.version || 'Installed'
-                        : agent.agent === 'codex'
-                          ? 'Not found. Add Codex to PATH or set MC_CODEX_PATH.'
-                          : 'Not found. Add Claude to PATH or set MC_CLAUDE_PATH.'}
+                  <span className="grid min-w-0 gap-0.5">
+                    <strong className="text-sm">
+                      {githubLogin ? `@${githubLogin}` : 'No GitHub account connected'}
+                    </strong>
+                    <small className="text-xs text-ink-secondary">
+                      Credentials remain managed by GitHub CLI outside Captain.
                     </small>
                   </span>
-                  <span className="text-[0.68rem] text-ink-muted">
-                    {settings.agents.defaultAgent === agent.agent ? 'Default' : 'Available'}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="grid gap-2 pt-4 pl-11" aria-label="Agent permission behavior">
-              <span className="mb-1 text-[0.72rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
-                Interactive session permissions
-              </span>
-              <ReasonCheckbox
-                label="Allow Codex to bypass its approval sandbox in fix sessions"
-                checked={settings.agents.codexPermissionBypass}
-                disabled={
-                  saving || !agents.some((agent) => agent.agent === 'codex' && agent.available)
-                }
-                onChange={(codexPermissionBypass) =>
-                  onSave({ agents: { ...settings.agents, codexPermissionBypass } })
-                }
-              />
-              <ReasonCheckbox
-                label="Allow Claude Code to bypass permission prompts in fix sessions"
-                checked={settings.agents.claudePermissionBypass}
-                disabled={
-                  saving ||
-                  !agents.some((agent) => agent.agent === 'claude_code' && agent.available)
-                }
-                onChange={(claudePermissionBypass) =>
-                  onSave({ agents: { ...settings.agents, claudePermissionBypass } })
-                }
-              />
-              {settings.agents.codexPermissionBypass || settings.agents.claudePermissionBypass ? (
-                <p className="mt-2 mb-0 flex items-center gap-2 text-[0.78rem] text-danger-deep">
-                  <Icon name="alert" size={14} />
-                  Permission bypass applies only to interactive sessions and increases local risk.
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={accountBusy}
+                    onClick={() => onOpenUrl(authorizationSettingsUrl)}
+                  >
+                    Review GitHub CLI authorization
+                    <Icon name="arrow-up-right" size={14} />
+                  </Button>
+                  <AccountActionDialog
+                    action="switch"
+                    busy={accountBusy}
+                    onConfirm={onSwitchAccount}
+                  />
+                  <AccountActionDialog
+                    action="disconnect"
+                    busy={accountBusy}
+                    onConfirm={onDisconnectAccount}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section
+              className={settingsSectionClass}
+              id="repository-settings"
+              aria-labelledby="repositories-heading"
+            >
+              <div className={settingsHeadingClass}>
+                <span className={settingsIconClass}>
+                  <Icon name="branch" size={17} />
+                </span>
+                <div>
+                  <h2 className={settingsHeadingTitleClass} id="repositories-heading">
+                    Repositories
+                  </h2>
+                  <p className={settingsHeadingCopyClass}>
+                    These are repositories visible to the active GitHub CLI account
+                    {githubLogin ? ` @${githubLogin}` : ''}. Choose which appear in the inbox, then
+                    optionally attach local Git roots for fix sessions.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 border-b border-hairline py-3 max-[720px]:items-stretch max-[720px]:flex-col">
+                <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-sm border border-hairline-strong bg-surface-raised px-3 text-ink-muted transition-[border-color,box-shadow] duration-state ease-out focus-within:border-focus focus-within:ring-2 focus-within:ring-focus/12">
+                  <span className="sr-only">Search accessible repositories</span>
+                  <Icon name="search" size={15} />
+                  <input
+                    data-composite-input
+                    className="h-9 w-full min-w-0 border-0 bg-transparent p-0 text-[0.8125rem] text-ink outline-none placeholder:text-ink-secondary"
+                    type="search"
+                    value={repositoryQuery}
+                    onChange={(event) => setRepositoryQuery(event.target.value)}
+                    placeholder="Search repositories"
+                  />
+                </label>
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={actionStates['add-local-repository'] === 'running'}
+                  onClick={onAddLocalRepository}
+                >
+                  <Icon name="folder-plus" size={15} />
+                  {actionStates['add-local-repository'] === 'running'
+                    ? 'Adding repository…'
+                    : 'Add local repository'}
+                </Button>
+              </div>
+              {actionErrors['add-local-repository'] ? (
+                <p className={cn(inlineErrorClass, 'mt-3')} role="alert">
+                  <Icon name="alert" size={13} /> {actionErrors['add-local-repository']}
                 </p>
               ) : null}
-            </div>
-          </section>
-
-          <section
-            className={settingsSectionClass}
-            id="application-settings"
-            aria-labelledby="general-heading"
-          >
-            <div className={settingsHeadingClass}>
-              <span className={settingsIconClass}>
-                <Icon name="settings" size={17} />
-              </span>
-              <div>
-                <h2 className={settingsHeadingTitleClass} id="general-heading">
-                  Application behavior
-                </h2>
-                <p className={settingsHeadingCopyClass}>
-                  Keep monitoring available without making Captain intrusive.
+              {actionErrors['repository-monitoring'] ? (
+                <p className={inlineErrorClass} role="alert">
+                  <Icon name="alert" size={13} /> {actionErrors['repository-monitoring']}
                 </p>
+              ) : null}
+              <div className="flex flex-col">
+                {filteredRepositories.length > 0 ? (
+                  filteredRepositories.map((repository) => (
+                    <RepositorySetting
+                      repository={repository}
+                      monitoringBusy={actionStates['repository-monitoring'] === 'running'}
+                      onMonitorChange={(checked) => {
+                        const monitoredIds = repositories
+                          .filter((candidate) =>
+                            candidate.repositoryId === repository.repositoryId
+                              ? checked
+                              : candidate.monitored,
+                          )
+                          .map((candidate) => candidate.repositoryId);
+                        onSetRepositoryMonitoring(monitoredIds);
+                      }}
+                      key={repository.repositoryId}
+                    />
+                  ))
+                ) : (
+                  <p className="m-0 py-4 text-ink-muted">
+                    {repositories.length === 0
+                      ? 'Repositories appear after GitHub access is synchronized.'
+                      : 'No accessible repository matches that search.'}
+                  </p>
+                )}
               </div>
-            </div>
-            <div className="grid gap-2 pt-3 pl-11">
-              <SettingToggle
-                title="Launch at login"
-                description="Start background monitoring when you sign in to this computer."
-                checked={settings.general.launchAtLogin}
-                disabled={saving}
-                onChange={(launchAtLogin) =>
-                  onSave({ general: { ...settings.general, launchAtLogin } })
-                }
-              />
-              <div className="flex min-h-14 items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
-                <div className="grid min-w-0 flex-1 gap-[3px]">
-                  <strong className="text-sm">When closing the window</strong>
-                  <span className="text-[0.78rem] text-ink-secondary">
-                    Choose whether Captain keeps monitoring in the menu bar.
+              <div className="mt-4 flex flex-col border-t border-hairline">
+                <label className="flex min-h-14 cursor-default items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
+                  <span className="grid min-w-0 flex-1 gap-[3px]">
+                    <strong className="text-sm">Worktree directory</strong>
+                    <span className="text-[0.78rem] text-ink-secondary">
+                      Leave empty to use a managed sibling directory beside each repository.
+                    </span>
                   </span>
-                </div>
-                <CloseBehaviorControl
-                  value={settings.general.closeBehavior}
-                  disabled={saving}
-                  onChange={(closeBehavior) =>
-                    onSave({ general: { ...settings.general, closeBehavior } })
-                  }
+                  <Input
+                    className="min-h-9 w-[min(46%,420px)] rounded-sm border-hairline-strong bg-surface-raised px-2.5 py-0 text-ink"
+                    type="text"
+                    defaultValue={settings.worktrees.baseDirectory ?? ''}
+                    placeholder={automaticWorktreeDirectory}
+                    disabled={saving}
+                    onBlur={(event) =>
+                      onSave({
+                        worktrees: {
+                          ...settings.worktrees,
+                          baseDirectory: event.target.value.trim() || null,
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="flex min-h-14 cursor-default items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
+                  <span className="grid min-w-0 flex-1 gap-[3px]">
+                    <strong className="text-sm">Cleanup policy</strong>
+                    <span className="text-[0.78rem] text-ink-secondary">
+                      Dirty worktrees and unique commits are always preserved.
+                    </span>
+                  </span>
+                  <select
+                    className="min-h-[34px] w-[min(46%,420px)] cursor-pointer rounded-sm border border-hairline-strong bg-surface-raised py-0 pr-[30px] pl-2.5 text-ink"
+                    value={settings.worktrees.cleanupPolicy}
+                    disabled={saving}
+                    onChange={(event) =>
+                      onSave({
+                        worktrees: {
+                          ...settings.worktrees,
+                          cleanupPolicy: event.target
+                            .value as AppSettings['worktrees']['cleanupPolicy'],
+                        },
+                      })
+                    }
+                  >
+                    <option value="safe_only">Remove unchanged worktrees</option>
+                    <option value="always_preserve">Always preserve</option>
+                    <option value="always_ask">Preserve for manual cleanup</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section
+              className={settingsSectionClass}
+              id="notification-settings"
+              aria-labelledby="notifications-heading"
+            >
+              <SettingToggle
+                icon="alert"
+                headingId="notifications-heading"
+                title="Native notifications"
+                description="Alert only when a pull request newly escalates into an actionable state."
+                checked={settings.notifications.enabled}
+                disabled={saving}
+                onChange={onNotificationsEnabled}
+              />
+              {notificationPermission === 'denied' ? (
+                <p className="mt-2 mb-0 flex items-center gap-2 pl-11 text-[0.78rem] text-danger-deep">
+                  <Icon name="alert" size={14} />
+                  Notifications are blocked by the operating system. Re-enable them in system
+                  settings.
+                </p>
+              ) : null}
+              <div className="grid gap-2 pt-4 pl-11" aria-label="Pull request notification reasons">
+                <span className="mb-1 text-[0.72rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+                  Notify me when
+                </span>
+                <ReasonCheckbox
+                  label="My review is requested"
+                  checked={settings.notifications.reviewRequested}
+                  disabled={!settings.notifications.enabled || saving}
+                  onChange={(checked) => updateNotificationReason('reviewRequested', checked)}
+                />
+                <ReasonCheckbox
+                  label="A review thread on my pull request is unresolved"
+                  checked={settings.notifications.unresolvedThread}
+                  disabled={!settings.notifications.enabled || saving}
+                  onChange={(checked) => updateNotificationReason('unresolvedThread', checked)}
+                />
+                <ReasonCheckbox
+                  label="Required checks on my pull request are failing"
+                  checked={settings.notifications.requiredChecksFailing}
+                  disabled={!settings.notifications.enabled || saving}
+                  onChange={(checked) => updateNotificationReason('requiredChecksFailing', checked)}
                 />
               </div>
-            </div>
-          </section>
-        </div>
+            </section>
+
+            <section
+              className={settingsSectionClass}
+              id="agent-settings"
+              aria-labelledby="agents-heading"
+            >
+              <div className={settingsHeadingClass}>
+                <span className={settingsIconClass}>
+                  <Icon name="terminal" size={17} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 className={settingsHeadingTitleClass} id="agents-heading">
+                    Local agents
+                  </h2>
+                  <p className={settingsHeadingCopyClass}>
+                    Select the default for review replies and isolated fix sessions.
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  disabled={actionStates['agent-discovery'] === 'running'}
+                  onClick={onRefreshAgents}
+                >
+                  <Icon name="refresh" size={14} />
+                  {actionStates['agent-discovery'] === 'running' ? 'Detecting…' : 'Refresh'}
+                </Button>
+              </div>
+              {actionErrors['agent-discovery'] ? (
+                <p className={cn(inlineErrorClass, 'mt-3 ml-11')} role="alert">
+                  <Icon name="alert" size={13} /> {actionErrors['agent-discovery']}
+                </p>
+              ) : null}
+              <div
+                className="ml-11 grid w-[calc(100%-44px)] grid-cols-2 gap-3 max-[980px]:grid-cols-1"
+                role="radiogroup"
+                aria-label="Default local agent"
+              >
+                {agents.map((agent) => (
+                  <button
+                    className={cn(
+                      'grid min-h-[70px] cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-hairline bg-surface p-3 text-left hover:border-hairline-strong hover:bg-surface-raised',
+                      settings.agents.defaultAgent === agent.agent &&
+                        'border-success/45 bg-success-soft',
+                    )}
+                    type="button"
+                    role="radio"
+                    aria-checked={settings.agents.defaultAgent === agent.agent}
+                    disabled={!agent.available || saving}
+                    key={agent.agent}
+                    onClick={() =>
+                      onSave({ agents: { ...settings.agents, defaultAgent: agent.agent } })
+                    }
+                  >
+                    <span
+                      className={cn(
+                        'grid size-[26px] place-items-center rounded-full border border-hairline-strong text-ink-secondary',
+                        settings.agents.defaultAgent === agent.agent &&
+                          'border-success text-success-deep',
+                      )}
+                    >
+                      <Icon name={agent.available ? 'check' : 'alert'} size={14} />
+                    </span>
+                    <span className="flex min-w-0 flex-col">
+                      <strong>{agent.label}</strong>
+                      <small className="text-[0.68rem] text-ink-muted">
+                        {agentAvailabilityDetail(agent)}
+                      </small>
+                    </span>
+                    <span className="text-[0.68rem] text-ink-muted">
+                      {agentAvailabilityLabel(agent, settings.agents.defaultAgent === agent.agent)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="grid gap-2 pt-4 pl-11" aria-label="Agent permission behavior">
+                <span className="mb-1 text-[0.72rem] font-semibold tracking-[0.04em] text-ink-muted uppercase">
+                  Interactive session permissions
+                </span>
+                <ReasonCheckbox
+                  label="Allow Codex to bypass its approval sandbox in fix sessions"
+                  checked={settings.agents.codexPermissionBypass}
+                  disabled={
+                    saving || !agents.some((agent) => agent.agent === 'codex' && agent.available)
+                  }
+                  onChange={(codexPermissionBypass) =>
+                    onSave({ agents: { ...settings.agents, codexPermissionBypass } })
+                  }
+                />
+                <ReasonCheckbox
+                  label="Allow Claude Code to bypass permission prompts in fix sessions"
+                  checked={settings.agents.claudePermissionBypass}
+                  disabled={
+                    saving ||
+                    !agents.some((agent) => agent.agent === 'claude_code' && agent.available)
+                  }
+                  onChange={(claudePermissionBypass) =>
+                    onSave({ agents: { ...settings.agents, claudePermissionBypass } })
+                  }
+                />
+                {settings.agents.codexPermissionBypass || settings.agents.claudePermissionBypass ? (
+                  <p className="mt-2 mb-0 flex items-center gap-2 text-[0.78rem] text-danger-deep">
+                    <Icon name="alert" size={14} />
+                    Permission bypass applies only to interactive sessions and increases local risk.
+                  </p>
+                ) : null}
+              </div>
+            </section>
+
+            <section
+              className={settingsSectionClass}
+              id="application-settings"
+              aria-labelledby="general-heading"
+            >
+              <div className={settingsHeadingClass}>
+                <span className={settingsIconClass}>
+                  <Icon name="settings" size={17} />
+                </span>
+                <div>
+                  <h2 className={settingsHeadingTitleClass} id="general-heading">
+                    Application behavior
+                  </h2>
+                  <p className={settingsHeadingCopyClass}>
+                    Keep monitoring available without making Captain intrusive.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-2 pt-3 pl-11">
+                <SettingToggle
+                  title="Launch at login"
+                  description="Start background monitoring when you sign in to this computer."
+                  checked={settings.general.launchAtLogin}
+                  disabled={saving}
+                  onChange={(launchAtLogin) =>
+                    onSave({ general: { ...settings.general, launchAtLogin } })
+                  }
+                />
+                <div className="flex min-h-14 items-center gap-3 border-b border-hairline py-2 last:border-b-0 max-[980px]:items-start">
+                  <div className="grid min-w-0 flex-1 gap-[3px]">
+                    <strong className="text-sm">When closing the window</strong>
+                    <span className="text-[0.78rem] text-ink-secondary">
+                      Choose whether Captain keeps monitoring in the menu bar.
+                    </span>
+                  </div>
+                  <CloseBehaviorControl
+                    value={settings.general.closeBehavior}
+                    disabled={saving}
+                    onChange={(closeBehavior) =>
+                      onSave({ general: { ...settings.general, closeBehavior } })
+                    }
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
       </div>
     </main>
   );
@@ -702,6 +743,17 @@ function resolveAutomaticWorktreeDirectory(repositories: LocalRepositoryAttachme
     parentBoundary === 0 ? separator : normalizedPath.slice(0, Math.max(parentBoundary, 0));
 
   return `${parentPath}${parentPath.endsWith(separator) ? '' : separator}.mission-control-worktrees`;
+}
+
+function agentAvailabilityDetail(agent: AgentAvailability): string {
+  if (agent.source === 'preview_fixture') return agent.detail;
+  if (agent.available) return agent.version || agent.detail;
+  return agent.detail;
+}
+
+function agentAvailabilityLabel(agent: AgentAvailability, isDefault: boolean): string {
+  const discoveryLabel = agentDiscoveryLabel(agent);
+  return isDefault ? `Default · ${discoveryLabel}` : discoveryLabel;
 }
 
 function RepositorySetting({

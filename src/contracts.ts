@@ -182,6 +182,8 @@ export interface LocalRepositoryAttachment {
 
 export type AgentAction = 'reply_resolve' | 'fix_reply_resolve' | 'open_terminal';
 export type AgentRunStatus = 'running' | 'completed' | 'failed' | 'interrupted' | 'stalled';
+export type AgentDiscoverySource = 'native' | 'preview_fixture';
+export type AgentDiscoveryStatus = 'available' | 'not_found' | 'probe_failed';
 
 export interface AgentRun {
   id: string;
@@ -206,6 +208,9 @@ export interface AgentAvailability {
   label: string;
   available: boolean;
   version: string | null;
+  source: AgentDiscoverySource;
+  status: AgentDiscoveryStatus;
+  detail: string;
 }
 
 export interface TerminalEvent {
