@@ -19,7 +19,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Check out the verified commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: pnpm/action-setup@v4
